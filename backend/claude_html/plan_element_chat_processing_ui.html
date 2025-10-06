@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Plan: Element Chat Processing UI Enhancements</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #FFF5F2 0%, #FCE2D7 100%);
+            padding: 16px;
+            line-height: 1.6;
+            color: #2F1B1B;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #8B0000;
+            border-bottom: 3px solid #C23B22;
+            padding-bottom: 8px;
+        }
+        h2 {
+            font-size: 18px;
+            margin: 16px 0 8px 0;
+            color: #B22222;
+            border-left: 4px solid #D96F5C;
+            padding-left: 12px;
+        }
+        h3 {
+            font-size: 15px;
+            margin: 12px 0 6px 0;
+            color: #C23B22;
+        }
+        .important-always-visible {
+            background: linear-gradient(135deg, #FFF8F4, #FFE9DD);
+            border: 2px solid #C23B22;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.15);
+        }
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 768px) {
+            .two-column-layout { grid-template-columns: 1fr; }
+        }
+        .collapsible {
+            border: 1px solid #E6A38C;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+        .collapsible.critical { border: 2px solid #8B0000; }
+        .collapsible.secondary { border: 1px solid #E6A38C; }
+        .collapsible.full-width { grid-column: 1 / -1; }
+        .collapsible-header {
+            background: linear-gradient(135deg, #8B0000, #C23B22);
+            color: #FFFFFF;
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .collapsible.secondary .collapsible-header {
+            background: linear-gradient(135deg, #C23B22, #D96F5C);
+        }
+        .collapsible-header:hover { background: linear-gradient(135deg, #B22222, #D96F5C); }
+        .collapsible-content {
+            padding: 14px;
+            display: none;
+        }
+        .collapsible[data-collapsible="open"] .collapsible-content { display: block; }
+        .collapsible[data-collapsible="open"] .arrow { transform: rotate(90deg); }
+        .arrow {
+            transition: transform 0.2s ease;
+            font-size: 12px;
+        }
+        .metric {
+            display: inline-block;
+            background: rgba(194, 59, 34, 0.15);
+            border: 1px solid #C23B22;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 4px 0;
+        }
+        .metric.important { background: rgba(139, 0, 0, 0.2); border-color: #8B0000; }
+        .dense-list {
+            margin: 8px 0 8px 20px;
+            padding: 0;
+        }
+        .dense-list li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .indent-1 {
+            margin-left: 20px;
+            font-size: 13px;
+        }
+        .muted {
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+        code {
+            background: #F6D0C5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #8B0000;
+        }
+        pre {
+            background: #F9DDD1;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border-left: 4px solid #C23B22;
+            margin: 8px 0;
+        }
+        button {
+            background: linear-gradient(135deg, #8B0000, #C23B22);
+            color: #FFFFFF;
+            border: 1px solid #D96F5C;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 6px;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(139, 0, 0, 0.28);
+        }
+        .note {
+            background: #FFF1EA;
+            border-left: 4px solid #C23B22;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #FFF5F2;
+            border: 2px solid #B22222;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Expand/Collapse Controls -->
+    <div style="margin: 8px 0; text-align: right;">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+
+    <!-- Executive Summary (Always Visible) -->
+    <div class="important-always-visible">
+        <h1>📋 Task Plan: Element Chat Processing UI Enhancements</h1>
+        <div class="two-column-layout">
+            <div>
+                <h3>Objective</h3>
+                <p>Enhance ElementChatWindow with visual processing indicators and flexible collapse modes.</p>
+                <div class="metric important">Complexity: Low</div>
+            </div>
+            <div>
+                <h3>Approach</h3>
+                <p>Add visual feedback during streaming/processing with color changes + implement multi-level collapse (rectangle and square modes).</p>
+                <div class="metric">Estimated Time: 30-45 minutes</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-Column Layout for Main Content -->
+    <div class="two-column-layout">
+        <!-- Left Column: Implementation Steps -->
+        <div class="collapsible critical" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>⚡ Implementation Steps</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Step 1: Add Processing State Visual Indicator</h3>
+                <div class="indent-1 muted">File: src/components/ElementChatWindow.tsx:1595-1610</div>
+                <ol class="dense-list">
+                    <li><strong>Update container gradient when processing</strong>
+                        <ul class="dense-list">
+                            <li>Modify <code>containerStyles</code> to accept <code>isProcessing</code> param</li>
+                            <li>Add <code>isProcessing = isStreaming || isProcessingQueue</code> state</li>
+                            <li>Processing: Use amber/orange gradient (e.g., <code>linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)</code>)</li>
+                            <li>Idle: Keep existing gradient (<code>#FFF8F4 → #FFE9DD</code>)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Add border animation during processing</strong>
+                        <ul class="dense-list">
+                            <li>Border color: <code>#FF9800</code> (amber) when processing, <code>#C23B22</code> when idle</li>
+                            <li>Add pulsing animation: <code>@keyframes pulseBorder { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }</code></li>
+                            <li>Apply animation when <code>isProcessing</code> is true</li>
+                        </ul>
+                    </li>
+                    <li><strong>Update header gradient during processing</strong>
+                        <ul class="dense-list">
+                            <li>Add <code>headerStyles</code> param for processing state</li>
+                            <li>Processing: <code>linear-gradient(135deg, #FF8F00, #FFA726)</code></li>
+                            <li>Idle: Keep existing (<code>#8B0000 → #C23B22</code>)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Add processing indicator to header</strong>
+                        <ul class="dense-list">
+                            <li>Add spinning icon when processing: <code>&lt;span css={processingSpinnerStyles}&gt;⚙️&lt;/span&gt;</code></li>
+                            <li>Position next to message count badge</li>
+                            <li>Spin animation: <code>@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }</code></li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>Step 2: Implement Multi-Level Collapse (Rectangle + Square)</h3>
+                <div class="indent-1 muted">File: src/components/ElementChatWindow.tsx:200-206, 1042-1044</div>
+                <ol class="dense-list">
+                    <li><strong>Add collapse state enum</strong>
+                        <ul class="dense-list">
+                            <li>Replace <code>collapsed: boolean</code> with <code>collapseState: 'expanded' | 'rectangle' | 'square'</code></li>
+                            <li>Update type definition and initial state from <code>existingSession</code></li>
+                            <li>Update storage to persist new collapse state</li>
+                        </ul>
+                    </li>
+                    <li><strong>Define collapse dimensions</strong>
+                        <ul class="dense-list">
+                            <li>Expanded: Full <code>windowSize.height</code></li>
+                            <li>Rectangle: Header-only height <code>44px</code> (existing behavior)</li>
+                            <li>Square: <code>44px × 44px</code> (icon only, hide text)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Update toggle collapse logic</strong>
+                        <ul class="dense-list">
+                            <li>Cycle through states: <code>expanded → rectangle → square → expanded</code></li>
+                            <li>Update <code>handleToggleCollapse</code> to cycle states</li>
+                            <li>Add icons: <code>▼</code> (expand from square), <code>▲</code> (collapse to rectangle), <code>◼</code> (collapse to square)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Update Rnd size calculations</strong>
+                        <ul class="dense-list">
+                            <li>When <code>collapseState === 'square'</code>: <code>size={{ width: 44, height: 44 }}</code></li>
+                            <li>When <code>collapseState === 'rectangle'</code>: <code>size={{ width: windowSize.width, height: 44 }}</code></li>
+                            <li>When <code>collapseState === 'expanded'</code>: <code>size={windowSize}</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Update header content rendering</strong>
+                        <ul class="dense-list">
+                            <li>Square mode: Show only icon <code>💬</code>, hide all text/badges/buttons except collapse</li>
+                            <li>Rectangle mode: Show full header (current behavior)</li>
+                            <li>Expanded mode: Show full header (current behavior)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Disable resize when collapsed</strong>
+                        <ul class="dense-list">
+                            <li>Update <code>enableResizing</code> prop: <code>!collapsed → collapseState === 'expanded'</code></li>
+                            <li>Disable all resize handles for rectangle and square modes</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h3>Step 3: Update Session Storage Schema</h3>
+                <div class="indent-1 muted">File: src/types/elementChat.ts</div>
+                <ol class="dense-list">
+                    <li><strong>Update <code>ElementChatWindowState</code> type</strong>
+                        <ul class="dense-list">
+                            <li>Change <code>collapsed?: boolean</code> to <code>collapseState?: 'expanded' | 'rectangle' | 'square'</code></li>
+                            <li>Add migration for legacy sessions: <code>collapsed === true → 'rectangle'</code>, <code>collapsed === false → 'expanded'</code></li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Right Column: Testing & Validation -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>✓ Testing & Validation</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Manual Testing Checklist</h3>
+                <ul class="dense-list">
+                    <li><strong>Processing Indicator</strong>
+                        <ul class="dense-list">
+                            <li>Open element chat window</li>
+                            <li>Send a message, verify background gradient changes to amber/orange</li>
+                            <li>Verify border pulses during streaming</li>
+                            <li>Verify header gradient changes to amber during processing</li>
+                            <li>Verify spinning ⚙️ icon appears in header</li>
+                            <li>After response completes, verify UI returns to red theme</li>
+                        </ul>
+                    </li>
+                    <li><strong>Queue Processing Indicator</strong>
+                        <ul class="dense-list">
+                            <li>Queue multiple messages while streaming</li>
+                            <li>Verify processing indicator stays active during queue processing</li>
+                            <li>Verify indicator disappears only after queue is empty</li>
+                        </ul>
+                    </li>
+                    <li><strong>Collapse Modes</strong>
+                        <ul class="dense-list">
+                            <li>Start in expanded mode (full window visible)</li>
+                            <li>Click collapse button (▲), verify transitions to rectangle (header only)</li>
+                            <li>Click collapse button (◼), verify transitions to square (icon only, 44×44px)</li>
+                            <li>Click collapse button (▼), verify transitions back to expanded</li>
+                            <li>In square mode, verify only 💬 icon and collapse button visible</li>
+                            <li>Verify resize handles disabled in rectangle and square modes</li>
+                        </ul>
+                    </li>
+                    <li><strong>State Persistence</strong>
+                        <ul class="dense-list">
+                            <li>Collapse to rectangle, refresh page, verify state persists</li>
+                            <li>Collapse to square, refresh page, verify state persists</li>
+                        </ul>
+                    </li>
+                    <li><strong>Legacy Session Migration</strong>
+                        <ul class="dense-list">
+                            <li>Test with session that has <code>collapsed: true</code>, verify migrates to <code>'rectangle'</code></li>
+                            <li>Test with session that has <code>collapsed: false</code>, verify migrates to <code>'expanded'</code></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h3>Visual Regression Tests</h3>
+                <ul class="dense-list">
+                    <li>Take screenshots of all 3 collapse states (expanded, rectangle, square)</li>
+                    <li>Take screenshots of processing state (amber theme) vs idle state (red theme)</li>
+                    <li>Verify no layout shifts during collapse transitions</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Prerequisites (collapsed by default) -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Prerequisites & Context</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Files to Review</h3>
+                <ul class="dense-list">
+                    <li><code>src/components/ElementChatWindow.tsx</code> - Main component implementation</li>
+                    <li><code>src/types/elementChat.ts</code> - Type definitions for sessions and window state</li>
+                    <li><code>src/services/elementChatService.ts</code> - Session storage/retrieval logic</li>
+                </ul>
+
+                <h3>Existing State Variables to Use</h3>
+                <ul class="dense-list">
+                    <li><code>isStreaming</code> (line 199) - True when LLM is streaming response</li>
+                    <li><code>isProcessingQueue</code> (line 225) - True when processing queued messages</li>
+                    <li><code>collapsed</code> (line 201) - Current boolean collapse state (to be replaced)</li>
+                    <li><code>windowSize</code> (line 204) - Current window dimensions</li>
+                </ul>
+
+                <h3>Theme Constants Available</h3>
+                <ul class="dense-list">
+                    <li><code>ELEMENT_CHAT_THEME.containerBackground</code> - Base background color</li>
+                    <li><code>ELEMENT_CHAT_THEME.containerBackgroundGradient</code> - Idle gradient</li>
+                    <li><code>ELEMENT_CHAT_THEME.containerAccent</code> - Red accent color</li>
+                    <li><code>ELEMENT_CHAT_THEME.headerGradient</code> - Idle header gradient</li>
+                </ul>
+
+                <h3>Current Collapse Behavior</h3>
+                <ul class="dense-list">
+                    <li>Binary collapsed state (true/false)</li>
+                    <li>Header-only height: 44px</li>
+                    <li>Toggle button shows ▲ (collapse) or ▼ (expand)</li>
+                    <li>Resize disabled when collapsed</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Potential Issues (collapsed by default) -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>⚠️ Potential Issues & Mitigations</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Potential Issues</h3>
+                <ul class="dense-list">
+                    <li><strong>Color Accessibility</strong>
+                        <div class="warning">Amber/orange processing color may not have enough contrast for some users</div>
+                        <strong>Mitigation:</strong> Use high-contrast amber (<code>#FF9800</code>) with sufficient brightness difference from red theme. Test with color contrast analyzer.
+                    </li>
+                    <li><strong>Layout Shifts During Collapse</strong>
+                        <div class="warning">Transition from rectangle to square may cause jarring movement</div>
+                        <strong>Mitigation:</strong> Add CSS transition for smooth width/height changes: <code>transition: all 0.3s ease</code> on container.
+                    </li>
+                    <li><strong>Legacy Session Compatibility</strong>
+                        <div class="warning">Old sessions with <code>collapsed: boolean</code> need migration</div>
+                        <strong>Mitigation:</strong> Add migration logic in component initialization: <code>const migratedCollapseState = existingSession?.windowState?.collapseState ?? (existingSession?.windowState?.collapsed ? 'rectangle' : 'expanded')</code>
+                    </li>
+                    <li><strong>Anchor Position in Square Mode</strong>
+                        <div class="warning">Square mode (44×44) may be too small to see anchor element relationship</div>
+                        <strong>Mitigation:</strong> Square mode is for minimization only. Users must expand to rectangle/expanded to interact.
+                    </li>
+                    <li><strong>Processing Indicator Flicker</strong>
+                        <div class="warning">Rapid queue processing may cause color flickering</div>
+                        <strong>Mitigation:</strong> Use <code>isProcessing = isStreaming || isProcessingQueue</code> to maintain indicator during queue transitions.
+                    </li>
+                </ul>
+
+                <h3>Edge Cases</h3>
+                <ul class="dense-list">
+                    <li><strong>Empty Queue</strong>: Verify processing indicator turns off when queue empties</li>
+                    <li><strong>Multiple Windows</strong>: Each window should have independent collapse state</li>
+                    <li><strong>Drag in Square Mode</strong>: Ensure drag handle still works with tiny window</li>
+                    <li><strong>Close Button in Square Mode</strong>: Ensure close button remains clickable in 44×44 space</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-width sections -->
+    <div class="collapsible full-width" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>📊 Post-Implementation</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <h3>Documentation Updates</h3>
+            <ul class="dense-list">
+                <li>Update CLAUDE.md to document new collapse modes (expanded, rectangle, square)</li>
+                <li>Document processing indicator color scheme (red idle, amber processing)</li>
+                <li>Add screenshots of all 3 collapse states to docs</li>
+            </ul>
+
+            <h3>Follow-Up Tasks</h3>
+            <ul class="dense-list">
+                <li>Consider adding E2E tests for collapse state cycling (Playwright)</li>
+                <li>Consider adding user preference for default collapse behavior</li>
+                <li>Consider adding tooltip on collapse button explaining 3-state cycle</li>
+                <li>Consider animating the transition between collapse states for smoother UX</li>
+            </ul>
+
+            <h3>Maintenance Notes</h3>
+            <ul class="dense-list">
+                <li>If adding new processing states (e.g., error, waiting), extend color scheme consistently</li>
+                <li>If window sizes change, update square mode dimensions proportionally</li>
+                <li>Monitor user feedback on 3-state collapse vs 2-state - may need to simplify</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="note" style="margin-top: 20px;">
+        <h3>⏱️ Implementation Timeline</h3>
+        <ul class="dense-list">
+            <li><strong>Step 1 (Processing Indicator):</strong> 15-20 minutes</li>
+            <li><strong>Step 2 (Multi-Level Collapse):</strong> 15-20 minutes</li>
+            <li><strong>Step 3 (Type Updates):</strong> 5 minutes</li>
+            <li><strong>Testing:</strong> 10-15 minutes</li>
+        </ul>
+        <p><strong>Total Estimated Time:</strong> 45-60 minutes</p>
+    </div>
+
+    <script>
+        // Expand/Collapse All
+        document.getElementById('expand-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'open');
+            });
+        });
+
+        document.getElementById('collapse-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'closed');
+            });
+        });
+
+        // Individual collapsible toggle
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const collapsible = header.parentElement;
+                const currentState = collapsible.getAttribute('data-collapsible');
+                collapsible.setAttribute('data-collapsible', currentState === 'open' ? 'closed' : 'open');
+            });
+        });
+    </script>
+</body>
+</html>

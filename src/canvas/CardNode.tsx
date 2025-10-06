@@ -73,6 +73,7 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
   const contentEditRef = useRef<HTMLTextAreaElement>(null);
   const titleEditRef = useRef<HTMLInputElement>(null);
   const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const beautifyWrapperRef = useRef<HTMLDivElement | null>(null);
 
   if (!card) {
     return null;
@@ -119,6 +120,26 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
       window.removeEventListener('nabokov:cards-updated', handleConnectionUpdate);
     };
   }, [card.id]);
+
+  useEffect(() => {
+    if (!showBeautifyMenu) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!beautifyWrapperRef.current) {
+        return;
+      }
+      if (!beautifyWrapperRef.current.contains(event.target as Node)) {
+        setShowBeautifyMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showBeautifyMenu]);
 
   // Keyboard shortcut: Cmd+Shift+F for Fill-In
   useEffect(() => {
@@ -275,9 +296,6 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
 
   const handleBeautify = async (mode: BeautificationMode) => {
     try {
-      setShowBeautifyMenu(false);
-      setIsBeautifying(true);
-
       setToast({
         message: 'Beautifying content (Organize Content)...',
         type: 'loading',
@@ -305,7 +323,21 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
       }, 5000);
     } finally {
       setIsBeautifying(false);
+      setShowBeautifyMenu(false);
     }
+  };
+
+  const startBeautification = (mode: BeautificationMode, options?: { openMenu?: boolean }) => {
+    if (isBeautifying) {
+      return;
+    }
+
+    if (options?.openMenu) {
+      setShowBeautifyMenu(true);
+    }
+
+    setIsBeautifying(true);
+    void handleBeautify(mode);
   };
 
   const handleRevertBeautification = async () => {
@@ -665,8 +697,7 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
         isOpen={showOverflowMenu}
         onClose={() => setShowOverflowMenu(false)}
         onBeautify={() => {
-          setShowBeautifyMenu(true);
-          handleBeautify('organize-content');
+          startBeautification('organize-content', { openMenu: true });
         }}
         onFillIn={(e) => handleOpenFillIn(e as React.MouseEvent)}
         onOpenWindow={(e) => handleOpenWindow(e as React.MouseEvent)}
@@ -790,17 +821,63 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
 
               <div style={styles.footerCenter}>
                 {/* Beautify Button */}
-                <button
-                  onClick={() => {
-                    setShowBeautifyMenu(true);
-                    handleBeautify('organize-content');
-                  }}
-                  style={{...styles.iconButton, ...(card.beautifiedContent ? styles.iconButtonActive : {})}}
-                  title="Beautify Content"
-                  data-testid="beautify-btn"
-                >
-                  ✨
-                </button>
+                <div style={styles.beautifyButtonWrapper} ref={beautifyWrapperRef}>
+                  <button
+                    onClick={() => {
+                      startBeautification('organize-content', { openMenu: true });
+                    }}
+                    style={{
+                      ...styles.iconButton,
+                      ...(card.beautifiedContent ? styles.iconButtonActive : {}),
+                      ...(isBeautifying ? styles.iconButtonDisabled : {}),
+                    }}
+                    title={isBeautifying ? 'Beautifying in progress...' : 'Beautify Content'}
+                    data-testid="beautify-btn"
+                    disabled={isBeautifying}
+                    aria-label="Beautify Content"
+                    aria-disabled={isBeautifying}
+                    aria-busy={isBeautifying}
+                  >
+                    {isBeautifying ? '⏳' : '✨'}
+                  </button>
+
+                  {showBeautifyMenu && (
+                    <div
+                      style={styles.beautifyMenu}
+                      role="menu"
+                      data-testid="beautify-menu"
+                      onMouseDown={(event) => event.stopPropagation()}
+                    >
+                      <div style={styles.beautifyMenuHeader}>Beautify Options</div>
+                      <button
+                        type="button"
+                        style={styles.beautifyMenuButton}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          startBeautification('organize-content');
+                        }}
+                        role="menuitem"
+                      >
+                        Organize Content
+                      </button>
+                      {card.beautifiedContent && (
+                        <button
+                          type="button"
+                          style={styles.beautifyMenuButton}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            void handleRevertBeautification();
+                          }}
+                          role="menuitem"
+                        >
+                          Revert Beautification
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 {/* Fill-In Button - only if connections exist */}
                 {connectionCount > 0 && (
@@ -1052,6 +1129,46 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     flex: 1,
     justifyContent: 'center',
   },
+  beautifyButtonWrapper: {
+    position: 'relative',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  beautifyMenu: {
+    position: 'absolute',
+    top: '-10px',
+    left: '50%',
+    transform: 'translate(-50%, -100%)',
+    background: 'rgba(250, 247, 242, 0.98)',
+    border: '1px solid rgba(139, 115, 85, 0.25)',
+    borderRadius: '8px',
+    boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)',
+    padding: '8px 10px',
+    minWidth: '180px',
+    zIndex: 11000,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  beautifyMenuHeader: {
+    fontSize: '12px',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    color: '#4A3728',
+    fontWeight: 600,
+  },
+  beautifyMenuButton: {
+    fontSize: '13px',
+    padding: '6px 8px',
+    borderRadius: '6px',
+    border: 'none',
+    background: 'rgba(184, 156, 130, 0.15)',
+    color: '#3E2F1C',
+    textAlign: 'left' as const,
+    cursor: 'pointer',
+    transition: 'background 0.2s ease, transform 0.1s ease',
+  },
   footerRight: {
     display: 'flex',
     gap: '4px',
@@ -1070,6 +1187,11 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     justifyContent: 'center',
     fontSize: '13px',
     transition: 'all 0.2s ease',
+  },
+  iconButtonDisabled: {
+    cursor: 'not-allowed',
+    opacity: 0.65,
+    background: 'rgba(184, 156, 130, 0.25)',
   },
   iconButtonActive: {
     background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.3), rgba(255, 215, 0, 0.3))',
@@ -1295,78 +1417,6 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     alignItems: 'center',
     gap: '4px',
     boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-  },
-  beautifyButton: {
-    width: '24px',
-    height: '20px',
-    padding: '0',
-    border: '1px solid rgba(184, 156, 130, 0.3)',
-    background: 'white',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '12px',
-    transition: 'all 0.2s ease',
-  },
-  beautifyButtonActive: {
-    background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(212, 175, 55, 0.15))',
-    border: '1px solid rgba(212, 175, 55, 0.5)',
-  },
-  beautifyMenu: {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: '4px',
-    background: 'white',
-    border: '1px solid rgba(184, 156, 130, 0.3)',
-    borderRadius: '6px',
-    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-    zIndex: 1000,
-    minWidth: '200px',
-    overflow: 'hidden',
-  },
-  beautifyMenuItem: {
-    width: '100%',
-    padding: '10px 14px',
-    border: 'none',
-    background: 'white',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '2px',
-    transition: 'all 0.2s ease',
-    textAlign: 'left',
-  },
-  beautifyMenuItemRevert: {
-    width: '100%',
-    padding: '10px 14px',
-    border: 'none',
-    background: 'rgba(139, 0, 0, 0.05)',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '2px',
-    transition: 'all 0.2s ease',
-    textAlign: 'left',
-  },
-  beautifyMenuLabel: {
-    fontSize: '13px',
-    fontWeight: 600,
-    color: '#3E3226',
-  },
-  beautifyMenuDesc: {
-    fontSize: '10px',
-    color: '#8B7355',
-    fontWeight: 400,
-  },
-  beautifyMenuDivider: {
-    height: '1px',
-    background: 'rgba(184, 156, 130, 0.2)',
-    margin: '4px 0',
   },
   // Markdown Styles
   markdownH1: {

@@ -5,232 +5,60 @@
 <title>Hypertext Navigation Demo</title>
 <style>
 :root {
-    --chinese-red: #8B0000;
-    --accent-blue: #1a73e8;
-    --ink-black: #1A1A1A;
-    --paper-beige: #F5F5DC;
-    --light-cream: #FFFEF0;
-    --border-soft: rgba(0, 0, 0, 0.12);
+  --chinese-red: #8b0000;
+  --accent-blue: #1a73e8;
+  --ink-black: #1a1a1a;
+  --paper-beige: #f5f5dc;
+  --light-cream: #fffef0;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
+
 body {
-    margin: 0;
-    padding: 0;
-    font-family: "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
-    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
-    color: var(--ink-black);
+  margin: 0;
+  padding: 0;
+  font-family: "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+  background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+  color: var(--ink-black);
 }
+
 header {
-    padding: 16px 20px 0 20px;
+  padding: 16px 20px 0 20px;
 }
+
 h1 {
-    margin: 0;
-    font-size: 26px;
-    font-weight: 900;
-    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--chinese-red), #cd5c5c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
+
 p.meta {
-    margin: 4px 0 12px 0;
-    font-size: 12px;
-    color: #555;
+  margin: 4px 0 12px 0;
+  font-size: 12px;
+  color: #555;
 }
+
 main {
-    padding: 12px 20px 24px 20px;
-    max-width: 860px;
+  padding: 12px 20px 24px 20px;
+  max-width: 860px;
 }
+
 .article {
-    background: rgba(255,255,255,0.85);
-    border: 1px solid rgba(139,0,0,0.18);
-    border-radius: 8px;
-    padding: 18px 20px;
-    line-height: 1.6;
-    font-size: 15px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(139, 0, 0, 0.18);
+  border-radius: 8px;
+  padding: 18px 20px;
+  line-height: 1.6;
+  font-size: 15px;
 }
+
 .article strong {
-    color: var(--chinese-red);
-}
-.palette {
-    position: absolute;
-    background: rgba(255, 255, 255, 0.98);
-    border: 1px solid rgba(139,0,0,0.25);
-    border-radius: 8px;
-    box-shadow: 0 8px 18px rgba(0,0,0,0.12);
-    padding: 12px 14px;
-    width: 300px;
-    font-size: 13px;
-    z-index: 1000;
-    display: none;
-}
-.palette h3 {
-    margin: 0 0 6px 0;
-    font-size: 13px;
-    color: var(--chinese-red);
-}
-.palette label {
-    display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    color: #666;
-    margin-top: 6px;
-}
-.palette input[type="text"] {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid rgba(139,0,0,0.25);
-    border-radius: 4px;
-    font-size: 12px;
-    margin-top: 4px;
-}
-.palette .actions {
-    display: flex;
-    gap: 8px;
-    margin-top: 12px;
-}
-.palette button {
-    flex: 1;
-    padding: 7px 0;
-    border: 0;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    background: var(--chinese-red);
-    color: white;
-}
-.hyper-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 12px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-.hyper-pill .pill-label {
-    white-space: nowrap;
-}
-.hyper-pill .pill-chat {
-    border: 0;
-    background: transparent;
-    color: inherit;
-    padding: 0 2px;
-    cursor: pointer;
-    font-size: 16px;
-    line-height: 1;
-}
-.hyper-pill.loading {
-    background: #dcdcdc;
-    border-color: #c8c8c8;
-    color: #666;
-    pointer-events: none;
-}
-.hyper-pill.ready-inline {
-    background: rgba(139,0,0,0.18);
-    border-color: rgba(139,0,0,0.35);
-    color: var(--chinese-red);
-}
-.hyper-pill.ready-url {
-    background: #e3f2fd;
-    border-color: #a7c6f9;
-    color: var(--accent-blue);
-}
-.hyper-pill.error {
-    background: rgba(139,0,0,0.1);
-    border-color: rgba(139,0,0,0.28);
-    color: #b22222;
-}
-.modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.28);
-    display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1500;
-}
-.modal {
-    background: white;
-    border-radius: 10px;
-    border: 1px solid rgba(139,0,0,0.3);
-    padding: 18px 20px;
-    width: 440px;
-    max-width: 95vw;
-    font-size: 14px;
-}
-.modal header h2 {
-    margin: 0;
-    font-size: 16px;
-    color: var(--chinese-red);
-}
-.modal-body {
-    margin-top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-.chat-history {
-    max-height: 220px;
-    overflow-y: auto;
-    border: 1px solid var(--border-soft);
-    border-radius: 6px;
-    padding: 10px 12px;
-    background: rgba(245,245,245,0.8);
-}
-.chat-entry {
-    margin-bottom: 10px;
-}
-.chat-entry:last-child {
-    margin-bottom: 0;
-}
-.chat-entry .chat-role {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.4px;
-    color: #666;
-}
-.chat-entry .chat-text {
-    margin-top: 2px;
-    font-size: 13px;
-    white-space: pre-wrap;
-}
-.modal-body textarea {
-    width: 100%;
-    min-height: 80px;
-    border: 1px solid var(--border-soft);
-    border-radius: 6px;
-    padding: 8px;
-    font-size: 13px;
-    resize: vertical;
-}
-.modal-footer {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 14px;
-}
-.modal-footer button {
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    font-size: 13px;
-}
-.modal-footer button.primary {
-    background: var(--chinese-red);
-    color: white;
-    border-color: var(--chinese-red);
-}
-.modal-footer button.secondary {
-    background: rgba(0,0,0,0.06);
-    color: var(--ink-black);
-}
-.modal-footer button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  color: var(--chinese-red);
 }
 </style>
 </head>
@@ -245,464 +73,45 @@ main {
 <p>Highlight any phrase you want to turn into hypertext. After you press the hotkey, the LLM decides whether to craft an inline explainer or hand you a relevant reference link based on your instructions. This example streams the response from the backend and lets you iterate in a lightweight chat.</p>
 </article>
 </main>
-<div class="palette" id="palette">
-<h3>Hypertext this selection</h3>
-<div id="selectedText" style="font-size:12px;color:#333;margin-bottom:6px;"></div>
-<label for="instructionInput">Instructions (optional)</label>
-<input id="instructionInput" type="text" placeholder="e.g. Explain in plain language" />
-<div class="actions">
-<button class="primary" id="generateButton">Generate Hypertext</button>
-</div>
-</div>
-<div class="modal-backdrop" id="modalBackdrop">
-<div class="modal" role="dialog" aria-modal="true">
-<header><h2 id="modalTitle">Hypertext</h2></header>
-<div class="modal-body">
-<div id="conversationLog" class="chat-history"></div>
-<textarea id="modalInput" placeholder="Add follow-up instructions..."></textarea>
-</div>
-<footer class="modal-footer">
-<button id="modalClose" class="secondary">Close</button>
-<button id="modalRegenerate" class="secondary">Regenerate</button>
-<button id="modalSend" class="primary">Send</button>
-</footer>
-</div>
-</div>
+
+<script src="./hypertext-experience.js"></script>
 <script>
-const palette = document.getElementById('palette');
-const selectedTextEl = document.getElementById('selectedText');
-const instructionInput = document.getElementById('instructionInput');
-const generateButton = document.getElementById('generateButton');
-const modalBackdrop = document.getElementById('modalBackdrop');
-const modalTitle = document.getElementById('modalTitle');
-const conversationLog = document.getElementById('conversationLog');
-const modalInput = document.getElementById('modalInput');
-const modalClose = document.getElementById('modalClose');
-const modalSend = document.getElementById('modalSend');
-const modalRegenerate = document.getElementById('modalRegenerate');
-const articleEl = document.getElementById('article');
+  const experience = window.createHypertextExperience({
+    backendUrl: window.HYPERTEXT_BACKEND_URL || 'http://localhost:3100',
+    contextProvider: (session, options) => {
+      const doc = document;
+      const url = window.location.href;
+      const title = doc.title || '';
+      const bodyText = doc.body ? doc.body.innerText.trim() : '';
+      const selectionText = session?.subject ? session.subject.trim() : '';
+      const shouldTruncate = Boolean(options?.truncateContext);
+      const TRUNCATE_CHARS = 200000;
 
-const BACKEND_URL = window.HYPERTEXT_BACKEND_URL || 'http://localhost:3100';
-const sessions = new Map();
-let hyperlinkCounter = 0;
-let activeSelection = '';
-let activeRange = null;
-let activeChatSession = null;
-let palettePinned = false;
+      const headerParts = [
+        `URL: ${url}`,
+        title ? `Title: ${title}` : '',
+        '--- FULL PAGE TEXT ---'
+      ];
 
-const PILL_STATES = ['loading', 'ready-inline', 'ready-url', 'error'];
-
-function hidePalette() {
-  palette.style.display = 'none';
-  palettePinned = false;
-  activeSelection = '';
-  activeRange = null;
-}
-
-function setPillState(session, state, errorMessage) {
-  const { wrapper, label, chatButton } = session;
-  PILL_STATES.forEach(flag => wrapper.classList.remove(flag));
-  if (state) {
-    wrapper.classList.add(state);
-    wrapper.dataset.state = state;
-  }
-  if (state === 'loading') {
-    label.textContent = 'Generating…';
-    chatButton.disabled = true;
-  } else if (state === 'ready-inline' || state === 'ready-url') {
-    label.textContent = session.lastResult?.pillText || session.subject;
-    chatButton.disabled = false;
-  } else if (state === 'error') {
-    label.textContent = 'Generation failed';
-    chatButton.disabled = false;
-    wrapper.dataset.error = errorMessage || 'Generation failed';
-  } else {
-    label.textContent = session.subject;
-    chatButton.disabled = false;
-  }
-}
-
-function getArticleContext() {
-  if (!articleEl) return '';
-  return articleEl.innerText.trim();
-}
-
-function buildSystemPrompt() {
-  return [
-    'You are Nabokov's Hypertext Generator.',
-    'Respond with a single JSON object that matches this schema:',
-    '{',
-    '  "pillText": string,',
-    '  "mode": "inline" | "reference",',
-    '  "explanation"?: string,',
-    '  "url"?: string',
-    '}',
-    'Rules:',
-    '1. Return JSON only. No extra commentary or Markdown fences.',
-    '2. If mode is "inline", include "explanation" (plain text; use 
- for newlines).',
-    '3. If mode is "reference", include "url".',
-    '4. Keep pillText under 45 characters.',
-    '5. Only use reputable sources for URLs.',
-    '6. Use double quotes for all JSON keys and strings.',
-    '7. If the user provides custom instructions, follow them exactly even if they request playful or unconventional output.'
-  ].join('
-');
-}
-
-function buildInitialPrompt(session, instructions) {
-  return [
-    `Selection: "${session.subject}"`,
-    'Context (may be truncated):',
-    session.context ? session.context : '(no additional context)',
-    instructions ? `Custom instructions: ${instructions}` : 'Custom instructions: (none provided)',
-    'Decide whether the user would benefit more from an inline explanation or an external reference link. Follow the custom instructions exactly.',
-    'Respond with JSON as described in the system prompt.'
-  ].join('
-
-');
-}
-
-function buildFollowupPrompt(session, instructions) {
-  return [
-    `Selection: "${session.subject}"`,
-    instructions ? `Follow-up request: ${instructions}` : 'Follow-up request: (none provided)',
-    'Continue the previous conversation and respond with JSON as described in the system prompt.'
-  ].join('
-
-');
-}
-
-function formatAssistantDisplay(result) {
-  if (!result) return 'No response.';
-  if (result.mode === 'reference' && result.url) {
-    return `Recommended link: ${result.url}`;
-  }
-  return result.explanation || 'Generated response unavailable.';
-}
-
-function parseHypertextJson(rawText) {
-  const cleaned = rawText
-    .replace(/^```json/gim, '')
-    .replace(/```$/gim, '')
-    .trim();
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('No JSON object found in backend response.');
-  }
-  const candidate = cleaned.slice(start, end + 1);
-  try {
-    return JSON.parse(candidate);
-  } catch (error) {
-    const normalized = candidate
-      .replace(/“|”/g, '"')
-      .replace(/‘|’/g, "'")
-      .replace(/
-?
-/g, '
-');
-    return JSON.parse(normalized);
-  }
-}
-
-async function streamHypertext(messages) {
-  const payload = {
-    messages,
-    options: {
-      system: buildSystemPrompt(),
-      maxTokens: 512,
-      temperature: 0.6
-    }
-  };
-
-  const response = await fetch(`${BACKEND_URL}/api/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
-    throw new Error(`Backend returned ${response.status} ${response.statusText}`);
-  }
-
-  if (!response.body) {
-    throw new Error('Backend response body is empty.');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  let resultText = '';
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('
-');
-    buffer = lines.pop() || '';
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (!line.startsWith('data:')) continue;
-      const data = line.slice(5).trim();
-      if (!data) continue;
-      if (data === '[DONE]') {
-        buffer = '';
-        break;
+      let pageContent = bodyText;
+      if (shouldTruncate && pageContent.length > TRUNCATE_CHARS) {
+        pageContent = `${pageContent.slice(0, TRUNCATE_CHARS)}\n[Context truncated at ${TRUNCATE_CHARS} characters]`;
       }
-      try {
-        const parsed = JSON.parse(data);
-        if (parsed.delta?.text) {
-          resultText += parsed.delta.text;
-        }
-      } catch (error) {
-        console.warn('[Hypertext Demo] Failed to parse SSE chunk:', data);
-      }
-    }
-  }
 
-  if (!resultText.trim()) {
-    throw new Error('Backend returned an empty response.');
-  }
+      const selectionParts = [
+        '--- CURRENT SELECTION ---',
+        selectionText
+      ];
 
-  return parseHypertextJson(resultText);
-}
-
-function updateWrapperWithResult(session, result) {
-  const { wrapper, label } = session;
-  const pillText = (result.pillText || session.subject || 'Hypertext').trim();
-  label.textContent = pillText;
-  session.lastResult = { ...result, pillText };
-  wrapper.dataset.kind = result.mode;
-  wrapper.dataset.pillText = pillText;
-  if (result.mode === 'reference' && result.url) {
-    wrapper.dataset.url = result.url;
-    delete wrapper.dataset.content;
-    setPillState(session, 'ready-url');
-  } else {
-    wrapper.dataset.content = result.explanation || '';
-    delete wrapper.dataset.url;
-    setPillState(session, 'ready-inline');
-  }
-}
-
-function renderConversation(session) {
-  if (!session) return;
-  const entries = session.messages.map((message, index) => {
-    const roleLabel = message.role === 'user' ? 'User' : 'Assistant';
-    const text = message.display || '(no content)';
-    return `<div class="chat-entry"><div class="chat-role">${roleLabel}</div><div class="chat-text">${text.replace(/</g, '&lt;')}</div></div>`;
-  });
-  conversationLog.innerHTML = entries.join('');
-  modalTitle.textContent = `${session.subject} · Hypertext`;
-  modalInput.value = '';
-  modalSend.disabled = session.isStreaming;
-  modalRegenerate.disabled = session.isStreaming || !session.lastResult;
-}
-
-function openChat(session) {
-  activeChatSession = session;
-  renderConversation(session);
-  modalBackdrop.style.display = 'flex';
-  modalInput.focus();
-}
-
-function closeChat() {
-  activeChatSession = null;
-  modalBackdrop.style.display = 'none';
-}
-
-async function runHypertext(session, mode, instructions) {
-  if (session.isStreaming) return;
-  session.isStreaming = true;
-  modalSend.disabled = true;
-  modalRegenerate.disabled = true;
-  setPillState(session, 'loading');
-
-  const requestMessages = session.messages.map(m => ({ role: m.role, content: m.content }));
-  let userContent = null;
-  let userDisplay = null;
-
-  if (mode === 'initial') {
-    userContent = buildInitialPrompt(session, instructions);
-    userDisplay = instructions || '(no custom instructions)';
-    session.lastInstructions = instructions || '';
-  } else if (mode === 'append') {
-    if (!instructions) {
-      session.isStreaming = false;
-      modalSend.disabled = false;
-      modalRegenerate.disabled = !session.lastResult;
-      setPillState(session, session.lastResult ? (session.lastResult.mode === 'reference' ? 'ready-url' : 'ready-inline') : null);
-      return;
-    }
-    userContent = buildFollowupPrompt(session, instructions);
-    userDisplay = instructions;
-    session.lastInstructions = instructions;
-  } else if (mode === 'regenerate') {
-    if (session.messages.length && session.messages[session.messages.length - 1].role === 'assistant') {
-      session.messages.pop();
-      requestMessages.pop();
-    }
-    userContent = session.lastUserMessage || buildInitialPrompt(session, session.lastInstructions || '');
-    userDisplay = session.lastInstructions || '(no custom instructions)';
-  }
-
-  if (!userContent) {
-    session.isStreaming = false;
-    modalSend.disabled = false;
-    modalRegenerate.disabled = !session.lastResult;
-    return;
-  }
-
-  if (mode !== 'regenerate') {
-    session.lastUserMessage = userContent;
-    session.messages.push({ role: 'user', content: userContent, display: userDisplay });
-    requestMessages.push({ role: 'user', content: userContent });
-  }
-
-  try {
-    const result = await streamHypertext(requestMessages);
-    const assistantDisplay = formatAssistantDisplay(result);
-    session.messages.push({ role: 'assistant', content: JSON.stringify(result), display: assistantDisplay });
-    updateWrapperWithResult(session, result);
-  } catch (error) {
-    const message = error.message || 'Failed to generate hypertext.';
-    session.messages.push({ role: 'assistant', content: message, display: `Error: ${message}` });
-    setPillState(session, 'error', message);
-  } finally {
-    session.isStreaming = false;
-    if (activeChatSession === session) {
-      renderConversation(session);
-    }
-  }
-}
-
-function createHyperlinkSpan(subject) {
-  const wrapper = document.createElement('span');
-  wrapper.className = 'hyper-pill loading';
-  const label = document.createElement('span');
-  label.className = 'pill-label';
-  label.textContent = subject;
-  const chatButton = document.createElement('button');
-  chatButton.type = 'button';
-  chatButton.className = 'pill-chat';
-  chatButton.title = 'Open hypertext chat';
-  chatButton.textContent = '⋯';
-  wrapper.append(label, chatButton);
-  return { wrapper, label, chatButton };
-}
-
-function applyHypertext(instructions) {
-  if (!activeRange || !activeSelection) return;
-  const subject = activeSelection;
-  const { wrapper, label, chatButton } = createHyperlinkSpan(subject);
-  const sessionId = `hyper-${++hyperlinkCounter}`;
-  wrapper.dataset.id = sessionId;
-  activeRange.deleteContents();
-  activeRange.insertNode(wrapper);
-  window.getSelection().removeAllRanges();
-  hidePalette();
-
-  const session = {
-    id: sessionId,
-    subject,
-    context: getArticleContext(),
-    wrapper,
-    label,
-    chatButton,
-    messages: [],
-    lastResult: null,
-    lastUserMessage: null,
-    lastInstructions: instructions || '',
-    isStreaming: false
-  };
-  sessions.set(sessionId, session);
-
-  label.addEventListener('click', () => {
-    if (session.isStreaming) return;
-    if (wrapper.dataset.kind === 'reference' && wrapper.dataset.url) {
-      window.open(wrapper.dataset.url, '_blank');
-    } else {
-      openChat(session);
-    }
+      return [...headerParts, pageContent, ...selectionParts]
+        .filter(part => part !== null && part !== undefined)
+        .join('\n');
+    },
+    autoOpenTooltipOnHover: true
   });
 
-  chatButton.addEventListener('click', event => {
-    event.stopPropagation();
-    if (session.isStreaming) return;
-    openChat(session);
-  });
-
-  runHypertext(session, 'initial', instructions);
-}
-
-// Palette interactions
-document.addEventListener('selectionchange', () => {
-  const sel = document.getSelection();
-  if ((!sel || sel.isCollapsed) && !palettePinned) {
-    hidePalette();
-  }
-});
-
-document.addEventListener('keydown', event => {
-  const hotkey = (event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === 'k';
-  if (!hotkey) return;
-  const sel = document.getSelection();
-  if (!sel || sel.isCollapsed) return;
-  event.preventDefault();
-  const range = sel.getRangeAt(0);
-  const rect = range.getBoundingClientRect();
-  if (!rect || (rect.width === 0 && rect.height === 0)) return;
-  palette.style.left = `${Math.max(rect.left + window.scrollX - 12, 12)}px`;
-  palette.style.top = `${rect.bottom + window.scrollY + 12}px`;
-  palette.style.display = 'block';
-  palettePinned = true;
-  activeSelection = sel.toString();
-  selectedTextEl.textContent = `“${activeSelection}”`;
-  instructionInput.value = '';
-  setTimeout(() => instructionInput.focus(), 0);
-  activeRange = range.cloneRange();
-});
-
-document.addEventListener('mousedown', event => {
-  if (palette.style.display === 'block' && !palette.contains(event.target)) {
-    hidePalette();
-  }
-});
-
-generateButton.addEventListener('click', () => {
-  if (!activeSelection) return;
-  applyHypertext(instructionInput.value.trim());
-});
-
-instructionInput.addEventListener('keydown', event => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    generateButton.click();
-  }
-});
-
-modalClose.addEventListener('click', () => {
-  closeChat();
-});
-
-modalBackdrop.addEventListener('click', event => {
-  if (event.target === modalBackdrop) {
-    closeChat();
-  }
-});
-
-modalSend.addEventListener('click', () => {
-  if (!activeChatSession) return;
-  const text = modalInput.value.trim();
-  runHypertext(activeChatSession, 'append', text);
-});
-
-modalRegenerate.addEventListener('click', () => {
-  if (!activeChatSession) return;
-  runHypertext(activeChatSession, 'regenerate');
-});
+  window.hypertextExperience = experience;
 </script>
+
 </body>
 </html>

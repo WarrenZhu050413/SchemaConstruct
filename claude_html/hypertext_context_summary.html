@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hypertext Context Summary</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --accent-blue: #1a73e8;
+    --ink-black: #1A1A1A;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FFFEF0;
+    --level-1: #8B0000;
+    --level-2: #993030;
+    --level-3: #a85a5a;
+    --level-4: #b98484;
+    --muted: #555555;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+}
+.container {
+    width: 100%;
+    padding: 8px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 8px 0 4px 0;
+    padding: 4px;
+    border-left: 4px solid var(--chinese-red);
+    background: rgba(139, 0, 0, 0.08);
+    color: var(--level-1);
+}
+h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 4px 0 2px 8px;
+    color: var(--level-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+.important-always-visible {
+    border: 1px solid rgba(139, 0, 0, 0.2);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 8px;
+    margin-bottom: 6px;
+}
+.dense-list {
+    list-style: none;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(139, 0, 0, 0.12);
+}
+.dense-list li {
+    margin: 2px 0;
+}
+.dense-list li strong {
+    color: var(--level-2);
+}
+.collapsible {
+    border: 1px solid rgba(139, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.9);
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: var(--level-2);
+    background: rgba(139, 0, 0, 0.08);
+}
+.collapsible-header .arrow {
+    font-size: 12px;
+    transition: transform 0.2s ease;
+}
+.collapsible.open .collapsible-header .arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    display: none;
+    padding: 6px 8px;
+    color: var(--muted);
+}
+.collapsible.open .collapsible-content {
+    display: block;
+}
+.tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+.tag {
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    background: rgba(139, 0, 0, 0.12);
+    color: var(--level-2);
+}
+.highlight {
+    color: var(--chinese-red);
+    font-weight: 700;
+}
+button.control {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    margin-left: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+}
+button.control:hover {
+    opacity: 0.85;
+}
+dt {
+    font-weight: 600;
+    color: var(--level-2);
+}
+dd {
+    margin: 0 0 4px 0;
+    padding-left: 10px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Hypertext Loader Context Access</h1>
+        <div style="text-align:right; margin: 4px;">
+            <button id="expand-all" class="control">Expand All</button>
+            <button id="collapse-all" class="control">Collapse All</button>
+        </div>
+    </header>
+    <section class="important-always-visible">
+        <h2>🎯 Critical Scope</h2>
+        <div class="two-column-layout">
+            <ul class="dense-list">
+                <li><strong>Selection Text:</strong> Exact user highlight</li>
+                <li><strong>URL:</strong> Current page address captured inline</li>
+                <li><strong>Title:</strong> Document title string</li>
+            </ul>
+            <ul class="dense-list">
+                <li><strong>Full Page Text:</strong> `document.body.innerText` snapshot</li>
+                <li><strong>Full HTML:</strong> `document.documentElement.outerHTML` (trimmed at 500k chars)</li>
+                <li><strong>Fallback:</strong> Runtime auto-builds same bundle if provider fails</li>
+            </ul>
+        </div>
+        <div class="tag-row">
+            <span class="tag">Selection JSON prompt includes context string</span>
+            <span class="tag">HTML truncation marker appended when exceeded</span>
+            <span class="tag">Consistent across demo + extension loader</span>
+        </div>
+    </section>
+    <main class="two-column-layout">
+        <article class="collapsible" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>📍 Textual Context Composition</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <dl>
+                    <dt>Selection Subject</dt>
+                    <dd>The literal highlight (`session.subject`) passed alongside context.</dd>
+                    <dt>Body Text Capture</dt>
+                    <dd>Whitespace-trimmed `innerText` of the entire `<body>` provides surrounding paragraphs, headings, and captions.</dd>
+                    <dt>Prompt Structure</dt>
+                    <dd>`buildInitialPrompt` embeds the selection plus the assembled context string so Claude receives both highlight and full-page text by default.</dd>
+                </dl>
+            </div>
+        </article>
+        <article class="collapsible" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>🏛️ HTML Context Composition</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <dl>
+                    <dt>Outer HTML Snapshot</dt>
+                    <dd>Complete serialized DOM via `document.documentElement.outerHTML` for structural reasoning.</dd>
+                    <dt>Size Guard</dt>
+                    <dd>Content beyond <span class="highlight">500,000</span> characters is trimmed with `<!-- [truncated ...] -->` notice to signal loss.</dd>
+                    <dt>Integrity</dt>
+                    <dd>Includes live attributes, inline scripts, and style tags present at capture moment.</dd>
+                </dl>
+            </div>
+        </article>
+        <article class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>⚡ Fallback & Error Handling</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Runtime Default:</strong> `buildDefaultContext` mirrors demo payload if a custom provider is absent or throws.</li>
+                    <li><strong>Consuming Code:</strong> `getContext(session)` tries provider, logs warnings, then returns default bundle.</li>
+                    <li><strong>Consistent Output:</strong> Ensures both extension and static demos stay aligned.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📊 Additional Metadata</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>URL / Title Placement:</strong> Prefixed lines before text block for quick parsing.</li>
+                    <li><strong>Section Delimiters:</strong> `'--- PAGE TEXT ---'` and `'--- PAGE HTML ---'` separators aid prompt readability.</li>
+                    <li><strong>Instruction Integration:</strong> Custom user instructions append after context without altering captured payload.</li>
+                </ul>
+            </div>
+        </article>
+        <article class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>🧭 Net Effect on Hypertext Loader</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ol style="margin-left:16px;">
+                    <li>The loader always supplies highlight + full-page text + full-page HTML to the backend.</li>
+                    <li>The demo, extension loader, and runtime fallback use identical context formatting.</li>
+                    <li>Any consumer downstream can reason over structural markup, not just surrounding sentences.</li>
+                </ol>
+            </div>
+        </article>
+    </main>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

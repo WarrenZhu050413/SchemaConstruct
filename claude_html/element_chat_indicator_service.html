@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Element Chat Indicator Service</title>
+    <style>
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+.container {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+}
+
+/* Primary heading - most important */
+h1 { 
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+/* Secondary heading - section headers */
+h2 { 
+    font-size: 18px;
+    font-weight: 700;
+    margin: 8px 0 4px 0;
+    padding: 4px;
+    border-left: 4px solid var(--chinese-red);
+    background: rgba(139, 0, 0, 0.03);
+    color: var(--level-1);
+}
+
+/* Tertiary heading - subsections */
+h3 { 
+    font-size: 14px;
+    font-weight: 600;
+    margin: 4px 0 2px 8px;
+    color: var(--level-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Quaternary heading - nested details */
+h4 {
+    font-size: 12px;
+    font-weight: 500;
+    margin: 2px 0 1px 16px;
+    color: var(--level-3);
+}
+
+h5, h6 {
+    font-size: 11px;
+    font-weight: 500;
+    margin: 1px 0 1px 24px;
+    color: var(--level-4);
+}
+
+button, .button {
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    color: white;
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    transition: all 0.2s ease;
+    padding: 2px 6px;
+    margin: 1px;
+    font-size: 12px;
+    line-height: 1.1;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(139, 0, 0, 0.3);
+    border-color: var(--chinese-gold);
+}
+
+/* Collapsible Sections for Progressive Disclosure */
+.collapsible {
+    margin: 4px 0;
+    width: 100%;
+}
+
+.collapsible-header {
+    cursor: pointer;
+    padding: 6px 8px;
+    background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+    border-left: 3px solid var(--chinese-gold);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.collapsible-header:hover {
+    background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+}
+
+.collapsible-header .arrow {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    color: var(--chinese-red);
+    font-size: 10px;
+}
+
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 8px;
+    margin-left: 12px;
+}
+
+.collapsible.open .collapsible-content {
+    max-height: 5000px;
+    padding: 8px;
+}
+
+/* Column-aware collapsibles */
+.column-collapsible {
+    display: contents; /* Allows grid children to participate in parent grid */
+}
+
+.two-column-layout .collapsible {
+    grid-column: span 1; /* Each collapsible takes one column */
+}
+
+.two-column-layout .collapsible.full-width {
+    grid-column: span 2; /* Full-width collapsibles span both columns */
+}
+
+/* Priority-based collapsibles */
+.collapsible.critical .collapsible-header {
+    border-left: 4px solid var(--chinese-red);
+    background: rgba(139, 0, 0, 0.08);
+    font-weight: 700;
+}
+
+.collapsible.secondary .collapsible-header {
+    border-left: 2px solid #999;
+    background: rgba(0, 0, 0, 0.02);
+    font-size: 13px;
+}
+
+/* Always-visible important content */
+.important-always-visible {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), white);
+    border: 2px solid var(--chinese-gold);
+    padding: 8px;
+    margin: 8px 0;
+    border-radius: 3px;
+}
+
+.important-always-visible h2 {
+    color: var(--chinese-red);
+    margin-top: 0;
+}
+
+/* Primary section - most important info */
+.primary-section {
+    border: 2px solid var(--chinese-red);
+    background: white;
+    margin: 6px 0;
+    padding: 6px;
+}
+
+/* Secondary section - main content */
+.secondary-section {
+    border-left: 3px solid var(--chinese-gold);
+    background: rgba(255, 215, 0, 0.05);
+    margin: 4px 0 4px 8px;
+    padding: 4px;
+}
+
+/* Tertiary section - supporting details */
+.tertiary-section {
+    margin-left: 16px;
+    padding-left: 8px;
+    border-left: 1px dashed #ccc;
+}
+
+/* Priority cards */
+.card {
+    background: white;
+    border: 1px solid rgba(139, 0, 0, 0.2);
+    border-radius: 2px;
+    padding: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.card.priority {
+    border: 2px solid var(--chinese-gold);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), white);
+}
+
+/* Scannable lists with visual indicators */
+.dense-list {
+    list-style: none;
+    padding: 0;
+    margin-left: 8px;
+}
+
+.dense-list li {
+    padding: 2px 0 2px 12px;
+    border-left: 2px solid transparent;
+    position: relative;
+}
+
+.dense-list li:before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--chinese-red);
+    font-size: 10px;
+}
+
+.dense-list li strong {
+    color: var(--level-2);
+    font-weight: 600;
+}
+
+/* Indentation system for hierarchy */
+.indent-1 { margin-left: 12px; }
+.indent-2 { margin-left: 24px; }
+.indent-3 { margin-left: 36px; }
+
+/* Visual separators */
+.divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--chinese-red), transparent);
+    margin: 8px 0;
+}
+
+pre, code {
+    background: linear-gradient(135deg, rgba(245, 245, 220, 0.3), rgba(255, 255, 255, 0.5));
+    border: 1px solid rgba(139, 0, 0, 0.1);
+    padding: 2px 4px;
+    margin: 1px 0;
+    font-size: 12px;
+    line-height: 1.1;
+}
+
+pre {
+    padding: 4px 6px;
+    margin: 2px 0;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2px 0;
+    font-size: 12px;
+}
+
+th, td {
+    border: 1px solid rgba(139, 0, 0, 0.2);
+    padding: 2px 4px;
+    text-align: left;
+    line-height: 1.1;
+}
+
+th {
+    background: rgba(139, 0, 0, 0.1);
+}
+
+/* Importance indicators */
+.metric {
+    display: inline-block;
+    background: white;
+    border: 1px solid var(--chinese-gold);
+    padding: 2px 6px;
+    margin: 2px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.metric.important {
+    background: var(--chinese-gold);
+    color: white;
+    font-weight: 700;
+}
+
+/* Status colors */
+.critical { color: var(--chinese-red); font-weight: 700; }
+.success { color: var(--jade-green); font-weight: 600; }
+.warning { color: var(--chinese-gold); font-weight: 600; }
+.muted { color: var(--level-4); font-size: 11px; }
+
+/* Highlighting */
+.highlight { background: rgba(255, 215, 0, 0.2); padding: 1px 2px; }
+
+/* Enhanced tables with visual hierarchy */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+    font-size: 12px;
+}
+
+th {
+    background: var(--chinese-red);
+    color: white;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 6px;
+}
+
+td {
+    border: 1px solid #ddd;
+    padding: 3px 6px;
+    text-align: left;
+}
+
+tr:nth-child(even) { background: rgba(0,0,0,0.02); }
+td:first-child { font-weight: 600; color: var(--level-2); }
+
+/* Remove all default spacing */
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+/* Compact containers */
+.main-container {
+    width: 100vw;
+    max-width: 100%;
+    padding: 2px;
+    margin: 0;
+}
+
+/* Two-column layout as default */
+.two-column-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    width: 100%;
+}
+
+.two-column-layout.uneven {
+    grid-template-columns: 2fr 1fr;
+}
+
+.two-column-layout.reverse-uneven {
+    grid-template-columns: 1fr 2fr;
+}
+
+/* Multi-column layouts for dense information */
+.dense-columns {
+    column-count: 2;
+    column-gap: 8px;
+    column-fill: balance;
+}
+
+@media (max-width: 1200px) {
+    .dense-columns { column-count: 2; }
+}
+
+@media (max-width: 800px) {
+    .dense-columns { column-count: 1; }
+    .two-column-layout,
+    .two-column-layout.uneven,
+    .two-column-layout.reverse-uneven {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Compact grids */
+.compact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 4px;
+    width: 100%;
+}
+
+/* Tight spacing for all elements */
+blockquote {
+    margin: 2px 0;
+    padding: 2px 8px;
+    border-left: 2px solid var(--chinese-red);
+}
+
+hr {
+    margin: 2px 0;
+    border: none;
+    height: 1px;
+    background: var(--chinese-red);
+}
+
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    /* Hierarchy levels */
+    --level-1: #000;      /* Primary content */
+    --level-2: #333;      /* Secondary content */
+    --level-3: #666;      /* Tertiary content */
+    --level-4: #999;      /* Muted/supporting */
+}
+
+.diagram-container {
+    background: white;
+    border: 1px solid #D1D5DB;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 16px 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Warm beige gradient background - perfect balance for readability */
+.mermaid {
+    background: linear-gradient(135deg, #F5F0E8 0%, #EDE8DC 100%);
+    padding: 20px;
+    margin: 8px 0;
+    border-radius: 4px;
+    border: 1px solid #D4C4B0;
+}
+    </style>
+</head>
+<body>
+    <div style="margin: 6px 4px; text-align: right;">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+
+    <div class="important-always-visible">
+        <h1>📘 Element Chat Indicator Service</h1>
+        <div class="two-column-layout">
+            <div>
+                <h3>Purpose</h3>
+                <p>Manages the red dot overlays that signal saved element chats on a page, keeping them positioned and synchronized with stored chat sessions.</p>
+                <p><strong>Location:</strong> <code>src/services/elementChatIndicatorService.ts</code></p>
+            </div>
+            <div>
+                <h3>Key Responsibilities</h3>
+                <ul class="dense-list">
+                    <li><strong>Lifecycle:</strong> Initialize scroll/resize observers and MutationObserver.</li>
+                    <li><strong>Rendering:</strong> Create and position badge spans near target elements.</li>
+                    <li><strong>Sync:</strong> Reflect session additions/removals via `syncIndicatorsForSessions` & `upsertIndicatorsForSession`.</li>
+                    <li><strong>Cleanup:</strong> Tear down observers and remove badges.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-column-layout">
+        <div class="collapsible critical open" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>⚙️ Implementation Overview</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>State:</strong> Maintains a `Map` of `IndicatorEntry` objects keyed by chat+descriptor.</li>
+                    <li><strong>Badge Creation:</strong> `createBadge` builds the 12px red dot and appends to `document.body`.</li>
+                    <li><strong>Positioning:</strong> `positionBadge` recalculates coordinates using `getBoundingClientRect` during refresh cycles.</li>
+                    <li><strong>Refresh Loop:</strong> `scheduleRefresh` coalesces updates via `requestAnimationFrame`.</li>
+                    <li><strong>Observation:</strong> Scroll, resize, and DOM mutations trigger repositioning.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="collapsible secondary open" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>🧩 Public API</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><code>initElementChatIndicators()</code> — ensures observers exist and queues a refresh.</li>
+                    <li><code>syncIndicatorsForSessions(sessions)</code> — bulk update from stored sessions; creates/removes badges accordingly.</li>
+                    <li><code>upsertIndicatorsForSession(session)</code> — incremental update for a single session.</li>
+                    <li><code>removeIndicatorsForChat(chatId)</code> — drop all badges tied to a chat.</li>
+                    <li><code>teardownElementChatIndicators()</code> — disconnect observers, remove badges, reset state.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="collapsible secondary open" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>📌 Internal Helpers</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><code>ensureInitialized()</code> — idempotently sets up observers.</li>
+                    <li><code>scheduleRefresh()</code> — debounces calls to `refreshIndicators`.</li>
+                    <li><code>positionBadge(entry)</code> — resolves DOM element and updates badge positioning.</li>
+                    <li><code>removeIndicatorByKey(key)</code> — DOM removal and map cleanup for orphaned entries.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="collapsible full-width open" data-collapsible="open">
+        <div class="collapsible-header">
+            <span>🧾 Source Code</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <pre class="code-block"><code>import type { ElementChatSession } from &#x27;@/types/elementChat&#x27;;
+import type { ElementDescriptor } from &#x27;./elementIdService&#x27;;
+import { findElementByDescriptor } from &#x27;./elementIdService&#x27;;
+
+interface IndicatorEntry {
+  key: string;
+  chatId: string;
+  descriptor: ElementDescriptor;
+  badge: HTMLSpanElement;
+  element: HTMLElement | null;
+}
+
+const INDICATOR_ATTRIBUTE = &#x27;data-nabokov-chat-indicator&#x27;;
+const indicators = new Map&lt;string, IndicatorEntry&gt;();
+let mutationObserver: MutationObserver | null = null;
+let rafHandle: number | null = null;
+let initialized = false;
+
+const scheduleRefresh = () =&gt; {
+  if (rafHandle !== null) {
+    return;
+  }
+
+  rafHandle = window.requestAnimationFrame(() =&gt; {
+    rafHandle = null;
+    refreshIndicators();
+  });
+};
+
+const ensureInitialized = () =&gt; {
+  if (initialized) {
+    return;
+  }
+
+  initialized = true;
+
+  window.addEventListener(&#x27;scroll&#x27;, scheduleRefresh, true);
+  window.addEventListener(&#x27;resize&#x27;, scheduleRefresh);
+
+  mutationObserver = new MutationObserver(scheduleRefresh);
+  mutationObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+  });
+};
+
+const createBadge = (chatId: string): HTMLSpanElement =&gt; {
+  const badge = document.createElement(&#x27;span&#x27;);
+  badge.setAttribute(INDICATOR_ATTRIBUTE, chatId);
+  badge.style.position = &#x27;absolute&#x27;;
+  badge.style.width = &#x27;12px&#x27;;
+  badge.style.height = &#x27;12px&#x27;;
+  badge.style.borderRadius = &#x27;50%&#x27;;
+  badge.style.background = &#x27;#C23B22&#x27;;
+  badge.style.boxShadow = &#x27;0 0 6px rgba(194, 59, 34, 0.45)&#x27;;
+  badge.style.border = &#x27;2px solid rgba(255, 255, 255, 0.9)&#x27;;
+  badge.style.pointerEvents = &#x27;none&#x27;;
+  badge.style.zIndex = &#x27;2147483646&#x27;;
+  badge.style.transform = &#x27;translate(-50%, -50%)&#x27;;
+  badge.style.transition = &#x27;opacity 0.2s ease&#x27;;
+  badge.style.opacity = &#x27;0&#x27;;
+  badge.style.display = &#x27;none&#x27;;
+  badge.setAttribute(&#x27;aria-hidden&#x27;, &#x27;true&#x27;);
+  badge.title = &#x27;Saved element chat available&#x27;;
+  document.body.appendChild(badge);
+  return badge;
+};
+
+const getDescriptorKey = (chatId: string, descriptor: ElementDescriptor): string =&gt; {
+  return `${chatId}::${descriptor.chatId}`;
+};
+
+const positionBadge = (entry: IndicatorEntry): void =&gt; {
+  let element = entry.element;
+
+  if (!element || !document.contains(element)) {
+    element = findElementByDescriptor(entry.descriptor);
+    entry.element = element;
+  }
+
+  if (!element) {
+    entry.badge.style.display = &#x27;none&#x27;;
+    entry.badge.style.opacity = &#x27;0&#x27;;
+    return;
+  }
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width === 0 &amp;&amp; rect.height === 0) {
+    entry.badge.style.display = &#x27;none&#x27;;
+    entry.badge.style.opacity = &#x27;0&#x27;;
+    return;
+  }
+
+  const top = rect.top + window.scrollY + 4;
+  const left = rect.right + window.scrollX - 4;
+
+  entry.badge.style.left = `${left}px`;
+  entry.badge.style.top = `${top}px`;
+  entry.badge.style.display = &#x27;block&#x27;;
+  entry.badge.style.opacity = &#x27;1&#x27;;
+};
+
+const refreshIndicators = (): void =&gt; {
+  indicators.forEach((entry) =&gt; {
+    positionBadge(entry);
+  });
+};
+
+const removeIndicatorByKey = (key: string): void =&gt; {
+  const entry = indicators.get(key);
+  if (!entry) {
+    return;
+  }
+
+  if (entry.badge.parentNode) {
+    entry.badge.parentNode.removeChild(entry.badge);
+  }
+  indicators.delete(key);
+};
+
+export const initElementChatIndicators = (): void =&gt; {
+  ensureInitialized();
+  scheduleRefresh();
+};
+
+export const syncIndicatorsForSessions = (sessions: ElementChatSession[]): void =&gt; {
+  ensureInitialized();
+
+  const activeKeys = new Set&lt;string&gt;();
+
+  sessions.forEach((session) =&gt; {
+    const descriptors = session.elementDescriptors &amp;&amp; session.elementDescriptors.length &gt; 0
+      ? session.elementDescriptors
+      : session.elementDescriptor
+        ? [session.elementDescriptor]
+        : [];
+
+    descriptors.forEach((descriptor) =&gt; {
+      if (!descriptor) {
+        return;
+      }
+      const key = getDescriptorKey(session.elementId, descriptor);
+      activeKeys.add(key);
+
+      let entry = indicators.get(key);
+      if (!entry) {
+        const badge = createBadge(session.elementId);
+        entry = {
+          key,
+          chatId: session.elementId,
+          descriptor,
+          badge,
+          element: null,
+        };
+        indicators.set(key, entry);
+      } else {
+        entry.descriptor = descriptor;
+      }
+    });
+  });
+
+  Array.from(indicators.keys()).forEach((key) =&gt; {
+    if (!activeKeys.has(key)) {
+      removeIndicatorByKey(key);
+    }
+  });
+
+  scheduleRefresh();
+};
+
+export const upsertIndicatorsForSession = (session: ElementChatSession): void =&gt; {
+  ensureInitialized();
+
+  const descriptors = session.elementDescriptors &amp;&amp; session.elementDescriptors.length &gt; 0
+    ? session.elementDescriptors
+    : session.elementDescriptor
+      ? [session.elementDescriptor]
+      : [];
+
+  const seenKeys = new Set&lt;string&gt;();
+
+  descriptors.forEach((descriptor) =&gt; {
+    if (!descriptor) {
+      return;
+    }
+
+    const key = getDescriptorKey(session.elementId, descriptor);
+    seenKeys.add(key);
+    let entry = indicators.get(key);
+    if (!entry) {
+      entry = {
+        key,
+        chatId: session.elementId,
+        descriptor,
+        badge: createBadge(session.elementId),
+        element: null,
+      };
+      indicators.set(key, entry);
+    } else {
+      entry.descriptor = descriptor;
+    }
+  });
+
+  Array.from(indicators.values()).forEach((entry) =&gt; {
+    if (entry.chatId === session.elementId &amp;&amp; !seenKeys.has(entry.key)) {
+      removeIndicatorByKey(entry.key);
+    }
+  });
+
+  scheduleRefresh();
+};
+
+export const removeIndicatorsForChat = (chatId: string): void =&gt; {
+  Array.from(indicators.values()).forEach((entry) =&gt; {
+    if (entry.chatId === chatId) {
+      removeIndicatorByKey(entry.key);
+    }
+  });
+};
+
+export const teardownElementChatIndicators = (): void =&gt; {
+  if (!initialized) {
+    return;
+  }
+
+  if (mutationObserver) {
+    mutationObserver.disconnect();
+    mutationObserver = null;
+  }
+
+  window.removeEventListener(&#x27;scroll&#x27;, scheduleRefresh, true);
+  window.removeEventListener(&#x27;resize&#x27;, scheduleRefresh);
+
+  indicators.forEach((entry) =&gt; {
+    if (entry.badge.parentNode) {
+      entry.badge.parentNode.removeChild(entry.badge);
+    }
+  });
+  indicators.clear();
+
+  initialized = false;
+};
+</code></pre>
+        </div>
+    </div>
+
+    <script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-create collapsibles for sections marked with data-collapsible
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    
+    // Handle collapsible clicks
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    
+    // Expand/Collapse all buttons
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+    </script>
+</body>
+</html>

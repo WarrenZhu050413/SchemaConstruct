@@ -1675,7 +1675,7 @@ async function queryScreenshot(
   const screenshot = await getScreenshot(cardId);
 
   const response = await claudeAPI({
-    model: 'claude-sonnet-4-20250514',  // Vision model
+    model: 'sonnet',  // Vision model
     messages: [{
       role: 'user',
       content: [

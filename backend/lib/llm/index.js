@@ -7,6 +7,35 @@ const DEFAULT_PROVIDERS = {
   claude: claudeProvider,
 };
 
+const DEFAULT_MODELS = {
+  codex: process.env.CODEX_MODEL || 'gpt5-codex',
+  claude: process.env.CLAUDE_MODEL || 'sonnet',
+};
+
+const CODEX_MODEL_PATTERN = /(codex|gpt)/i;
+
+function normalizeClaudeModelName(model, defaultModel) {
+  if (!model || typeof model !== 'string') {
+    return defaultModel;
+  }
+
+  const normalized = model.toLowerCase();
+
+  if (normalized.includes('sonnet')) {
+    return 'sonnet';
+  }
+
+  if (normalized.includes('haiku')) {
+    return 'haiku';
+  }
+
+  if (normalized.includes('opus')) {
+    return 'opus';
+  }
+
+  return defaultModel;
+}
+
 function resolveProviderKey(providers) {
   const envProvider = process.env.LLM_PROVIDER?.toLowerCase();
   if (envProvider && providers[envProvider]) {
@@ -38,10 +67,65 @@ export function createLLMService({ providers = DEFAULT_PROVIDERS } = {}) {
     }
   };
 
+  const normalizeOptionsForProvider = options => {
+    const defaultModel = DEFAULT_MODELS[providerKey];
+
+    if (providerKey === 'codex') {
+      const {
+        model,
+        providerOptions = {},
+        ...rest
+      } = options ?? {};
+
+      const userRequestedModel = model || providerOptions.model;
+      const normalizedProviderOptions = { ...providerOptions };
+
+      if (userRequestedModel) {
+        normalizedProviderOptions.model = userRequestedModel;
+      } else {
+        delete normalizedProviderOptions.model;
+      }
+
+      if (!Object.keys(normalizedProviderOptions).length) {
+        delete normalizedProviderOptions.model;
+      }
+
+      const normalizedOptions = {
+        ...rest,
+        ...(Object.keys(normalizedProviderOptions).length
+          ? { providerOptions: normalizedProviderOptions }
+          : {}),
+      };
+
+      return {
+        normalized: normalizedOptions,
+        requestedModel: userRequestedModel,
+        resolvedModel: userRequestedModel || defaultModel,
+      };
+    }
+
+    if (providerKey === 'claude') {
+      const { model, ...rest } = options ?? {};
+      const requestedModel = model || defaultModel;
+      const resolvedModel = normalizeClaudeModelName(requestedModel, defaultModel);
+      return {
+        normalized: {
+          ...rest,
+          model: resolvedModel,
+        },
+        requestedModel,
+        resolvedModel,
+      };
+    }
+
+    return { normalized: options, requestedModel: undefined, resolvedModel: undefined };
+  };
+
   const prepare = (messages, options = {}) => {
-    const { system, ...providerOptions } = options;
+    const { system, ...otherOptions } = options;
+    const { normalized, requestedModel, resolvedModel } = normalizeOptionsForProvider(otherOptions);
     const prompt = buildPrompt(messages, system);
-    return { prompt, providerOptions };
+    return { prompt, providerOptions: normalized ?? {}, requestedModel, resolvedModel };
   };
 
   const wrapMetadata = metadata => ({
@@ -57,22 +141,45 @@ export function createLLMService({ providers = DEFAULT_PROVIDERS } = {}) {
 
     async sendMessage({ messages, options }) {
       validate(messages);
-      const { prompt, providerOptions } = prepare(messages, options);
-      const response = await provider.send({ prompt, options: providerOptions });
+      const { prompt, providerOptions, requestedModel, resolvedModel } = prepare(messages, options);
+      const response = await provider.send({
+        prompt,
+        options: {
+          ...providerOptions,
+          requestedModel,
+          resolvedModel,
+        }
+      });
       return {
         content: response.content,
-        metadata: wrapMetadata(response.metadata || {}),
+        metadata: wrapMetadata({
+          ...(response.metadata || {}),
+          requestedModel,
+          resolvedModel,
+        }),
       };
     },
 
     async streamMessage({ messages, options, onToken, onDone, onError }) {
       validate(messages);
-      const { prompt, providerOptions } = prepare(messages, options);
+      const { prompt, providerOptions, requestedModel, resolvedModel } = prepare(messages, options);
       return provider.stream({
         prompt,
-        options: providerOptions,
+        options: {
+          ...providerOptions,
+          requestedModel,
+          resolvedModel,
+        },
         onToken,
-        onDone,
+        onDone: metadata => {
+          if (typeof onDone === 'function') {
+            onDone({
+              ...(metadata || {}),
+              requestedModel,
+              resolvedModel,
+            });
+          }
+        },
         onError,
       });
     },

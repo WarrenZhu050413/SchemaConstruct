@@ -50,9 +50,10 @@ export const test = base.extend<ExtensionFixtures>({
     const extensionPath = getExtensionPath();
 
     const defaultViewport = { width: 1280, height: 720 };
+    const scale = 0.3;
     const scaledViewport = {
-      width: Math.floor(defaultViewport.width * 0.3),
-      height: Math.floor(defaultViewport.height * 0.3),
+      width: Math.max(360, Math.floor(defaultViewport.width * scale)),
+      height: Math.max(200, Math.floor(defaultViewport.height * scale)),
     };
 
     const context = await chromium.launchPersistentContext('', {

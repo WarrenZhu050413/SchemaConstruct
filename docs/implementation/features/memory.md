@@ -1447,7 +1447,7 @@ function CytoscapeGraph({ cards, connections }) {
    function queryWithScreenshot(cardId: string, question: string) {
      const screenshot = await getScreenshot(cardId);
      const response = await claudeAPI({
-       model: 'claude-sonnet-4-20250514',
+       model: 'sonnet',
        messages: [{
          role: 'user',
          content: [
@@ -4447,7 +4447,7 @@ async function multimodalQuery(
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'sonnet',
       max_tokens: 4096,
       messages
     })
@@ -57251,7 +57251,7 @@ function getLLMConfig(): { maxTokens: number; model: string } {
     if (connection.effectiveType === '4g' && connection.downlink > 10) {
       return {
         maxTokens: 2000,
-        model: 'claude-sonnet-4-20250514' // Large, powerful model
+        model: 'sonnet' // Large, powerful model
       };
     }
   }

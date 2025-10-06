@@ -50,6 +50,25 @@ async function openCanvas(context: BrowserContext, extensionId: string): Promise
   return canvasPage;
 }
 
+async function waitForBeautifiedCard(
+  context: BrowserContext,
+  cardId: string,
+  timeoutMs = 20000
+): Promise<any> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const storage = await getExtensionStorage(context, 'cards');
+    const card = storage.cards.find((c: any) => c.id === cardId);
+    if (card?.beautifiedContent) {
+      return card;
+    }
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  throw new Error(`Timed out waiting for beautified content on card ${cardId}`);
+}
+
 test.describe('Beautification - Triggering', () => {
   test.beforeEach(async ({ context }) => {
     await clearExtensionStorage(context);
@@ -74,14 +93,9 @@ test.describe('Beautification - Triggering', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1000);
+      const updatedCard = await waitForBeautifiedCard(context, 'test-card-beautify');
 
-      // Verify content was updated (in mock mode or real API mode)
-      const storage = await getExtensionStorage(context, 'cards');
-      const updatedCard = storage.cards.find((c: any) => c.id === 'test-card-beautify');
-
-      // Content should be different from original
-      expect(updatedCard.content).not.toBe('<p>Unstructured content about React hooks. useState is a hook. useEffect is also a hook. They are important.</p>');
+      expect(updatedCard.beautifiedContent).toContain('##');
     }
   });
 
@@ -98,8 +112,8 @@ test.describe('Beautification - Triggering', () => {
       await canvasPage.waitForTimeout(300);
 
       // Look for beautification mode options
-      const organizeOption = canvasPage.locator('text=Organize, text=organize-content, button:has-text("Organize")').first();
-      expect(await organizeOption.count()).toBeGreaterThan(0);
+      const organizeOption = canvasPage.getByRole('menuitem', { name: /Organize/i }).first();
+      await expect(organizeOption).toBeVisible();
     }
   });
 
@@ -114,19 +128,11 @@ test.describe('Beautification - Triggering', () => {
       await beautifyButton.click();
       await canvasPage.waitForTimeout(300);
 
-      // Select organize mode
-      const organizeOption = canvasPage.locator('text=Organize, button:has-text("Organize")').first();
-      if (await organizeOption.count() > 0) {
-        await organizeOption.click();
-        await canvasPage.waitForTimeout(1000);
+      const organizeOption = canvasPage.getByRole('menuitem', { name: /Organize/i }).first();
+      await organizeOption.click();
 
-        // Verify content was organized
-        const storage = await getExtensionStorage(context, 'cards');
-        const updatedCard = storage.cards.find((c: any) => c.id === 'test-card-beautify');
-
-        // Should have structured HTML (headings, lists, etc.)
-        expect(updatedCard.content).toMatch(/<h[1-6]>|<ul>|<ol>|<li>/);
-      }
+      const updatedCard = await waitForBeautifiedCard(context, 'test-card-beautify');
+      expect(updatedCard.beautifiedContent).toMatch(/## |### |\n- |\n\d+\./);
     }
   });
 });
@@ -147,8 +153,8 @@ test.describe('Beautification - Loading States', () => {
       await beautifyButton.click();
 
       // Check for loading indicator immediately
-      const loadingIndicator = canvasPage.locator('[class*="loading"], [class*="spinner"], text=Loading, text=Beautifying').first();
-      expect(await loadingIndicator.count()).toBeGreaterThan(0);
+      const loadingIndicator = canvasPage.getByText(/Beautifying content/i).first();
+      await expect(loadingIndicator).toBeVisible();
     }
   });
 
@@ -163,8 +169,7 @@ test.describe('Beautification - Loading States', () => {
       await beautifyButton.click();
 
       // Button should be disabled during processing
-      const isDisabled = await beautifyButton.evaluate(btn => btn.hasAttribute('disabled') || btn.getAttribute('aria-disabled') === 'true');
-      expect(isDisabled).toBe(true);
+      await expect(beautifyButton).toBeDisabled();
     }
   });
 
@@ -240,13 +245,8 @@ test.describe('Beautification - Content Transformation', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      const storage = await getExtensionStorage(context, 'cards');
-      const beautifiedCard = storage.cards.find((c: any) => c.id === 'messy-card');
-
-      // Should have better structure
-      expect(beautifiedCard.content.length).toBeGreaterThan(card.content.length);
+      const beautifiedCard = await waitForBeautifiedCard(context, 'messy-card');
+      expect(beautifiedCard.beautifiedContent.length).toBeGreaterThan(card.content.length);
     }
   });
 
@@ -272,14 +272,9 @@ test.describe('Beautification - Content Transformation', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      const storage = await getExtensionStorage(context, 'cards');
-      const beautifiedCard = storage.cards.find((c: any) => c.id === 'structured-card');
-
-      // Important elements should be preserved
-      expect(beautifiedCard.content).toContain('Important Title');
-      expect(beautifiedCard.content).toMatch(/const x = 1/);
+      const beautifiedCard = await waitForBeautifiedCard(context, 'structured-card');
+      expect(beautifiedCard.beautifiedContent).toContain('Important Title');
+      expect(beautifiedCard.beautifiedContent).toMatch(/const x = 1/);
     }
   });
 
@@ -305,15 +300,11 @@ test.describe('Beautification - Content Transformation', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      const storage = await getExtensionStorage(context, 'cards');
-      const beautifiedCard = storage.cards.find((c: any) => c.id === 'unsafe-card');
-
-      // Should not contain scripts or dangerous elements
-      expect(beautifiedCard.content).not.toContain('<script');
-      expect(beautifiedCard.content).not.toContain('onclick');
-      expect(beautifiedCard.content).not.toContain('onerror');
+      const beautifiedCard = await waitForBeautifiedCard(context, 'unsafe-card');
+      const beautifiedContent = beautifiedCard.beautifiedContent.toLowerCase();
+      expect(beautifiedContent).not.toContain('<script');
+      expect(beautifiedContent).not.toContain('onclick');
+      expect(beautifiedContent).not.toContain('onerror');
     }
   });
 
@@ -329,11 +320,7 @@ test.describe('Beautification - Content Transformation', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      const storage = await getExtensionStorage(context, 'cards');
-      const updatedCard = storage.cards.find((c: any) => c.id === 'test-card-beautify');
-
+      const updatedCard = await waitForBeautifiedCard(context, 'test-card-beautify');
       expect(updatedCard.updatedAt).toBeGreaterThan(originalUpdatedAt);
     }
   });
@@ -356,12 +343,8 @@ test.describe('Beautification - API Integration', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      // In test environment, should use mock or handle API call
-      const storage = await getExtensionStorage(context, 'cards');
-      const card = storage.cards[0];
-      expect(card.content).toBeDefined();
+      const card = await waitForBeautifiedCard(context, 'test-card-beautify');
+      expect(card.beautifiedContent).toBeTruthy();
     }
   });
 
@@ -377,14 +360,9 @@ test.describe('Beautification - API Integration', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      // Should still succeed with mock fallback
-      const storage = await getExtensionStorage(context, 'cards');
-      const card = storage.cards[0];
-
-      // Content should be changed (mock response)
-      expect(card.content).not.toBe('<p>Unstructured content about React hooks. useState is a hook. useEffect is also a hook. They are important.</p>');
+      const card = await waitForBeautifiedCard(context, 'test-card-beautify');
+      expect(card.beautifiedContent).toBeTruthy();
+      expect(card.beautifiedContent).not.toContain('Unstructured content about React hooks');
     }
   });
 
@@ -399,11 +377,8 @@ test.describe('Beautification - API Integration', () => {
 
     if (await beautifyButton.count() > 0) {
       await beautifyButton.click();
-      await canvasPage.waitForTimeout(1500);
-
-      // Should work regardless of backend availability (fallbacks in place)
-      const storage = await getExtensionStorage(context, 'cards');
-      expect(storage.cards).toHaveLength(1);
+      const storageCard = await waitForBeautifiedCard(context, 'test-card-beautify');
+      expect(storageCard.beautifiedContent).toBeTruthy();
     }
   });
 });
@@ -468,10 +443,13 @@ test.describe('Beautification - Edge Cases', () => {
       await beautifyButton.click();
       await canvasPage.waitForTimeout(2000);
 
-      // Should handle long content
       const storage = await getExtensionStorage(context, 'cards');
       const updatedCard = storage.cards.find((c: any) => c.id === 'long-card');
-      expect(updatedCard.content).toBeDefined();
+
+      expect(updatedCard).toBeDefined();
+      if (updatedCard?.beautifiedContent) {
+        expect(updatedCard.beautifiedContent.length).toBeLessThanOrEqual(4005);
+      }
     }
   });
 
@@ -499,11 +477,8 @@ test.describe('Beautification - Edge Cases', () => {
       await beautifyButton.click();
       await canvasPage.waitForTimeout(1500);
 
-      const storage = await getExtensionStorage(context, 'cards');
-      const beautifiedCard = storage.cards.find((c: any) => c.id === 'unicode-card');
-
-      // Unicode should be preserved
-      expect(beautifiedCard.content).toMatch(/中文|🚀|café|ñoño/);
+      const beautifiedCard = await waitForBeautifiedCard(context, 'unicode-card');
+      expect(beautifiedCard.beautifiedContent).toMatch(/中文|🚀|café|ñoño/);
     }
   });
 });

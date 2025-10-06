@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Plan: Element Chat Processing UI Enhancements (REVISED)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #FFF5F2 0%, #FCE2D7 100%);
+            padding: 16px;
+            line-height: 1.6;
+            color: #2F1B1B;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 12px;
+            color: #8B0000;
+            border-bottom: 3px solid #C23B22;
+            padding-bottom: 8px;
+        }
+        h2 {
+            font-size: 18px;
+            margin: 16px 0 8px 0;
+            color: #B22222;
+            border-left: 4px solid #D96F5C;
+            padding-left: 12px;
+        }
+        h3 {
+            font-size: 15px;
+            margin: 12px 0 6px 0;
+            color: #C23B22;
+        }
+        .important-always-visible {
+            background: linear-gradient(135deg, #FFF8F4, #FFE9DD);
+            border: 2px solid #C23B22;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.15);
+        }
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 12px;
+        }
+        @media (max-width: 768px) {
+            .two-column-layout { grid-template-columns: 1fr; }
+        }
+        .collapsible {
+            border: 1px solid #E6A38C;
+            border-radius: 6px;
+            margin-bottom: 12px;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+        .collapsible.critical { border: 2px solid #8B0000; }
+        .collapsible.secondary { border: 1px solid #E6A38C; }
+        .collapsible.full-width { grid-column: 1 / -1; }
+        .collapsible-header {
+            background: linear-gradient(135deg, #8B0000, #C23B22);
+            color: #FFFFFF;
+            padding: 10px 14px;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        .collapsible.secondary .collapsible-header {
+            background: linear-gradient(135deg, #C23B22, #D96F5C);
+        }
+        .collapsible-header:hover { background: linear-gradient(135deg, #B22222, #D96F5C); }
+        .collapsible-content {
+            padding: 14px;
+            display: none;
+        }
+        .collapsible[data-collapsible="open"] .collapsible-content { display: block; }
+        .collapsible[data-collapsible="open"] .arrow { transform: rotate(90deg); }
+        .arrow {
+            transition: transform 0.2s ease;
+            font-size: 12px;
+        }
+        .metric {
+            display: inline-block;
+            background: rgba(194, 59, 34, 0.15);
+            border: 1px solid #C23B22;
+            border-radius: 4px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 4px 0;
+        }
+        .metric.important { background: rgba(139, 0, 0, 0.2); border-color: #8B0000; }
+        .dense-list {
+            margin: 8px 0 8px 20px;
+            padding: 0;
+        }
+        .dense-list li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        .indent-1 {
+            margin-left: 20px;
+            font-size: 13px;
+        }
+        .muted {
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+        code {
+            background: #F6D0C5;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #8B0000;
+        }
+        pre {
+            background: #F9DDD1;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border-left: 4px solid #C23B22;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+        button {
+            background: linear-gradient(135deg, #8B0000, #C23B22);
+            color: #FFFFFF;
+            border: 1px solid #D96F5C;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-right: 6px;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(139, 0, 0, 0.28);
+        }
+        .note {
+            background: #FFF1EA;
+            border-left: 4px solid #C23B22;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #FFF5F2;
+            border: 2px solid #B22222;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+        }
+        .critical-fix {
+            background: #FFE4E1;
+            border: 2px solid #DC143C;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .revision-note {
+            background: #E6F3FF;
+            border-left: 4px solid #0066CC;
+            padding: 10px 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            color: #003366;
+        }
+    </style>
+</head>
+<body>
+    <!-- Expand/Collapse Controls -->
+    <div style="margin: 8px 0; text-align: right;">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+
+    <!-- Revision Notice -->
+    <div class="revision-note">
+        <strong>📝 REVISED PLAN (v2)</strong>
+        <p>This plan addresses all critical issues identified in the review:</p>
+        <ul class="dense-list">
+            <li>Added comprehensive TypeScript type updates (5 files)</li>
+            <li>Increased square mode size to 64×64px for better UX</li>
+            <li>Added theme color definitions as first step</li>
+            <li>Included prefers-reduced-motion support</li>
+            <li>Added expandedSize persistence to fix restore logic</li>
+            <li>Updated time estimate to realistic 2.5-3 hours</li>
+        </ul>
+    </div>
+
+    <!-- Executive Summary (Always Visible) -->
+    <div class="important-always-visible">
+        <h1>📋 Task Plan: Element Chat Processing UI Enhancements (REVISED)</h1>
+        <div class="two-column-layout">
+            <div>
+                <h3>Objective</h3>
+                <p>Enhance ElementChatWindow with visual processing indicators and flexible collapse modes (3-state: expanded, rectangle, square).</p>
+                <div class="metric important">Complexity: Medium-High</div>
+                <div class="metric">TypeScript Changes: 5 files</div>
+            </div>
+            <div>
+                <h3>Approach</h3>
+                <p>1. Define theme colors first<br>
+                2. Update TypeScript types across all files<br>
+                3. Implement multi-level collapse with size persistence<br>
+                4. Add processing visual feedback with accessibility</p>
+                <div class="metric">Estimated Time: 2.5-3 hours</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-Column Layout for Main Content -->
+    <div class="two-column-layout">
+        <!-- Left Column: Implementation Steps -->
+        <div class="collapsible critical" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>⚡ Implementation Steps (REVISED)</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Step 0: Define Theme Colors (CRITICAL - DO FIRST)</h3>
+                <div class="indent-1 muted">File: src/components/ElementChatWindow.tsx:52-97</div>
+                <div class="critical-fix">🚨 REQUIRED BEFORE ANY OTHER CHANGES</div>
+                <ol class="dense-list">
+                    <li><strong>Add processing theme colors to ELEMENT_CHAT_THEME</strong>
+<pre>const ELEMENT_CHAT_THEME = {
+  // ... existing colors
+
+  // NEW: Processing state colors
+  processingGradient: 'linear-gradient(135deg, #FFF8E1 0%, #FFECB3 100%)',
+  processingHeaderGradient: 'linear-gradient(135deg, #FF8F00, #FFA726)',
+  processingBorder: '#FF9800',
+  processingBorderPulse: '#FFB74D',
+  processingAccent: '#FF8F00',
+  processingIcon: '#FF6F00',
+};</pre>
+                    </li>
+                </ol>
+
+                <h3>Step 1: Update TypeScript Types (CRITICAL - 5 FILES)</h3>
+                <div class="critical-fix">🚨 ALL TYPE UPDATES MUST BE DONE TOGETHER</div>
+
+                <h4>1.1 Update src/types/elementChat.ts</h4>
+                <div class="indent-1 muted">Lines: ~20-40 (interface definitions)</div>
+                <ol class="dense-list">
+                    <li><strong>Add CollapseState type</strong>
+<pre>/**
+ * Collapse state for element chat window
+ * - 'expanded': Full window with all content visible
+ * - 'rectangle': Header-only (44px height, full width)
+ * - 'square': Icon-only (64×64px, minimal UI)
+ */
+export type CollapseState = 'expanded' | 'rectangle' | 'square';</pre>
+                    </li>
+                    <li><strong>Update ElementChatWindowState interface</strong>
+<pre>export interface ElementChatWindowState {
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  expandedSize?: { width: number; height: number }; // NEW: Restore size
+  collapseState: CollapseState; // CHANGED: was 'collapsed?: boolean'
+  anchorOffset?: { x: number; y: number };
+  queueExpanded?: boolean;
+  clearPreviousAssistant?: boolean;
+  activeAnchorChatId?: string;
+
+  // Legacy support (deprecated, for migration only)
+  /** @deprecated Use collapseState instead */
+  collapsed?: boolean;
+}</pre>
+                    </li>
+                </ol>
+
+                <h4>1.2 Update ElementChatWindow.tsx Component Props</h4>
+                <div class="indent-1 muted">Lines: 99-114</div>
+                <ol class="dense-list">
+                    <li><strong>Import new type</strong>
+<pre>import type { ElementChatSession, ChatMessage, CollapseState } from '@/types/elementChat';</pre>
+                    </li>
+                </ol>
+
+                <h4>1.3 Update State Declarations (ElementChatWindow.tsx)</h4>
+                <div class="indent-1 muted">Lines: 195-222</div>
+                <ol class="dense-list">
+                    <li><strong>Replace collapsed state with collapseState</strong>
+<pre>// REMOVE:
+// const [collapsed, setCollapsed] = useState(...)
+
+// ADD:
+const [collapseState, setCollapseState] = useState&lt;CollapseState&gt;(() => {
+  const state = existingSession?.windowState;
+
+  // New format takes precedence
+  if (state?.collapseState) {
+    return state.collapseState;
+  }
+
+  // Migrate from legacy format
+  if (state?.collapsed === true) {
+    return 'rectangle';
+  }
+
+  // Default
+  return 'expanded';
+});</pre>
+                    </li>
+                    <li><strong>Add expandedSize state for restoration</strong>
+<pre>const [expandedSize, setExpandedSize] = useState(
+  existingSession?.windowState?.expandedSize ||
+  existingSession?.windowState?.size ||
+  { width: 420, height: 550 }
+);</pre>
+                    </li>
+                    <li><strong>Update all collapsed refs</strong>
+<pre>// CHANGE:
+const collapsedRef = useRef(collapsed);
+
+// TO:
+const collapseStateRef = useRef(collapseState);
+const expandedSizeRef = useRef(expandedSize);</pre>
+                    </li>
+                    <li><strong>Update useEffect for ref syncing</strong>
+<pre>useEffect(() => {
+  collapseStateRef.current = collapseState;
+}, [collapseState]);
+
+useEffect(() => {
+  expandedSizeRef.current = expandedSize;
+}, [expandedSize]);</pre>
+                    </li>
+                </ol>
+
+                <h4>1.4 Update saveSession Function</h4>
+                <div class="indent-1 muted">Lines: 502-548</div>
+                <ol class="dense-list">
+                    <li><strong>Save new state fields</strong>
+<pre>session.windowState = {
+  position: positionRef.current,
+  size: windowSizeRef.current,
+  expandedSize: expandedSizeRef.current, // NEW
+  collapseState: collapseStateRef.current, // CHANGED
+  anchorOffset: anchorOffsetRef.current || undefined,
+  queueExpanded: queueExpandedRef.current,
+  clearPreviousAssistant: clearPreviousAssistantRef.current,
+  activeAnchorChatId: activeAnchorChatIdRef.current,
+  // Do NOT save 'collapsed' anymore
+};</pre>
+                    </li>
+                </ol>
+
+                <h4>1.5 Update Service Layer (elementChatService.ts)</h4>
+                <div class="indent-1 muted">File: src/services/elementChatService.ts</div>
+                <ol class="dense-list">
+                    <li><strong>Import CollapseState type</strong>
+<pre>import type {
+  ElementChatSession,
+  ChatMessage,
+  ElementChatWindowState,
+  CollapseState // NEW
+} from '@/types/elementChat';</pre>
+                    </li>
+                    <li><strong>Update createElementChatSession signature</strong>
+<pre>// If function accepts windowState param, ensure it accepts new type
+export function createElementChatSession(
+  elementId: string,
+  pageUrl: string,
+  elementDescriptor: ElementDescriptor,
+  windowState?: Partial&lt;ElementChatWindowState&gt;, // This now includes collapseState
+  elementDescriptors?: ElementDescriptor[]
+): ElementChatSession {
+  // ... implementation
+}</pre>
+                    </li>
+                </ol>
+
+                <h3>Step 2: Implement Multi-Level Collapse with Size Restoration</h3>
+                <div class="indent-1 muted">File: src/components/ElementChatWindow.tsx</div>
+
+                <h4>2.1 Update Collapse Dimensions Constants</h4>
+                <ol class="dense-list">
+                    <li><strong>Define all collapse sizes</strong>
+<pre>// At top of component or outside
+const COLLAPSE_DIMENSIONS = {
+  HEADER_HEIGHT: 44,
+  SQUARE_SIZE: 64, // CHANGED from 44 to 64 for better UX
+} as const;</pre>
+                    </li>
+                </ol>
+
+                <h4>2.2 Update handleToggleCollapse Function</h4>
+                <div class="indent-1 muted">Lines: 1042-1044</div>
+                <ol class="dense-list">
+                    <li><strong>Implement 3-state cycling with size restoration</strong>
+<pre>const handleToggleCollapse = () => {
+  if (collapseState === 'expanded') {
+    // expanded → rectangle
+    setCollapseState('rectangle');
+  } else if (collapseState === 'rectangle') {
+    // rectangle → square
+    setCollapseState('square');
+  } else {
+    // square → expanded (restore previous size)
+    setCollapseState('expanded');
+    setWindowSize(expandedSizeRef.current);
+  }
+};</pre>
+                    </li>
+                </ol>
+
+                <h4>2.3 Update handleResizeStop to Save expandedSize</h4>
+                <div class="indent-1 muted">Lines: 1008-1030</div>
+                <ol class="dense-list">
+                    <li><strong>Only save expandedSize when in expanded mode</strong>
+<pre>const handleResizeStop = (
+  _e: any,
+  _dir: any,
+  ref: HTMLElement,
+  _delta: any,
+  newPosition: { x: number; y: number }
+) => {
+  const newSize = {
+    width: parseInt(ref.style.width),
+    height: parseInt(ref.style.height)
+  };
+
+  setWindowSize(newSize);
+
+  // IMPORTANT: Only update expandedSize when in expanded mode
+  if (collapseStateRef.current === 'expanded') {
+    setExpandedSize(newSize);
+  }
+
+  setPosition(newPosition);
+
+  if (anchorElementRef.current) {
+    const rect = anchorElementRef.current.getBoundingClientRect();
+    const offset = {
+      x: newPosition.x - rect.left,
+      y: newPosition.y - rect.top
+    };
+    setAnchorOffset(offset);
+    anchorOffsetRef.current = offset;
+  }
+};</pre>
+                    </li>
+                </ol>
+
+                <h4>2.4 Update Rnd Size Calculations</h4>
+                <div class="indent-1 muted">Lines: 1259-1284</div>
+                <ol class="dense-list">
+                    <li><strong>Calculate size based on collapseState</strong>
+<pre>&lt;Rnd
+  position={position}
+  size={{
+    width: collapseState === 'square'
+      ? COLLAPSE_DIMENSIONS.SQUARE_SIZE
+      : windowSize.width,
+    height: collapseState === 'expanded'
+      ? windowSize.height
+      : (collapseState === 'rectangle'
+          ? COLLAPSE_DIMENSIONS.HEADER_HEIGHT
+          : COLLAPSE_DIMENSIONS.SQUARE_SIZE)
+  }}
+  style={{ pointerEvents: 'auto' }}
+  onDragStart={handleDragStart}
+  onDragStop={handleDragStop}
+  onResize={handleResize}
+  onResizeStop={handleResizeStop}
+  resizeHandleComponent={resizeHandleComponents}
+  minWidth={300}
+  minHeight={200}
+  bounds="window"
+  dragHandleClassName="drag-handle"
+  enableResizing={collapseState === 'expanded' ? {
+    bottom: true,
+    bottomRight: true,
+    bottomLeft: true,
+    right: true,
+    left: true,
+    top: false,
+    topRight: false,
+    topLeft: false
+  } : false}
+&gt;</pre>
+                    </li>
+                </ol>
+
+                <h4>2.5 Update Header Content for Square Mode</h4>
+                <div class="indent-1 muted">Lines: 1289-1345</div>
+                <ol class="dense-list">
+                    <li><strong>Show minimal UI in square mode</strong>
+<pre>{/* Header */}
+&lt;div css={headerStyles(isStreaming || isProcessingQueue)} className="drag-handle"&gt;
+  {collapseState === 'square' ? (
+    // SQUARE MODE: Icon + collapse button only
+    &lt;&gt;
+      &lt;span css={iconStyles} title={elementLabel}&gt;💬&lt;/span&gt;
+      &lt;button
+        css={headerButtonStyles}
+        onClick={handleToggleCollapse}
+        title="Expand window"
+        data-test-id="collapse-button"
+      &gt;
+        ▼
+      &lt;/button&gt;
+    &lt;/&gt;
+  ) : (
+    // RECTANGLE/EXPANDED MODE: Full header
+    &lt;&gt;
+      &lt;div css={headerTitleStyles} title={primaryDescriptor.cssSelector}&gt;
+        &lt;span css={iconStyles}&gt;💬&lt;/span&gt;
+        &lt;div css={elementInfoStyles}&gt;
+          &lt;span css={elementLabelStyles}&gt;{elementLabel}&lt;/span&gt;
+          &lt;span css={elementSummaryStyles}&gt;{elementSummary}&lt;/span&gt;
+        &lt;/div&gt;
+        {hasHistory && &lt;span css={messageCountStyles}&gt;{messages.length}&lt;/span&gt;}
+        {(isStreaming || isProcessingQueue) && (
+          &lt;span css={processingSpinnerStyles}&gt;⚙️&lt;/span&gt;
+        )}
+      &lt;/div&gt;
+      &lt;div css={headerActionsStyles}&gt;
+        {hasHistory && (
+          &lt;&gt;
+            &lt;button css={saveButtonStyles} onClick={handleSaveToStash} title="Save conversation to Stash" disabled={isStreaming}&gt;
+              📥
+            &lt;/button&gt;
+            &lt;button css={saveButtonStyles} onClick={handleSaveToCanvas} title="Save conversation to Canvas" disabled={isStreaming}&gt;
+              🎨
+            &lt;/button&gt;
+          &lt;/&gt;
+        )}
+        &lt;button css={headerButtonStyles} onClick={handleClearHistory} title="Clear chat history" disabled={messages.length === 0 && messageQueue.length === 0} data-test-id="clear-history"&gt;
+          🧹
+        &lt;/button&gt;
+        &lt;button
+          css={headerButtonStyles}
+          onClick={handleToggleCollapse}
+          title={
+            collapseState === 'expanded' ? 'Collapse to header' :
+            collapseState === 'rectangle' ? 'Collapse to icon' :
+            'Expand window'
+          }
+          data-test-id="collapse-button"
+        &gt;
+          {collapseState === 'expanded' ? '▬' : collapseState === 'rectangle' ? '▪' : '▼'}
+        &lt;/button&gt;
+        &lt;button css={headerButtonStyles} onClick={onClose} title="Close"&gt;
+          ✕
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/&gt;
+  )}
+&lt;/div&gt;</pre>
+                    </li>
+                </ol>
+
+                <h4>2.6 Update Content Rendering (Hide in Collapsed Modes)</h4>
+                <div class="indent-1 muted">Lines: 1346-1586</div>
+                <ol class="dense-list">
+                    <li><strong>Change all <code>!collapsed</code> to <code>collapseState === 'expanded'</code></strong>
+<pre>// Anchor chips
+{collapseState === 'expanded' && (
+  &lt;div css={anchorChipRowStyles} data-test-id="element-anchor-list"&gt;
+    {/* ... */}
+  &lt;/div&gt;
+)}
+
+// Selected text banner
+{collapseState === 'expanded' && selectedText && (
+  &lt;div css={selectedTextBannerStyles}&gt;
+    {/* ... */}
+  &lt;/div&gt;
+)}
+
+// Messages container
+{collapseState === 'expanded' && (
+  &lt;div css={messagesContainerStyles}&gt;
+    {/* ... */}
+  &lt;/div&gt;
+)}
+
+// Input and queue
+{collapseState === 'expanded' && (
+  &lt;&gt;
+    {/* ... queue, input, etc ... */}
+  &lt;/&gt;
+)}</pre>
+                    </li>
+                </ol>
+
+                <h3>Step 3: Add Processing State Visual Indicators</h3>
+
+                <h4>3.1 Add Processing State Variable</h4>
+                <ol class="dense-list">
+                    <li><strong>Compute isProcessing from existing states</strong>
+<pre>// Near other state declarations
+const isProcessing = isStreaming || isProcessingQueue;</pre>
+                    </li>
+                </ol>
+
+                <h4>3.2 Update Container Styles</h4>
+                <div class="indent-1 muted">Lines: 1595-1609</div>
+                <ol class="dense-list">
+                    <li><strong>Add isProcessing parameter to containerStyles</strong>
+<pre>const containerStyles = (collapseState: CollapseState, isProcessing: boolean) => css`
+  width: 100%;
+  height: ${collapseState === 'expanded' ? '100%' : 'auto'};
+  background: ${isProcessing
+    ? ELEMENT_CHAT_THEME.processingGradient
+    : ELEMENT_CHAT_THEME.containerBackgroundGradient};
+  border: 2px solid ${isProcessing
+    ? ELEMENT_CHAT_THEME.processingBorder
+    : ELEMENT_CHAT_THEME.containerAccent};
+  border-radius: 8px;
+  box-shadow: ${ELEMENT_CHAT_THEME.containerShadow};
+  display: flex;
+  flex-direction: column;
+  z-index: 999999;
+  pointer-events: auto;
+  font-family: ${ELEMENT_CHAT_THEME.fontFamily};
+  transition: background 0.3s ease, border-color 0.3s ease;
+  overflow: ${collapseState !== 'expanded' ? 'hidden' : 'visible'};
+
+  @media (prefers-reduced-motion: no-preference) {
+    ${isProcessing && css`
+      animation: pulseBorder 2s ease-in-out infinite;
+    `}
+  }
+
+  @keyframes pulseBorder {
+    0%, 100% { border-color: ${ELEMENT_CHAT_THEME.processingBorder}; }
+    50% { border-color: ${ELEMENT_CHAT_THEME.processingBorderPulse}; }
+  }
+`;</pre>
+                    </li>
+                    <li><strong>Update containerStyles usage</strong>
+<pre>&lt;div
+  css={containerStyles(collapseState, isProcessing)}
+  data-collapse-state={collapseState}
+&gt;</pre>
+                    </li>
+                </ol>
+
+                <h4>3.3 Update Header Styles</h4>
+                <div class="indent-1 muted">Lines: 1611-1622</div>
+                <ol class="dense-list">
+                    <li><strong>Add isProcessing parameter to headerStyles</strong>
+<pre>const headerStyles = (isProcessing: boolean) => css`
+  background: ${isProcessing
+    ? ELEMENT_CHAT_THEME.processingHeaderGradient
+    : ELEMENT_CHAT_THEME.headerGradient};
+  color: ${ELEMENT_CHAT_THEME.headerTextColor};
+  padding: 10px 12px;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: move;
+  user-select: none;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+`;</pre>
+                    </li>
+                </ol>
+
+                <h4>3.4 Add Processing Spinner Style</h4>
+                <ol class="dense-list">
+                    <li><strong>Add new style at end of file</strong>
+<pre>const processingSpinnerStyles = css`
+  font-size: 14px;
+  display: inline-block;
+
+  @media (prefers-reduced-motion: no-preference) {
+    animation: spin 1.5s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+`;</pre>
+                    </li>
+                </ol>
+
+                <h3>Step 4: Update Save/Load Dependencies</h3>
+                <div class="indent-1 muted">Lines: 550-555</div>
+                <ol class="dense-list">
+                    <li><strong>Add new state to useEffect dependencies</strong>
+<pre>useEffect(() => {
+  if (messages.length > 0 || sessionRef.current) {
+    saveSession();
+  }
+}, [
+  messages,
+  position,
+  windowSize,
+  collapseState, // CHANGED from 'collapsed'
+  expandedSize,  // NEW
+  anchorOffset,
+  queueExpanded,
+  clearPreviousAssistant,
+  saveSession
+]);</pre>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Right Column: Testing & Validation -->
+        <div class="collapsible secondary" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>✓ Testing & Validation (REVISED)</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>TypeScript Compilation Test (FIRST)</h3>
+                <div class="critical-fix">🚨 RUN AFTER STEP 1 BEFORE PROCEEDING</div>
+                <ol class="dense-list">
+                    <li><code>npm run type-check</code></li>
+                    <li>Fix ALL type errors before continuing</li>
+                    <li>Search codebase for any remaining <code>windowState.collapsed</code> references</li>
+                </ol>
+
+                <h3>Manual Testing Checklist</h3>
+                <ul class="dense-list">
+                    <li><strong>Processing Indicator</strong>
+                        <ul class="dense-list">
+                            <li>Open element chat window</li>
+                            <li>Send a message, verify background gradient changes to amber</li>
+                            <li>Verify border color changes to orange during streaming</li>
+                            <li>With <code>prefers-reduced-motion: reduce</code>, verify NO pulsing animation</li>
+                            <li>Verify header gradient changes to amber during processing</li>
+                            <li>Verify spinning ⚙️ icon appears in header</li>
+                            <li>After response completes, verify UI returns to red theme</li>
+                        </ul>
+                    </li>
+                    <li><strong>Collapse State Cycling</strong>
+                        <ul class="dense-list">
+                            <li>Start in expanded mode (full window at 420×550)</li>
+                            <li>Click collapse button (▬), verify transitions to rectangle (full width × 44px)</li>
+                            <li>Verify button icon changes to ▪</li>
+                            <li>Click collapse button (▪), verify transitions to square (64×64px)</li>
+                            <li>Verify only 💬 icon and ▼ button visible in square mode</li>
+                            <li>Verify button icon changes to ▼</li>
+                            <li>Click collapse button (▼), verify transitions back to expanded (420×550)</li>
+                            <li>Verify window restores to original expanded size, NOT 64×64</li>
+                        </ul>
+                    </li>
+                    <li><strong>Size Restoration Logic</strong>
+                        <ul class="dense-list">
+                            <li>Expand window to custom size (e.g., 600×700)</li>
+                            <li>Collapse to rectangle, verify width stays 600px</li>
+                            <li>Collapse to square, verify becomes 64×64</li>
+                            <li>Expand back, verify restores to 600×700 (NOT 64×64)</li>
+                        </ul>
+                    </li>
+                    <li><strong>State Persistence</strong>
+                        <ul class="dense-list">
+                            <li>Set custom size 500×600, collapse to rectangle, refresh page</li>
+                            <li>Verify loads in rectangle mode with 500px width</li>
+                            <li>Expand, verify restores to 500×600</li>
+                            <li>Collapse to square, refresh page</li>
+                            <li>Verify loads in square mode (64×64)</li>
+                            <li>Expand, verify restores to 500×600</li>
+                        </ul>
+                    </li>
+                    <li><strong>Resize Behavior</strong>
+                        <ul class="dense-list">
+                            <li>In expanded mode, verify all resize handles work</li>
+                            <li>In rectangle mode, verify resize handles disabled</li>
+                            <li>In square mode, verify resize handles disabled</li>
+                        </ul>
+                    </li>
+                    <li><strong>Drag Behavior in Square Mode</strong>
+                        <ul class="dense-list">
+                            <li>In square mode, verify drag still works</li>
+                            <li>Click 💬 icon, verify drags (not opens)</li>
+                            <li>Click ▼ button, verify expands (not drags)</li>
+                        </ul>
+                    </li>
+                    <li><strong>Legacy Session Migration</strong>
+                        <ul class="dense-list">
+                            <li>Create session with <code>collapsed: true</code> in old code</li>
+                            <li>Load in new code, verify migrates to <code>collapseState: 'rectangle'</code></li>
+                            <li>Create session with <code>collapsed: false</code></li>
+                            <li>Load in new code, verify migrates to <code>collapseState: 'expanded'</code></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <h3>E2E Test Plan (Recommended)</h3>
+                <div class="note">
+                    <strong>File:</strong> tests/e2e/element-chat-window-ui.spec.ts
+                </div>
+<pre>test('collapse state cycling', async ({ page, context }) => {
+  // 1. Open element chat
+  // 2. Verify starts in expanded mode
+  // 3. Click collapse → verify rectangle (width unchanged, height = 44)
+  // 4. Click collapse → verify square (64×64)
+  // 5. Click collapse → verify expanded (original size restored)
+});
+
+test('size restoration after collapse cycle', async ({ page }) => {
+  // 1. Resize window to 600×700
+  // 2. Collapse to square
+  // 3. Expand
+  // 4. Verify size is 600×700, not 64×64
+});
+
+test('processing visual feedback', async ({ page }) => {
+  // 1. Open element chat
+  // 2. Send message
+  // 3. Verify background gradient contains 'FFF8E1' (amber)
+  // 4. Verify border color is '#FF9800'
+  // 5. Wait for response
+  // 6. Verify gradient returns to original
+});</pre>
+
+                <h3>Accessibility Testing</h3>
+                <ul class="dense-list">
+                    <li>Enable <code>prefers-reduced-motion: reduce</code> in browser</li>
+                    <li>Verify NO pulsing border animation</li>
+                    <li>Verify NO spinning ⚙️ animation</li>
+                    <li>Test keyboard navigation: Tab to collapse button, Enter to activate</li>
+                    <li>Test screen reader: Verify button announces current state</li>
+                </ul>
+
+                <h3>Cross-Browser Testing</h3>
+                <ul class="dense-list">
+                    <li>Chrome: Full feature test</li>
+                    <li>Safari: Verify Rnd resize/drag works in all collapse modes</li>
+                    <li>Firefox: Verify CSS animations render correctly</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Prerequisites -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Prerequisites & Context</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Files to Modify (5 total)</h3>
+                <ol class="dense-list">
+                    <li><code>src/types/elementChat.ts</code> - Add CollapseState type, update WindowState interface</li>
+                    <li><code>src/components/ElementChatWindow.tsx</code> - Main implementation (theme colors, state, styles, UI)</li>
+                    <li><code>src/services/elementChatService.ts</code> - Update session creation/save logic</li>
+                    <li><code>tests/e2e/element-chat-window-ui.spec.ts</code> - NEW FILE for E2E tests</li>
+                    <li><code>CLAUDE.md</code> - Document new collapse modes and processing colors</li>
+                </ol>
+
+                <h3>Dependencies Already Available</h3>
+                <ul class="dense-list">
+                    <li><code>isStreaming</code> state (line 199)</li>
+                    <li><code>isProcessingQueue</code> state (line 225)</li>
+                    <li><code>Rnd</code> from react-rnd (already imported)</li>
+                    <li><code>ELEMENT_CHAT_THEME</code> object (lines 52-97)</li>
+                </ul>
+
+                <h3>Key Architectural Decisions</h3>
+                <ul class="dense-list">
+                    <li><strong>Square size: 64×64px</strong> (not 44×44) for better click targets</li>
+                    <li><strong>Separate expandedSize</strong> from windowSize to enable restoration</li>
+                    <li><strong>CollapseState enum</strong> instead of boolean for extensibility</li>
+                    <li><strong>Migration strategy</strong>: New field takes precedence, legacy field deprecated</li>
+                    <li><strong>Accessibility first</strong>: prefers-reduced-motion support mandatory</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Critical Issues Addressed -->
+        <div class="collapsible critical" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>🔧 Critical Issues Addressed from Review</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Issue #1: TypeScript Type Updates Missing ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Added Step 1 with ALL type updates across 5 files</li>
+                    <li>Created CollapseState type with JSDoc</li>
+                    <li>Updated ElementChatWindowState interface</li>
+                    <li>Added expandedSize field for restoration</li>
+                    <li>Included migration logic for legacy <code>collapsed</code> boolean</li>
+                </ul>
+
+                <h3>Issue #2: Square Mode Too Small ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Changed square size from 44×44 to <strong>64×64px</strong></li>
+                    <li>Provides better click targets for accessibility (WCAG AA compliance)</li>
+                    <li>Room for icon + button without overlap</li>
+                </ul>
+
+                <h3>Issue #3: Theme Colors Not Defined ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Added Step 0 as FIRST STEP (before any code changes)</li>
+                    <li>Defined 6 processing theme colors in ELEMENT_CHAT_THEME</li>
+                    <li>Amber/orange palette for processing state</li>
+                </ul>
+
+                <h3>Issue #4: Size Restoration Logic Missing ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Added <code>expandedSize</code> state separate from <code>windowSize</code></li>
+                    <li>Save expandedSize only when in expanded mode during resize</li>
+                    <li>Restore expandedSize when expanding from square mode</li>
+                    <li>Prevents 64×64 from becoming "restored" size</li>
+                </ul>
+
+                <h3>Issue #5: Accessibility Missing ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Added <code>@media (prefers-reduced-motion: no-preference)</code> wrapper</li>
+                    <li>Animations disabled when user prefers reduced motion</li>
+                    <li>Included in testing checklist</li>
+                </ul>
+
+                <h3>Issue #6: Animation Performance Concerns ✅ ADDRESSED</h3>
+                <ul class="dense-list">
+                    <li>Simplified animation to border-color only (not transform)</li>
+                    <li>Added <code>transition</code> properties for smooth changes</li>
+                    <li>Reduced animation complexity (pulseBorder is simple opacity change)</li>
+                    <li>Added to testing checklist for performance verification</li>
+                </ul>
+
+                <h3>Issue #7: Time Estimate Too Low ✅ FIXED</h3>
+                <ul class="dense-list">
+                    <li>Original estimate: 45-60 minutes</li>
+                    <li>Reviewer estimate: 3 hours</li>
+                    <li><strong>Revised estimate: 2.5-3 hours</strong> (realistic)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full-width sections -->
+    <div class="collapsible full-width" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>⚠️ Remaining Risks & Mitigations</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <h3>Medium Risks</h3>
+            <ul class="dense-list">
+                <li><strong>User Confusion with 3-State Model</strong>
+                    <div class="note">Users may not understand the cycling behavior (expanded → rectangle → square → expanded)</div>
+                    <strong>Mitigation:</strong>
+                    <ul class="dense-list">
+                        <li>Clear button icons (▬, ▪, ▼) indicate next state</li>
+                        <li>Tooltips explain behavior</li>
+                        <li>Monitor user feedback post-launch</li>
+                        <li>Consider adding double-click shortcut to jump to expanded</li>
+                    </ul>
+                </li>
+                <li><strong>Drag Handle Conflict in Square Mode</strong>
+                    <div class="note">Entire 64×64 area is drag handle, but collapse button also clickable</div>
+                    <strong>Mitigation:</strong>
+                    <ul class="dense-list">
+                        <li>Collapse button has <code>pointer-events: all</code></li>
+                        <li>Button click preventDefault stops drag</li>
+                        <li>Include in manual testing checklist</li>
+                    </ul>
+                </li>
+                <li><strong>Session Storage Migration Edge Cases</strong>
+                    <div class="note">Sessions created in new version, loaded in old version will ignore collapseState</div>
+                    <strong>Mitigation:</strong>
+                    <ul class="dense-list">
+                        <li>Keep deprecated <code>collapsed</code> field for backwards compatibility (optional)</li>
+                        <li>Save both fields during migration period</li>
+                        <li>Plan to remove after 6 months</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Low Risks (Acceptable)</h3>
+            <ul class="dense-list">
+                <li>Animation jank on very slow devices (mitigated by prefers-reduced-motion)</li>
+                <li>Minor visual inconsistencies across browsers (acceptable, test coverage added)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="collapsible full-width" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>📊 Post-Implementation</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <h3>Documentation Updates</h3>
+            <ul class="dense-list">
+                <li>Update <code>CLAUDE.md</code>:
+                    <ul class="dense-list">
+                        <li>Document 3 collapse states (expanded, rectangle, square)</li>
+                        <li>Document processing color scheme (red idle, amber processing)</li>
+                        <li>Add screenshots of all states</li>
+                        <li>Document expandedSize persistence behavior</li>
+                    </ul>
+                </li>
+                <li>Add JSDoc comments to CollapseState type</li>
+                <li>Update component-level JSDoc in ElementChatWindow.tsx</li>
+            </ul>
+
+            <h3>Follow-Up Tasks (Future)</h3>
+            <ul class="dense-list">
+                <li>Monitor user feedback on 3-state collapse UX</li>
+                <li>Consider adding user preference for default collapse behavior</li>
+                <li>Consider adding double-click shortcut (square → expanded)</li>
+                <li>Consider animating transition between collapse states (needs performance testing)</li>
+                <li>Add unit tests for migration logic</li>
+            </ul>
+
+            <h3>Maintenance Notes</h3>
+            <ul class="dense-list">
+                <li>If adding new processing states (error, waiting), extend color palette consistently</li>
+                <li>If changing window minimum sizes, update COLLAPSE_DIMENSIONS accordingly</li>
+                <li>Plan to remove deprecated <code>collapsed</code> field after 6 months</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="note" style="margin-top: 20px;">
+        <h3>⏱️ Revised Implementation Timeline</h3>
+        <ul class="dense-list">
+            <li><strong>Step 0 (Theme Colors):</strong> 5 minutes</li>
+            <li><strong>Step 1 (TypeScript Types - 5 files):</strong> 45-60 minutes</li>
+            <li><strong>Step 2 (Multi-Level Collapse):</strong> 45-60 minutes</li>
+            <li><strong>Step 3 (Processing Indicators):</strong> 30-40 minutes</li>
+            <li><strong>Step 4 (Save/Load Updates):</strong> 5-10 minutes</li>
+            <li><strong>Testing:</strong> 30-45 minutes</li>
+        </ul>
+        <p><strong>Total Realistic Time:</strong> 2.5-3 hours (175-215 minutes)</p>
+        <p><em>Original estimate was 45-60 minutes. Complexity was underestimated due to type system changes across multiple files.</em></p>
+    </div>
+
+    <div class="critical-fix" style="margin-top: 16px;">
+        <h3>🚨 CRITICAL: Order of Operations</h3>
+        <ol class="dense-list">
+            <li><strong>Step 0</strong> → Add theme colors (REQUIRED FIRST)</li>
+            <li><strong>Step 1</strong> → Update ALL TypeScript types (ALL 5 FILES AT ONCE)</li>
+            <li><strong>Type Check</strong> → Run <code>npm run type-check</code> (MUST PASS)</li>
+            <li><strong>Step 2</strong> → Implement collapse logic</li>
+            <li><strong>Step 3</strong> → Add processing visuals</li>
+            <li><strong>Step 4</strong> → Update save/load</li>
+            <li><strong>Test</strong> → Manual + E2E testing</li>
+        </ol>
+        <p><strong>DO NOT skip Step 1 or proceed without type-check passing!</strong></p>
+    </div>
+
+    <script>
+        // Expand/Collapse All
+        document.getElementById('expand-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'open');
+            });
+        });
+
+        document.getElementById('collapse-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'closed');
+            });
+        });
+
+        // Individual collapsible toggle
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const collapsible = header.parentElement;
+                const currentState = collapsible.getAttribute('data-collapsible');
+                collapsible.setAttribute('data-collapsible', currentState === 'open' ? 'closed' : 'open');
+            });
+        });
+    </script>
+</body>
+</html>

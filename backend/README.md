@@ -77,8 +77,7 @@ Send a text-based message to Claude.
   ],
   "options": {
     "system": "You are a helpful assistant",
-    "maxTokens": 2048,
-    "temperature": 1.0
+    "maxTokens": 2048
   }
 }
 ```
@@ -196,6 +195,14 @@ The backend logs all requests to console:
 - `[Backend] Received /api/message request`
 - `[Backend] Creating Agent SDK query...`
 - `[Backend] ✓ Agent SDK success`
+
+### Colored Debug Output
+
+Logs now highlight key details with ANSI colors when running in a TTY (request ids, actions, status codes, timings). Use `NABOKOV_BACKEND_COLOR=0` to disable coloring for plain-text sinks or redirected logs. Quick legend:
+- **Incoming** requests → cyan request ids and blue HTTP methods
+- **Completed** responses → green action word with status code bucketed by color (200s green, 400s yellow, 500s red)
+- **Retrying/Fallback** paths → yellow context
+- **Errors** → red headers and messages, with multi-line metadata prefixed by `|`
 
 ## Architecture
 

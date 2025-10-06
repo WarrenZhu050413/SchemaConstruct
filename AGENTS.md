@@ -17,6 +17,9 @@ npm run backend:dev    # Nodemon backend at http://localhost:3100
 npm test               # Vitest unit suite
 npm run test:e2e       # Playwright E2E (requires built extension)
 npm run type-check     # Strict TypeScript verification
+
+### Playwright Reporter
+- For local runs, append `-- --reporter line` to `npm run test:e2e` for concise streaming output.
 ```
 
 ## Coding Style & Naming Conventions

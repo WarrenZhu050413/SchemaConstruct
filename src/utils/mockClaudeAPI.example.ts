@@ -165,7 +165,6 @@ async function example7_apiRequest() {
       },
     ],
     maxTokens: 1000,
-    temperature: 0.7,
     stream: false,
   });
 

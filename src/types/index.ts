@@ -170,7 +170,6 @@ export interface ChatModalProps {
 export interface ClaudeAPIRequest {
   messages: import('./card').Message[];
   maxTokens?: number;
-  temperature?: number;
   stream?: boolean;
 }
 

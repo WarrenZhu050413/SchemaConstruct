@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn as nodeSpawn } from 'node:child_process';
 import readline from 'node:readline';
 
 const DEFAULT_ARGS = ['exec', '--json', '-'];
@@ -27,14 +27,27 @@ function buildArgs(options = {}) {
   return args;
 }
 
+const ENV_DEFAULTS = {
+  model: process.env.CODEX_MODEL,
+  profile: process.env.CODEX_PROFILE,
+};
+
 function parseCodexOptions(options = {}) {
-  const { providerOptions = {} } = options;
-  return {
-    model: options.model,
-    profile: providerOptions.profile,
+  const providerOptions = options.providerOptions ?? {};
+
+  const resolvedModel = providerOptions.model ?? ENV_DEFAULTS.model;
+
+  const parsed = {
+    profile: providerOptions.profile ?? ENV_DEFAULTS.profile,
     configOverrides: providerOptions.configOverrides,
     extraArgs: providerOptions.extraArgs,
   };
+
+  if (resolvedModel) {
+    parsed.model = resolvedModel;
+  }
+
+  return parsed;
 }
 
 function createJsonLineIterator(stream, onLine) {
@@ -54,11 +67,22 @@ function createJsonLineIterator(stream, onLine) {
   return rl;
 }
 
+function decorateCodexError(errorLike, requestedModel) {
+  const error = errorLike instanceof Error ? errorLike : new Error(String(errorLike));
+  if (/unsupported model/i.test(error.message)) {
+    error.code = 'UNSUPPORTED_MODEL';
+  }
+  if (requestedModel && !error.requestedModel) {
+    error.requestedModel = requestedModel;
+  }
+  return error;
+}
+
 function handleCodexEvent(event, handlers) {
-  const { onToken, onDone, onError } = handlers;
+  const { onToken, onDone, onError, requestedModel } = handlers;
 
   if (event.type === 'parse_error') {
-    onError(new Error(`Failed to parse Codex event: ${event.raw}`));
+    onError(decorateCodexError(new Error(`Failed to parse Codex event: ${event.raw}`), requestedModel));
     return;
   }
 
@@ -84,17 +108,18 @@ function handleCodexEvent(event, handlers) {
   }
 
   if (event.type === 'error' || event.type === 'exception') {
-    onError(new Error(event.message || 'Codex CLI reported an error'));
+    onError(decorateCodexError(event.message || 'Codex CLI reported an error', requestedModel));
   }
 }
 
-function spawnCodexProcess(prompt, options, handlers) {
+function spawnCodexProcess(spawnImpl, prompt, options, handlers) {
   return new Promise((resolve, reject) => {
     const args = buildArgs(parseCodexOptions(options));
-    const child = spawn('codex', args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawnImpl('codex', args, { stdio: ['pipe', 'pipe', 'pipe'] });
 
     let settled = false;
     const stderrChunks = [];
+    const requestedModel = options.requestedModel;
 
     const safeReject = error => {
       if (settled) return;
@@ -104,7 +129,7 @@ function spawnCodexProcess(prompt, options, handlers) {
       } catch {
         // ignore
       }
-      reject(error);
+      reject(decorateCodexError(error, requestedModel));
     };
 
     const safeResolve = () => {
@@ -118,6 +143,7 @@ function spawnCodexProcess(prompt, options, handlers) {
         onToken: handlers.onToken,
         onDone: () => safeResolve(),
         onError: error => safeReject(error),
+        requestedModel,
       });
     });
 
@@ -148,33 +174,39 @@ function spawnCodexProcess(prompt, options, handlers) {
   });
 }
 
-export const codexProvider = {
-  name: 'codex-cli',
+export function createCodexProvider(spawnImpl = nodeSpawn) {
+  const providerName = 'codex-cli';
 
-  async send({ prompt, options = {} }) {
-    let buffer = '';
+  return {
+    name: providerName,
 
-    await spawnCodexProcess(prompt, options, {
-      onToken: token => {
-        buffer += token;
-      },
-    });
+    async send({ prompt, options = {} }) {
+      let buffer = '';
 
-    return {
-      content: buffer,
-      metadata: {
-        provider: this.name,
-        timestamp: Date.now(),
+      await spawnCodexProcess(spawnImpl, prompt, options, {
+        onToken: token => {
+          buffer += token;
+        },
+      });
+
+      return {
+        content: buffer,
+        metadata: {
+          provider: providerName,
+          timestamp: Date.now(),
+        }
+      };
+    },
+
+    async stream({ prompt, options = {}, onToken, onDone, onError }) {
+      try {
+        await spawnCodexProcess(spawnImpl, prompt, options, { onToken });
+        onDone();
+      } catch (error) {
+        onError(error);
       }
-    };
-  },
-
-  async stream({ prompt, options = {}, onToken, onDone, onError }) {
-    try {
-      await spawnCodexProcess(prompt, options, { onToken });
-      onDone();
-    } catch (error) {
-      onError(error);
     }
-  }
-};
+  };
+}
+
+export const codexProvider = createCodexProvider();

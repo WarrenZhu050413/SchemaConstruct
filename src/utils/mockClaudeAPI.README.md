@@ -136,7 +136,6 @@ Sends a message using the ClaudeAPIRequest format.
 const response = await api.sendRequest({
   messages: [...],
   maxTokens: 1000,
-  temperature: 0.7,
   stream: false
 });
 ```

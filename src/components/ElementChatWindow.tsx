@@ -197,7 +197,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   );
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [streamingContent, setStreamingContent] = useState('');
+  const [streamingDeltas, setStreamingDeltas] = useState<string[]>([]);
   const [collapsed, setCollapsed] = useState(
     existingSession?.windowState?.collapsed || false
   );
@@ -236,6 +236,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const isMountedRef = useRef(true);
   const anchorElementRef = useRef<HTMLElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const streamingDeltasRef = useRef<HTMLDivElement | null>(null);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const positionRef = useRef(position);
   const windowSizeRef = useRef(windowSize);
@@ -279,7 +280,14 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+  }, [messages, streamingDeltas]);
+
+  useEffect(() => {
+    const container = streamingDeltasRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [streamingDeltas]);
 
   useEffect(() => {
     return () => {
@@ -634,6 +642,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           }))
         );
 
+        setStreamingDeltas([]);
+
         for await (const chunk of stream) {
           if (isDevLoggingEnabled()) {
             console.debug('[ElementChatWindow] Streaming chunk received', { elementId, chunkLength: chunk.length });
@@ -642,7 +652,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           if (!isMountedRef.current) {
             return;
           }
-          setStreamingContent(assistantContent);
+          setStreamingDeltas(prev => [...prev, chunk]);
         }
 
         if (!isMountedRef.current) {
@@ -685,7 +695,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
 
         const normalisedAssistant = assistantContent.trim();
         if (!normalisedAssistant) {
-          setStreamingContent('');
+          setStreamingDeltas([]);
           return;
         }
 
@@ -789,7 +799,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         session.messages = finalMessages;
         setMessages(finalMessages);
         messagesRef.current = finalMessages;
-        setStreamingContent('');
+        setStreamingDeltas([]);
         if (typeof window !== 'undefined' && isDevLoggingEnabled()) {
           (window as any).__NABOKOV_DEBUG_LAST_MESSAGES__ = finalMessages;
         }
@@ -1059,7 +1069,7 @@ const processQueue = useCallback(async () => {
 
       setMessages([]);
       messagesRef.current = [];
-      setStreamingContent('');
+      setStreamingDeltas([]);
       handleClearQueue();
       removeIndicatorsForChat(elementId);
     } catch (error) {
@@ -1434,7 +1444,7 @@ const processQueue = useCallback(async () => {
             ))}
 
             {/* Streaming message */}
-            {isStreaming && streamingContent && (
+            {isStreaming && streamingDeltas.length > 0 && (
               <div
                 css={messageStyles('assistant')}
                 data-message-role="assistant"
@@ -1442,14 +1452,24 @@ const processQueue = useCallback(async () => {
               >
                 <div css={messageRoleStyles}>Assistant</div>
               <div css={messageContentStyles}>
-                {renderMarkdown(streamingContent)}
+                <div css={streamingDeltasContainerStyles} ref={streamingDeltasRef}>
+                  {streamingDeltas.map((delta, index) => (
+                    <div
+                      css={streamingDeltaLineStyles}
+                      key={`delta-${index}`}
+                      data-delta-index={index}
+                    >
+                      {delta}
+                    </div>
+                  ))}
+                </div>
                 <span css={cursorStyles}>▊</span>
               </div>
               </div>
             )}
 
             {/* Loading indicator */}
-            {isStreaming && !streamingContent && (
+            {isStreaming && streamingDeltas.length === 0 && (
               <div css={messageStyles('assistant')}>
                 <div css={messageRoleStyles}>Assistant</div>
                 <div css={loadingDotsStyles}>
@@ -1907,6 +1927,27 @@ const messageContentStyles = css`
     color: ${ELEMENT_CHAT_THEME.messageLinkColor};
     text-decoration: underline;
   }
+`;
+
+const streamingDeltasContainerStyles = css`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(177, 60, 60, 0.25);
+  background: rgba(177, 60, 60, 0.05);
+`;
+
+const streamingDeltaLineStyles = css`
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(177, 60, 60, 0.08);
+  word-break: break-word;
+  white-space: pre-wrap;
 `;
 
 const cursorStyles = css`

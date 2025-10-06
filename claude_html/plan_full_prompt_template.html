@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Plan: Backend Prompt Template</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --accent-blue: #1a73e8;
+    --ink-black: #1A1A1A;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FFFEF0;
+    --level-1: #8B0000;
+    --level-2: #993030;
+    --muted: #555;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    font-family: "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.25;
+    width: 100vw;
+    max-width: 100%;
+}
+.container { padding: 8px; }
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.controls { text-align: right; margin-bottom: 6px; }
+.controls button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 12px;
+    border-radius: 4px;
+    margin-left: 4px;
+}
+.two-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+}
+.collapsible {
+    border: 1px solid rgba(139,0,0,0.2);
+    background: rgba(255,255,255,0.92);
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: var(--level-2);
+    background: rgba(139,0,0,0.08);
+    cursor: pointer;
+}
+.collapsible-header .arrow { transition: transform 0.2s ease; font-size: 12px; }
+.collapsible.open .collapsible-header .arrow { transform: rotate(90deg); }
+.collapsible-content { display: none; padding: 6px 8px; color: var(--muted); }
+.collapsible.open .collapsible-content { display: block; }
+.dense-list { list-style: none; margin-left: 0; }
+.dense-list li { margin: 2px 0; }
+strong { color: var(--level-1); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Plan: Extract Hypertext Backend Prompt Template</h1>
+  <div class="controls">
+    <button id="expand-all">Expand All</button>
+    <button id="collapse-all">Collapse All</button>
+  </div>
+  <section class="collapsible" data-collapsible="open">
+    <div class="collapsible-header">
+      <span>🎯 Goal & Deliverable</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <ul class="dense-list">
+        <li><strong>Objective:</strong> Quote the exact prompt template the hypertext loader sends to the backend.</li>
+        <li><strong>Format:</strong> Final answer must include clickable link output (HTML anchor when referencing URLs).</li>
+        <li><strong>Scope:</strong> Cover initial and follow-up prompts if they differ.</li>
+      </ul>
+    </div>
+  </section>
+  <main class="two-column">
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🗂️ Step 1 — Locate Prompt Builders</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <ul class="dense-list">
+          <li>Open <code>NabokovsWeb-hypertext-module/hypertext/hypertext-experience.js</code>.</li>
+          <li>Extract text from <code>buildSystemPrompt</code>, <code>buildInitialPrompt</code>, and <code>buildFollowupPrompt</code>.</li>
+          <li>Confirm any additional context formatting (e.g., truncation markers).</li>
+        </ul>
+      </div>
+    </article>
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🔁 Step 2 — Verify Alternate Paths</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <ul class="dense-list">
+          <li>Check extension loader overrides and demo context providers for deviations.</li>
+          <li>Ensure fallback/default prompts align with runtime behavior.</li>
+        </ul>
+      </div>
+    </article>
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🧪 Step 3 — Validate Through Test Hook</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <ul class="dense-list">
+          <li>Review <code>tests/e2e/hypertext-demo.spec.ts</code> to confirm captured payload structure.</li>
+          <li>Optionally re-run the spec to double-check context segments in practice.</li>
+        </ul>
+      </div>
+    </article>
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>📝 Step 4 — Prepare Final Response</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <ul class="dense-list">
+          <li>Quote the system + user prompt templates verbatim (wrap in <code>&lt;pre&gt;</code> for clarity).</li>
+          <li>Include explanation of context assembly and truncation behavior.</li>
+          <li>Render any URLs as clickable anchors (<code>&lt;a href&gt;</code>).</li>
+        </ul>
+      </div>
+    </article>
+  </main>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+    const isOpen = section.getAttribute('data-collapsible') === 'open';
+    section.classList.add('collapsible');
+    if (isOpen) section.classList.add('open');
+  });
+  document.querySelectorAll('.collapsible-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      const collapsible = this.closest('.collapsible');
+      collapsible.classList.toggle('open');
+    });
+  });
+  document.getElementById('expand-all').addEventListener('click', function() {
+    document.querySelectorAll('.collapsible').forEach(c => c.classList.add('open'));
+  });
+  document.getElementById('collapse-all').addEventListener('click', function() {
+    document.querySelectorAll('.collapsible').forEach(c => c.classList.remove('open'));
+  });
+});
+</script>
+</body>
+</html>

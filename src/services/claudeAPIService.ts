@@ -459,6 +459,24 @@ export async function* chatWithPage(
   systemPrompt: string,
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
 ): AsyncGenerator<string, void, unknown> {
+  const testStreamConfig = typeof window !== 'undefined'
+    ? (window as any).__NABOKOV_TEST_STREAM__
+    : undefined;
+
+  if (testStreamConfig && Array.isArray(testStreamConfig.chunks)) {
+    for (const chunk of testStreamConfig.chunks) {
+      yield chunk;
+      if (typeof testStreamConfig.delay === 'number' && testStreamConfig.delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, testStreamConfig.delay));
+      }
+    }
+
+    if (!testStreamConfig.persist && typeof window !== 'undefined') {
+      delete (window as any).__NABOKOV_TEST_STREAM__;
+    }
+    return;
+  }
+
   const claudeMessages: ClaudeMessage[] = messages.map(m => ({
     role: m.role,
     content: m.content

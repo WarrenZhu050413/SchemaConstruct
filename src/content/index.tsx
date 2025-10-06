@@ -20,6 +20,8 @@ import { ElementSelector } from '../components/ElementSelector';
 import { FloatingChat } from '../components/FloatingChat';
 import { InlineChatWindow } from '../components/InlineChatWindow';
 import { ElementChatWindow } from '../components/ElementChatWindow';
+import { initElementChatIndicators, syncIndicatorsForSessions, teardownElementChatIndicators } from '@/services/elementChatIndicatorService';
+import { getAllElementChats } from '@/services/elementChatService';
 import { capturePageContext } from '../services/pageContextCapture';
 import { captureElementContext } from '../services/elementContextCapture';
 import { Card } from '../types';
@@ -1193,6 +1195,15 @@ function handleKeyboardShortcut(event: KeyboardEvent): void {
 // Initialization
 // ============================================================================
 
+async function bootstrapElementChatIndicators(): Promise<void> {
+  try {
+    const sessions = await getAllElementChats(window.location.href);
+    syncIndicatorsForSessions(sessions);
+  } catch (error) {
+    console.warn('[content] Failed to bootstrap element chat indicators:', error);
+  }
+}
+
 /**
  * Track right-clicked element for context menu
  */
@@ -1219,6 +1230,10 @@ function initialize(): void {
   console.log('[content] Message listener added');
   console.log('[content] Testing inline chat function exists:', typeof openInlineChat);
 
+  // Initialize element chat indicators
+  initElementChatIndicators();
+  void bootstrapElementChatIndicators();
+
   // Add keyboard shortcut listener
   document.addEventListener('keydown', handleKeyboardShortcut, true);
 
@@ -1237,6 +1252,7 @@ function initialize(): void {
     console.debug('[content] Could not send ready message:', error);
   });
 
+  (window as any).__NABOKOV_EXTENSION_LOADED__ = true;
   console.log('[content] Content script initialized successfully');
 }
 
@@ -1271,6 +1287,8 @@ function cleanup(): void {
   // Remove event listeners
   document.removeEventListener('keydown', handleKeyboardShortcut, true);
   document.removeEventListener('contextmenu', handleContextMenu, true);
+
+  teardownElementChatIndicators();
 
   console.log('[content] Content script cleaned up');
 }

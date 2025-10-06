@@ -73,6 +73,40 @@ function CanvasInner() {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [showEdgeModal, setShowEdgeModal] = useState(false);
   const [pendingConnection, setPendingConnection] = useState<{ source: string; target: string } | null>(null);
+  const [showMiniMap, setShowMiniMap] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 640 : true
+  );
+
+  useEffect(() => {
+    const styleId = 'canvas-minimap-pointer-events';
+    if (document.getElementById(styleId)) {
+      return;
+    }
+
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = `
+      .react-flow__minimap,
+      .react-flow__minimap * {
+        pointer-events: none !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const handleResize = () => {
+      setShowMiniMap(window.innerWidth >= 640);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Initialize keyboard shortcuts
   useEffect(() => {
@@ -571,17 +605,25 @@ function CanvasInner() {
           }}
         />
 
-        {/* MiniMap in bottom right corner */}
-        <MiniMap
-          nodeStrokeColor={() => '#8B7355'}
-          nodeColor={() => '#F2EBE1'}
-          nodeBorderRadius={8}
-          style={{
-            background: 'rgba(250, 247, 242, 0.9)',
-            border: '1px solid rgba(184, 156, 130, 0.3)',
-            borderRadius: '8px',
-          }}
-        />
+        {/* MiniMap stays hidden on compact viewports to avoid overlapping card controls */}
+        {showMiniMap && (
+          <MiniMap
+            nodeStrokeColor={() => '#8B7355'}
+            nodeColor={() => '#F2EBE1'}
+            nodeBorderRadius={8}
+            position="top-left"
+            pannable={false}
+            zoomable={false}
+            style={{
+              width: 140,
+              height: 100,
+              background: 'rgba(250, 247, 242, 0.9)',
+              border: '1px solid rgba(184, 156, 130, 0.3)',
+              borderRadius: '8px',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
 
         {/* Zoom and fit view controls */}
         <Controls

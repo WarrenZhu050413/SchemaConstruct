@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>npx playwright Quickstart</title>
+<style>
+:root {
+  --paper-beige: #f5f0e6;
+  --light-cream: #fdfaf3;
+  --ink-black: #1a120b;
+  --chinese-red: #c41e3a;
+  --level-1: #5c1a1b;
+  --level-2: #7a2f33;
+  --level-3: #8c3f41;
+  --level-4: #a45a5c;
+  --critical: #c41e3a;
+  --important: #b84d2f;
+  --normal: #2f3841;
+  --muted: #6b6f72;
+  --accent-gold: #cfa15b;
+  --accent-green: #3a7a4d;
+  --accent-blue: #456c9b;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+  color: var(--ink-black);
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  max-width: 100%;
+  line-height: 1.2;
+  font-size: 14px;
+  font-family: 'Noto Sans', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+}
+.container {
+  width: 100%;
+  padding: 0 6px 12px 6px;
+}
+header {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 900;
+  margin: 4px 0;
+  padding: 6px 4px;
+  background: linear-gradient(135deg, var(--chinese-red), #cd5c5c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+header .meta {
+  text-align: right;
+  font-size: 11px;
+  color: var(--muted);
+}
+h2 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 8px 0 4px 0;
+  padding: 4px;
+  border-left: 4px solid var(--chinese-red);
+  background: rgba(139, 0, 0, 0.03);
+  color: var(--level-1);
+}
+h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 4px 0 2px 8px;
+  color: var(--level-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+h4 {
+  font-size: 12px;
+  font-weight: 500;
+  margin: 2px 0 1px 16px;
+  color: var(--level-3);
+}
+p, li {
+  color: var(--normal);
+}
+.two-column-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.dense-list {
+  list-style: none;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  display: grid;
+  gap: 2px;
+}
+.dense-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.dense-list strong {
+  color: var(--level-2);
+  margin-right: 6px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.badge.critical { background: rgba(196, 30, 58, 0.12); color: var(--critical); }
+.badge.important { background: rgba(200, 110, 30, 0.12); color: var(--important); }
+.badge.normal { background: rgba(69, 108, 155, 0.12); color: var(--accent-blue); }
+.badge.success { background: rgba(58, 122, 77, 0.12); color: var(--accent-green); }
+.collapsible {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+.collapsible + .collapsible { margin-top: 6px; }
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  background: rgba(196, 30, 58, 0.05);
+  font-weight: 600;
+  color: var(--level-2);
+}
+.collapsible-header .arrow {
+  transition: transform 0.2s ease;
+}
+.collapsible.open .collapsible-header .arrow {
+  transform: rotate(90deg);
+}
+.collapsible-content {
+  display: none;
+  padding: 6px 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.85);
+}
+.collapsible.open .collapsible-content {
+  display: block;
+}
+.full-width { grid-column: 1 / -1; }
+.important-always-visible {
+  border: 1px solid rgba(196, 30, 58, 0.4);
+  background: rgba(196, 30, 58, 0.1);
+  padding: 8px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+.important-always-visible h2 {
+  margin-top: 0;
+  border: none;
+  background: transparent;
+  color: var(--critical);
+  padding: 0;
+}
+.control-bar {
+  margin: 8px 0;
+  text-align: right;
+}
+.control-bar button {
+  margin-left: 6px;
+  padding: 4px 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--level-2);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.code-inline {
+  font-family: 'Fira Code', 'SFMono-Regular', Consolas, monospace;
+  background: rgba(0, 0, 0, 0.07);
+  padding: 0 3px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+details {
+  margin: 4px 0;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+summary {
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--level-2);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 4px;
+}
+th, td {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  text-align: left;
+  font-size: 12px;
+}
+th {
+  background: rgba(196, 30, 58, 0.08);
+  color: var(--level-2);
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div>
+    <h1>⚡ npx playwright Command Map</h1>
+    <span class="badge critical">playwright cli</span>
+  </div>
+  <div class="meta">
+    <div>Author: Fucheng Warren Zhu</div>
+    <div>Updated: October 6, 2025</div>
+  </div>
+</header>
+<section class="important-always-visible">
+  <h2>🎯 Use This First</h2>
+  <div class="two-column-layout">
+    <ul class="dense-list">
+      <li><strong>Install</strong><span><code class="code-inline">npx playwright install</code></span></li>
+      <li><strong>Run Tests</strong><span><code class="code-inline">npx playwright test</code></span></li>
+      <li><strong>Launch Browser</strong><span><code class="code-inline">npx playwright open https://example.com</code></span></li>
+    </ul>
+    <ul class="dense-list">
+      <li><strong>Generate Script</strong><span><code class="code-inline">npx playwright codegen</code></span></li>
+      <li><strong>View Report</strong><span><code class="code-inline">npx playwright show-report</code></span></li>
+      <li><strong>Help</strong><span><code class="code-inline">npx playwright --help</code></span></li>
+    </ul>
+  </div>
+</section>
+<div class="control-bar">
+  <button id="expand-all">Expand All</button>
+  <button id="collapse-all">Collapse All</button>
+</div>
+<div class="two-column-layout">
+  <article class="collapsible" data-collapsible="open">
+    <div class="collapsible-header">
+      <span>📍 Setup Essentials</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <p><span class="badge important">Before Running</span></p>
+      <ul class="dense-list" style="margin-top:4px;">
+        <li><strong>Install Browsers</strong><span><code class="code-inline">npx playwright install chromium firefox webkit</code></span></li>
+        <li><strong>Verify</strong><span><code class="code-inline">npx playwright --version</code></span></li>
+        <li><strong>Dependencies</strong><span><code class="code-inline">npx playwright install-deps</code> (Linux)</span></li>
+      </ul>
+      <details>
+        <summary>Why install browsers?</summary>
+        <p>Playwright ships browser binaries per release. Run install after upgrades or fresh clones to ensure versions match the current CLI.</p>
+      </details>
+      <details>
+        <summary>CI tip</summary>
+        <p>Add <code class="code-inline">npx playwright install --with-deps</code> to CI provisioning scripts so test runners have browsers ready.</p>
+      </details>
+    </div>
+  </article>
+  <article class="collapsible" data-collapsible="open">
+    <div class="collapsible-header">
+      <span>🏛️ Test Execution</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <p><span class="badge critical">Core Workflow</span></p>
+      <table>
+        <thead>
+          <tr><th>Action</th><th>Command</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Run entire suite</td><td><code class="code-inline">npx playwright test</code></td><td>Detects config from <code class="code-inline">playwright.config.(ts|js)</code></td></tr>
+          <tr><td>Filter tests</td><td><code class="code-inline">npx playwright test login</code></td><td>Matches file, describe, or test title</td></tr>
+          <tr><td>Headed mode</td><td><code class="code-inline">npx playwright test --headed</code></td><td>Useful for debugging locally</td></tr>
+          <tr><td>Single browser</td><td><code class="code-inline">npx playwright test --project=chromium</code></td><td>Matches project name in config</td></tr>
+          <tr><td>Debug inspector</td><td><code class="code-inline">npx playwright test --debug</code></td><td>Pauses on first test failure</td></tr>
+        </tbody>
+      </table>
+      <details>
+        <summary>Coverage & retries</summary>
+        <p>Use <code class="code-inline">npx playwright test --ui</code> for visual triage, <code class="code-inline">--repeat-each</code> or <code class="code-inline">--retries</code> to stabilize flaky specs.</p>
+      </details>
+    </div>
+  </article>
+  <article class="collapsible" data-collapsible="closed">
+    <div class="collapsible-header">
+      <span>📊 Exploration Tools</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <p><span class="badge normal">Ad-hoc</span></p>
+      <ul class="dense-list">
+        <li><strong>Launch page</strong><span><code class="code-inline">npx playwright open -b chromium https://app.local</code></span></li>
+        <li><strong>Record actions</strong><span><code class="code-inline">npx playwright codegen --save-storage=state.json</code></span></li>
+        <li><strong>Quick aliases</strong><span><code class="code-inline">npx playwright cr</code> / <code class="code-inline">ff</code> / <code class="code-inline">wk</code></span></li>
+      </ul>
+      <details>
+        <summary>Trace viewer</summary>
+        <p>Inspect recorded traces by running <code class="code-inline">npx playwright show-trace trace.zip</code> (use <code class="code-inline">test --trace on</code> to generate).</p>
+      </details>
+    </div>
+  </article>
+  <article class="collapsible" data-collapsible="closed">
+    <div class="collapsible-header">
+      <span>📈 Reports & Maintenance</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <p><span class="badge important">Keep Clean</span></p>
+      <ul class="dense-list">
+        <li><strong>HTML report</strong><span><code class="code-inline">npx playwright show-report</code></span></li>
+        <li><strong>Merge shards</strong><span><code class="code-inline">npx playwright merge-reports ./blob-report</code></span></li>
+        <li><strong>Clear cache</strong><span><code class="code-inline">npx playwright clear-cache</code></span></li>
+        <li><strong>Uninstall browsers</strong><span><code class="code-inline">npx playwright uninstall</code></span></li>
+      </ul>
+      <details>
+        <summary>Artifacts</summary>
+        <p>Reports default to <code class="code-inline">playwright-report</code>. Pass a path via <code class="code-inline">--output</code> to collect results per CI job.</p>
+      </details>
+    </div>
+  </article>
+</div>
+<article class="collapsible full-width" data-collapsible="closed">
+  <div class="collapsible-header">
+    <span>🧭 Command Reference Cheatsheet</span>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="collapsible-content">
+    <table>
+      <thead>
+        <tr><th>Command</th><th>Purpose</th><th>Typical Flags</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="code-inline">npx playwright install [browser]</code></td><td>Download browser binaries</td><td><code class="code-inline">--with-deps</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright install-deps</code></td><td>Install OS dependencies (Linux)</td><td><code class="code-inline">--dry-run</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright test [pattern]</code></td><td>Execute tests</td><td><code class="code-inline">--headed</code>, <code class="code-inline">--project</code>, <code class="code-inline">--debug</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright show-report [dir]</code></td><td>Open HTML report</td><td><code class="code-inline">--host</code>, <code class="code-inline">--port</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright merge-reports [dir]</code></td><td>Merge shard outputs</td><td><code class="code-inline">--reporter=html</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright show-trace [files]</code></td><td>Visualize trace recordings</td><td><code class="code-inline">--host</code>, <code class="code-inline">--port</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright screenshot &lt;url&gt; &lt;file&gt;</code></td><td>Capture screenshot</td><td><code class="code-inline">--device</code>, <code class="code-inline">--full-page</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright pdf &lt;url&gt; &lt;file&gt;</code></td><td>Save page as PDF</td><td><code class="code-inline">--wait-for-timeout</code></td></tr>
+        <tr><td><code class="code-inline">npx playwright clear-cache</code></td><td>Remove cached assets/tests</td><td><code class="code-inline">--all</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+</article>
+<article class="collapsible full-width" data-collapsible="closed">
+  <div class="collapsible-header">
+    <span>📚 Learning Path & Troubleshooting</span>
+    <span class="arrow">▶</span>
+  </div>
+  <div class="collapsible-content">
+    <div class="two-column-layout">
+      <div>
+        <h3>Ramp Up</h3>
+        <ul class="dense-list">
+          <li><strong>Docs</strong><span><a href="https://playwright.dev/docs/intro" target="_blank">Playwright.dev</a></span></li>
+          <li><strong>Sample Repo</strong><span><a href="https://github.com/microsoft/playwright" target="_blank">GitHub</a></span></li>
+          <li><strong>VS Code</strong><span>Install Playwright Test extension</span></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Common Fixes</h3>
+        <ul class="dense-list">
+          <li><strong>Browser mismatch</strong><span>Re-run <code class="code-inline">npx playwright install</code></span></li>
+          <li><strong>CI failures</strong><span>Set <code class="code-inline">npx playwright install --with-deps</code></span></li>
+          <li><strong>Trace empty</strong><span>Enable <code class="code-inline">trace: 'on-first-retry'</code> in config</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</article>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+    const isOpen = section.getAttribute('data-collapsible') === 'open';
+    section.classList.add('collapsible');
+    if (isOpen) section.classList.add('open');
+  });
+  document.querySelectorAll('.collapsible-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      const collapsible = this.closest('.collapsible');
+      collapsible.classList.toggle('open');
+    });
+  });
+  const expandAllBtn = document.getElementById('expand-all');
+  const collapseAllBtn = document.getElementById('collapse-all');
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.collapsible').forEach(function(c) {
+        c.classList.add('open');
+      });
+    });
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.collapsible').forEach(function(c) {
+        c.classList.remove('open');
+      });
+    });
+  }
+});
+</script>
+</body>
+</html>

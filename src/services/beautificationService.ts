@@ -61,37 +61,6 @@ Return the beautified Markdown directly, with no explanations or code fences.
 };
 
 /**
- * Mock beautification responses for development (Markdown format)
- * In production, these will be replaced with actual Claude API calls
- */
-const MOCK_BEAUTIFIED_CONTENT: Record<BeautificationMode, string> = {
-  'organize-content': `## 🎯 Overview
-
-The content has been reorganized into logical sections with clear headings, making it easier to scan and understand.
-
-### Key Features
-
-| Feature | Description |
-|---------|-------------|
-| **Structured hierarchy** | Information flows logically from general to specific |
-| **Visual separation** | Clear sections help with comprehension |
-| **Emphasized content** | Important points stand out |
-
-### Benefits
-
-- Clean markdown formatting with tables
-- Easy to read and navigate
-- Supports **bold text** for emphasis
-- Organized into logical sections
-
-### Implementation
-
-All original information is preserved while the presentation is enhanced for better readability and visual appeal.
-
-**Important:** This is a mock beautified response for development. In production, the Claude API will generate contextual, relevant content based on the actual card content.`
-};
-
-/**
  * Beautification service interface
  */
 export interface IBeautificationService {
@@ -240,7 +209,6 @@ export class BeautificationService implements IBeautificationService {
 
       const beautifiedMarkdown = await claudeAPIService.sendMessage(messages, {
         system: systemPrompt,
-        temperature: 0.7,
         maxTokens: 4096,
       });
 
@@ -252,8 +220,77 @@ export class BeautificationService implements IBeautificationService {
       console.error('[BeautificationService] ✗ Claude API failed:', error);
       console.warn('[BeautificationService] Falling back to mock markdown response');
       await new Promise(resolve => setTimeout(resolve, 1500));
-      return MOCK_BEAUTIFIED_CONTENT[mode];
+      return this.generateMockBeautifiedMarkdown(originalHTML, mode);
     }
+  }
+
+  private generateMockBeautifiedMarkdown(originalHTML: string, mode: BeautificationMode): string {
+    const sanitizedHTML = DOMPurify.sanitize(originalHTML, {
+      USE_PROFILES: { html: true },
+    });
+
+    let plainText = sanitizedHTML;
+    if (typeof window !== 'undefined') {
+      const parser = window.document.createElement('div');
+      parser.innerHTML = sanitizedHTML;
+      plainText = parser.textContent || parser.innerText || '';
+    } else {
+      plainText = sanitizedHTML.replace(/<[^>]+>/g, ' ');
+    }
+
+    const normalizedText = plainText
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    let bulletLines = normalizedText
+      .split(/(?<=[.!?])\s+/)
+      .map(sentence => sentence.trim())
+      .filter(Boolean);
+
+    if (bulletLines.length === 0 && normalizedText) {
+      bulletLines = [normalizedText];
+    }
+
+    if (bulletLines.length === 1 && bulletLines[0].length > 200) {
+      const tokens = bulletLines[0].split(/\s+/).filter(Boolean);
+      const chunkSize = 25;
+      const maxChunks = 6;
+      const chunks: string[] = [];
+
+      for (let i = 0; i < tokens.length && chunks.length < maxChunks; i += chunkSize) {
+        const slice = tokens.slice(i, i + chunkSize).join(' ');
+        const isTruncated = i + chunkSize < tokens.length;
+        chunks.push(`${slice}${isTruncated ? ' …' : ''}`);
+      }
+
+      bulletLines = chunks;
+    }
+
+    if (bulletLines.length > 6) {
+      bulletLines = bulletLines.slice(0, 6);
+    }
+
+    if (bulletLines.length === 0) {
+      bulletLines = ['Original content was empty or could not be parsed.'];
+    }
+
+    const bulletList = bulletLines.map(line => `- ${line}`).join('\n');
+
+    const characterCount = normalizedText.length;
+
+    let markdown = `## Organized Summary\n\n${bulletList}\n\n### Key Details\n- Beautification mode: ${mode.replace(/-/g, ' ')}\n- Original length: ${characterCount} characters\n- Generated in mock-safe mode\n`;
+
+    const MAX_LENGTH = 4000;
+    if (markdown.length > MAX_LENGTH) {
+      markdown = `${markdown.slice(0, MAX_LENGTH)}…`;
+    }
+
+    console.log('[BeautificationService] Mock markdown generated', {
+      mode,
+      length: markdown.length,
+    });
+
+    return markdown;
   }
 }
 

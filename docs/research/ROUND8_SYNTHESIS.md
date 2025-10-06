@@ -815,7 +815,7 @@ export const generateCardFromPrompt = async (
   const prompt = formatHybridPrompt(userPrompt, parentCard);
 
   const response = await callClaudeAPI({
-    model: 'claude-sonnet-4-20250514',
+    model: 'sonnet',
     max_tokens: 1024,
     messages: [{ role: 'user', content: prompt }],
   });

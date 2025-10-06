@@ -5659,7 +5659,7 @@ const copilotRuntime = new CopilotRuntime({
             'content-type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
+            model: 'sonnet',
             max_tokens: 4096,
             messages: [{
               role: 'user',
@@ -5744,13 +5744,13 @@ async function scheduleAIRequest(
   
   if (urgency === 'immediate' || currentIntensity.intensity < bestWindow.intensity * 1.2) {
     // Execute now (intensity acceptable or user needs immediate response)
-    return await callClaude(prompt, { model: 'claude-sonnet-4-20250514' });
+    return await callClaude(prompt, { model: 'sonnet' });
   } else if (urgency === 'low') {
     // Schedule for optimal window (e.g., solar peak at 2pm)
     const scheduledTime = bestWindow.timestamp;
     await scheduleJob({
       type: 'ai_request',
-      payload: { prompt, model: 'claude-sonnet-4-20250514' },
+      payload: { prompt, model: 'sonnet' },
       executeAt: scheduledTime
     });
     
@@ -6404,7 +6404,7 @@ export default {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'sonnet',
         max_tokens: 4096,
         messages
       })

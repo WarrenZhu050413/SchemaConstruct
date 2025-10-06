@@ -336,7 +336,7 @@ Mode indicators replaced the old checkbox approach with prominent banners at the
 
 **Key Features:**
 - Supports text-only and vision (screenshot analysis) modes
-- Default model: `claude-sonnet-4-20250514`
+- Default model: `sonnet`
 - API key stored securely in chrome.storage.local
 - Backend enables subscription-based auth (see `backend/README.md`)
 
