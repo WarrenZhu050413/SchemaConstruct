@@ -12,6 +12,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
+  turnId?: string;
   images?: Array<{     // Optional image attachments
     dataURL: string;   // Base64 data URL
     width: number;     // Original width

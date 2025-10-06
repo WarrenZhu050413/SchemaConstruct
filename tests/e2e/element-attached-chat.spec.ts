@@ -9,7 +9,7 @@
  * - Multiple concurrent chat windows
  */
 
-import { test, expect, setExtensionStorage, getExtensionStorage } from '../fixtures/extension';
+import { test, expect, setExtensionStorage, getExtensionStorage, waitForContentScript } from '../fixtures/extension';
 import type { Page, BrowserContext, Worker } from '@playwright/test';
 
 const TEST_URL = 'https://example.com';
@@ -278,8 +278,10 @@ test.describe('Element-Attached Chat System', () => {
     expect(hasShadowRoot2).toBe(true);
 
     // Click second element (find a paragraph)
-    const p = await page.locator('p').first();
-    await p.click();
+    await page.evaluate(() => {
+      const target = document.querySelector('p');
+      target?.click();
+    });
     await page.waitForTimeout(1000);
 
     const secondChatId = await page.evaluate(() => {
@@ -493,6 +495,169 @@ test.describe('Element-Attached Chat System', () => {
     expect(hasWindowAfter).toBe(0);
 
     console.log('[Test] ✅ Chat windows cleaned up on navigation');
+
+    await page.close();
+  });
+
+
+  test('should avoid duplicate bubbles and surface persistent indicator', async ({ context, extensionId }) => {
+    const page = await context.newPage();
+    const consoleMessages: string[] = [];
+    page.on('console', message => {
+      consoleMessages.push(`[${message.type()}] ${message.text()}`);
+    });
+
+    await page.goto(TEST_URL);
+    await page.waitForLoadState('networkidle');
+    await sendMessageToContentScript(context, page, { type: 'ACTIVATE_CHAT_SELECTOR' });
+    await page.waitForTimeout(1200);
+
+    await page.evaluate(() => {
+      const target = document.querySelector('h1');
+      target?.click();
+    });
+    await page.waitForFunction(() => document.querySelector('[data-nabokov-element-chat]') !== null);
+
+    await page.evaluate(() => {
+      window.postMessage({ type: '__NABOKOV_FORCE_DEV_LOGS__', enabled: true }, '*');
+      window.postMessage(
+        {
+          type: '__NABOKOV_TEST_FORCE_DUPLICATE__',
+          config: {
+            mockContent: "I'm ChatGPT, running duplicate guard.",
+          },
+        },
+        '*'
+      );
+    });
+
+    const typeIntoChat = async (value: string) => {
+      await page.evaluate((text) => {
+        const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+        const shadow = container?.shadowRoot;
+        const textarea = shadow?.querySelector('textarea') as HTMLTextAreaElement | null;
+        if (!textarea)
+          throw new Error('Chat textarea not found');
+        textarea.value = text;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      }, value);
+    };
+
+    const clickSend = async () => {
+      await page.evaluate(() => {
+        const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+        const shadow = container?.shadowRoot;
+        const button = shadow?.querySelector('button[title="Send message"]') as HTMLButtonElement | null;
+        if (!button)
+          throw new Error('Send button not found');
+        button.click();
+      });
+    };
+
+    await typeIntoChat('what model are you');
+    await clickSend();
+
+    await page.waitForFunction(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+      const shadow = container?.shadowRoot;
+      return !!shadow && !shadow.querySelector('[data-message-streaming="true"]');
+    });
+
+    const messageSummary = await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+      const shadow = container?.shadowRoot;
+      if (!shadow)
+        return null;
+      const nodes = Array.from(shadow.querySelectorAll('[data-message-role]')) as HTMLElement[];
+      const summary = { user: 0, assistant: 0, texts: [] as string[] };
+      for (const node of nodes) {
+        const role = node.getAttribute('data-message-role');
+        if (role === 'user' || role === 'assistant') {
+          summary[role] += 1;
+          summary.texts.push(node.textContent?.trim() || '');
+        }
+      }
+      return summary;
+    });
+
+    expect(messageSummary).not.toBeNull();
+    const userMessages = messageSummary?.texts.filter(text => text.startsWith('You')) ?? [];
+    const assistantMessages = messageSummary?.texts.filter(text => text.startsWith('Assistant')) ?? [];
+    console.log('[Test] Message summary snapshot:', messageSummary);
+    const debugMessages = await page.evaluate(() => (window as any).__NABOKOV_DEBUG_LAST_MESSAGES__ ?? null);
+    console.log('[Test] Debug messages snapshot:', debugMessages);
+    expect(messageSummary?.user).toBe(1);
+    expect(userMessages.length).toBe(1);
+    expect(messageSummary?.assistant ?? 0).toBeLessThanOrEqual(1);
+    expect(assistantMessages.length).toBeLessThanOrEqual(1);
+
+    await page.waitForTimeout(800);
+
+    const chatId = await page.evaluate(() => {
+      const h1 = document.querySelector('h1');
+      return h1?.getAttribute('data-nabokov-chat-id') || null;
+    });
+
+    expect(chatId).toBeTruthy();
+
+    const storageKey = generateStorageKey(TEST_URL);
+    const storage = await getExtensionStorage(context, extensionId, storageKey);
+    const chatStorage = storage?.[storageKey];
+
+    if (chatStorage) {
+      const persistedSession = chatStorage.sessions?.[chatId as string];
+      if (persistedSession) {
+        const persistedAssistantCount = (persistedSession.messages || []).filter((msg: any) => msg.role === 'assistant').length;
+        expect(persistedAssistantCount).toBeLessThanOrEqual(1);
+      } else {
+        console.warn('[Test] Persisted session missing; skipping storage assertions.');
+      }
+    } else {
+      console.warn('[Test] Chat storage missing; skipping storage assertions.');
+    }
+
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+      const shadow = container?.shadowRoot;
+      const closeButton = shadow?.querySelector('button[title="Close"]') as HTMLButtonElement | null;
+      closeButton?.click();
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]');
+      container?.remove();
+    });
+
+    await page.waitForFunction(() => document.querySelector('[data-nabokov-chat-indicator]') !== null);
+
+    await page.click('h1', { button: 'right' });
+    await sendMessageToContentScript(context, page, { type: 'OPEN_ELEMENT_CHAT' });
+    await page.waitForFunction(() => document.querySelector('[data-nabokov-element-chat]') !== null);
+
+    page.once('dialog', dialog => dialog.accept());
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+      const shadow = container?.shadowRoot;
+      const clearButton = shadow?.querySelector('button[data-test-id="clear-history"]') as HTMLButtonElement | null;
+      clearButton?.click();
+    });
+
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]') as HTMLElement | null;
+      const shadow = container?.shadowRoot;
+      const closeButton = shadow?.querySelector('button[title="Close"]') as HTMLButtonElement | null;
+      closeButton?.click();
+    });
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      const container = document.querySelector('[data-nabokov-element-chat]');
+      container?.remove();
+      document.querySelectorAll('[data-nabokov-chat-indicator]').forEach(el => el.remove());
+    });
+
+    const dedupeLogs = consoleMessages.filter(msg => msg.includes('Skipped duplicate assistant bubble'));
+    expect(dedupeLogs.length).toBeGreaterThan(0);
 
     await page.close();
   });

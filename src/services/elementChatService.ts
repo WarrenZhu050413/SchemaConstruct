@@ -186,16 +186,34 @@ export function createElementChatSession(
 export async function addMessageToChat(
   session: ElementChatSession,
   role: 'user' | 'assistant',
-  content: string
+  content: string,
+  options?: {
+    id?: string;
+    turnId?: string;
+    images?: ChatMessage['images'];
+  }
 ): Promise<ElementChatSession> {
   const message: ChatMessage = {
-    id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+    id: options?.id || `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
     role,
     content,
     timestamp: Date.now(),
+    ...(options?.turnId ? { turnId: options.turnId } : {}),
   };
 
-  session.messages.push(message);
+  if (options?.images && options.images.length > 0) {
+    message.images = options.images;
+  }
+
+  const existingIndex = session.messages.findIndex(existing => existing.id === message.id);
+  if (existingIndex >= 0) {
+    session.messages[existingIndex] = {
+      ...session.messages[existingIndex],
+      ...message,
+    };
+  } else {
+    session.messages.push(message);
+  }
   session.lastActive = Date.now();
 
   await saveElementChat(session);

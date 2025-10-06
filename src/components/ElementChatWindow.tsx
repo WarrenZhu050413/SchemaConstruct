@@ -15,8 +15,86 @@ import type { Card } from '@/types/card';
 import { ImageUploadZone } from '@/shared/components/ImageUpload/ImageUploadZone';
 import { fileToBase64, getImageDimensions, isImageFile } from '@/utils/imageUpload';
 import { findElementByDescriptor } from '@/services/elementIdService';
+import { upsertIndicatorsForSession, removeIndicatorsForChat } from '@/services/elementChatIndicatorService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+type DuplicateTestConfig = {
+  mockContent?: string;
+  persist?: boolean;
+  duplicate?: boolean;
+};
+
+let forceDevLogsFlag = false;
+let duplicateTestConfig: DuplicateTestConfig | boolean | null = null;
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', event => {
+    const data = event.data;
+    if (!data || typeof data !== 'object') {
+      return;
+    }
+
+    if (data.type === '__NABOKOV_FORCE_DEV_LOGS__') {
+      forceDevLogsFlag = Boolean(data.enabled);
+    }
+
+    if (data.type === '__NABOKOV_TEST_FORCE_DUPLICATE__') {
+      duplicateTestConfig = data.config ?? true;
+    }
+
+    if (data.type === '__NABOKOV_RESET_TEST_FORCE_DUPLICATE__') {
+      duplicateTestConfig = null;
+    }
+  });
+}
+
+const ELEMENT_CHAT_THEME = {
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+  containerBackground: '#FFF5F2',
+  containerBackgroundGradient: 'linear-gradient(135deg, #FFF8F4 0%, #FFE9DD 100%)',
+  containerAccent: '#B22222',
+  containerShadow:
+    '0 8px 32px rgba(139, 0, 0, 0.24), 0 0 0 1px rgba(210, 105, 30, 0.12)',
+  headerGradient: 'linear-gradient(135deg, #8B0000, #C23B22)',
+  headerTextColor: '#FFFFFF',
+  headerInfoText: 'rgba(255, 246, 240, 0.85)',
+  headerBadgeBackground: 'rgba(255, 255, 255, 0.22)',
+  headerBadgeText: '#FFF5F2',
+  iconColor: '#FFD700',
+  selectedBannerBackground: 'linear-gradient(135deg, #FCE2D7, #FFE0B2)',
+  selectedBannerBorder: '2px solid rgba(194, 59, 34, 0.25)',
+  selectedBannerLabel: '#8B0000',
+  selectedBannerContentBackground: '#FFF1EA',
+  selectedBannerContentBorder: '#C23B22',
+  messagesBackground: '#FFFFFF',
+  messageUserBackground: '#FCE2D7',
+  messageUserBorder: '#C23B22',
+  messageAssistantBackground: '#FBE9C5',
+  messageAssistantBorder: '#D8A447',
+  messageRoleColor: '#8B0000',
+  assistantRoleColor: '#B25C00',
+  messageTextColor: '#2F1B1B',
+  messageLinkColor: '#B22222',
+  codeBackground: '#F6D0C5',
+  preBackground: '#F9DDD1',
+  queueBackground: '#FFF1EA',
+  queueBorder: '#E6A38C',
+  queueText: '#7A2F2F',
+  queueAccent: '#C23B22',
+  queueAccentSoft: '#F5C9B6',
+  inputBorder: '#E6A38C',
+  inputBackground: '#FFF8F4',
+  inputFocus: '#C23B22',
+  sendButtonGradient: 'linear-gradient(135deg, #8B0000, #C23B22)',
+  sendButtonBorder: '#D96F5C',
+  sendButtonShadow: '0 2px 8px rgba(139, 0, 0, 0.28)',
+  imagePreviewBorder: '#E6A38C',
+  anchorChipInactiveBg: 'rgba(194, 59, 34, 0.12)',
+  anchorChipActiveBg: 'rgba(194, 59, 34, 0.2)',
+  anchorChipBorder: 'rgba(194, 59, 34, 0.35)',
+  indicatorDot: '#C23B22',
+};
 
 export interface ElementChatWindowProps {
   /** Element's chat ID */
@@ -46,7 +124,23 @@ interface QueuedMessage {
   content: string;
   images?: PendingImage[];
   createdAt: number;
+  messageId: string;
 }
+
+const dedupeMessagesById = (messages: ChatMessage[]): ChatMessage[] => {
+  const seen = new Set<string>();
+  const deduped: ChatMessage[] = [];
+
+  for (const message of messages) {
+    if (seen.has(message.id)) {
+      continue;
+    }
+    seen.add(message.id);
+    deduped.push(message);
+  }
+
+  return deduped;
+};
 
 /**
  * ElementChatWindow Component
@@ -154,6 +248,33 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const isDraggingRef = useRef(false);
   const processQueueRef = useRef<(() => void) | null>(null);
   const activeAnchorChatIdRef = useRef(activeAnchorChatId);
+  const isSendingRef = useRef(false);
+  const lastSubmittedMessageRef = useRef<{ signature: string; timestamp: number; messageId: string } | null>(null);
+  const assistantTurnMapRef = useRef<Map<string, string>>(new Map());
+
+  const isDevLoggingEnabled = () => {
+    if (import.meta.env?.DEV) {
+      return true;
+    }
+    if (forceDevLogsFlag) {
+      return true;
+    }
+    if (typeof window !== 'undefined') {
+      return Boolean((window as any).__NABOKOV_FORCE_DEV_LOGS__);
+    }
+    return false;
+  };
+
+  const debugLog = (message: string, payload?: Record<string, unknown>) => {
+    if (!isDevLoggingEnabled()) {
+      return;
+    }
+    if (payload) {
+      console.debug(message, payload);
+    } else {
+      console.debug(message);
+    }
+  };
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -174,6 +295,16 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
 
   useEffect(() => {
     messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    const nextMap = new Map<string, string>();
+    for (const message of messages) {
+      if (message.role === 'assistant' && message.turnId) {
+        nextMap.set(message.turnId, message.id);
+      }
+    }
+    assistantTurnMapRef.current = nextMap;
   }, [messages]);
 
   useEffect(() => {
@@ -424,9 +555,12 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   }, [messages, position, windowSize, collapsed, anchorOffset, queueExpanded, clearPreviousAssistant, saveSession]);
 
   const sendMessageToAPI = useCallback(
-    async (userMessage: string, images: PendingImage[] = []) => {
+    async (userMessage: string, images: PendingImage[] = [], messageId?: string) => {
       const trimmedMessage = userMessage.trim();
       const contentForStorage = trimmedMessage || (images.length > 0 ? '(Image attached)' : '');
+      const turnId = messageId ?? `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+      isSendingRef.current = true;
 
       try {
         const { addMessageToChat, createElementChatSession } = await import('@/services/elementChatService');
@@ -451,19 +585,31 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           sessionRef.current = session;
         }
 
-        await addMessageToChat(session, 'user', contentForStorage);
+        const imagesForStorage = images.length > 0
+          ? images.map(image => ({ ...image }))
+          : undefined;
 
-        const newMessage: ChatMessage = {
-          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        await addMessageToChat(session, 'user', contentForStorage, {
+          id: turnId,
+          turnId,
+          images: imagesForStorage,
+        });
+
+        const userTimestamp = Date.now();
+        const userMessageEntry: ChatMessage = {
+          id: turnId,
           role: 'user',
           content: contentForStorage,
-          timestamp: Date.now(),
-          images: images.length > 0 ? images : undefined
+          timestamp: userTimestamp,
+          turnId,
+          images: imagesForStorage,
         };
 
-        const newMessages: ChatMessage[] = [...messagesRef.current, newMessage];
+        const newMessages: ChatMessage[] = dedupeMessagesById([...messagesRef.current, userMessageEntry]);
         setMessages(newMessages);
         messagesRef.current = newMessages;
+        session.messages = newMessages;
+        upsertIndicatorsForSession(session);
         setIsStreaming(true);
 
         const { chatWithPage } = await import('@/services/claudeAPIService');
@@ -489,6 +635,9 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         );
 
         for await (const chunk of stream) {
+          if (isDevLoggingEnabled()) {
+            console.debug('[ElementChatWindow] Streaming chunk received', { elementId, chunkLength: chunk.length });
+          }
           assistantContent += chunk;
           if (!isMountedRef.current) {
             return;
@@ -500,6 +649,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           return;
         }
 
+        if (isDevLoggingEnabled()) {
+          console.debug('[ElementChatWindow] Streaming complete', { elementId, assistantContentLength: assistantContent.length });
+        }
+
         if (clearPreviousAssistantRef.current && session.messages.length > 0) {
           for (let i = session.messages.length - 1; i >= 0; i--) {
             if (session.messages[i].role === 'assistant') {
@@ -509,9 +662,15 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           }
         }
 
-        await addMessageToChat(session, 'assistant', assistantContent);
+        const testDuplicateConfig = duplicateTestConfig ?? (
+          typeof window !== 'undefined' ? (window as any).__NABOKOV_TEST_FORCE_DUPLICATE__ : undefined
+        );
 
-        const baseMessages = clearPreviousAssistantRef.current
+        if (!assistantContent.trim() && testDuplicateConfig && typeof testDuplicateConfig === 'object' && typeof testDuplicateConfig.mockContent === 'string') {
+          assistantContent = testDuplicateConfig.mockContent;
+        }
+
+        let baseMessages = clearPreviousAssistantRef.current
           ? (() => {
               const cloned = [...newMessages];
               for (let i = cloned.length - 1; i >= 0; i--) {
@@ -524,19 +683,121 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             })()
           : newMessages;
 
-        const finalMessages: ChatMessage[] = [
-          ...baseMessages,
-          {
-            id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        const normalisedAssistant = assistantContent.trim();
+        if (!normalisedAssistant) {
+          setStreamingContent('');
+          return;
+        }
+
+        const shouldForceDuplicate = Boolean(testDuplicateConfig) && !(
+          typeof testDuplicateConfig === 'object' && testDuplicateConfig !== null && testDuplicateConfig.duplicate === false
+        );
+
+        if (shouldForceDuplicate) {
+          const forcedAssistantMessage: ChatMessage = {
+            id: `forced-duplicate-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             role: 'assistant',
             content: assistantContent,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            turnId,
+          };
+          baseMessages = [...baseMessages, forcedAssistantMessage];
+          assistantTurnMapRef.current.set(turnId, forcedAssistantMessage.id);
+          debugLog('[ElementChatWindow] Forced duplicate assistant entry for test harness', { elementId });
+          if (typeof window !== 'undefined') {
+            const persist = Boolean(
+              typeof testDuplicateConfig === 'object' && testDuplicateConfig !== null && testDuplicateConfig.persist
+            );
+            if (!persist) {
+              delete (window as any).__NABOKOV_TEST_FORCE_DUPLICATE__;
+              duplicateTestConfig = null;
+            }
           }
-        ];
+        }
 
+        const assistantTimestamp = Date.now();
+        let finalMessages: ChatMessage[] = baseMessages;
+        const existingAssistantId = assistantTurnMapRef.current.get(turnId);
+        const existingAssistantIndex = existingAssistantId
+          ? baseMessages.findIndex(message => message.id === existingAssistantId)
+          : -1;
+
+        if (existingAssistantIndex >= 0) {
+          const updatedMessages = baseMessages.map(message => {
+            if (message.id === existingAssistantId) {
+              return {
+                ...message,
+                content: assistantContent,
+                timestamp: assistantTimestamp,
+                turnId,
+              };
+            }
+            return message;
+          });
+
+          finalMessages = dedupeMessagesById(updatedMessages);
+
+          if (session) {
+            const sessionIndex = session.messages.findIndex(message => message.id === existingAssistantId);
+            if (sessionIndex >= 0) {
+              session.messages[sessionIndex] = finalMessages.find(message => message.id === existingAssistantId) || session.messages[sessionIndex];
+            }
+          }
+        } else {
+          const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+          const lastMessage = baseMessages[baseMessages.length - 1];
+
+          if (lastMessage?.role === 'assistant' && lastMessage.content.trim() === normalisedAssistant) {
+            const updatedLast: ChatMessage = {
+              ...lastMessage,
+              content: assistantContent,
+              timestamp: assistantTimestamp,
+              turnId,
+            };
+            finalMessages = dedupeMessagesById([...baseMessages.slice(0, -1), updatedLast]);
+            assistantTurnMapRef.current.set(turnId, updatedLast.id);
+
+            if (session) {
+              const sessionIndex = session.messages.findIndex(message => message.id === lastMessage.id);
+              if (sessionIndex >= 0) {
+                session.messages[sessionIndex] = updatedLast;
+              }
+            }
+
+            debugLog('[ElementChatWindow] Skipped duplicate assistant bubble', { elementId });
+          } else {
+            const assistantMessage: ChatMessage = {
+              id: assistantMessageId,
+              role: 'assistant',
+              content: assistantContent,
+              timestamp: assistantTimestamp,
+              turnId,
+            };
+
+            finalMessages = dedupeMessagesById([...baseMessages, assistantMessage]);
+            assistantTurnMapRef.current.set(turnId, assistantMessageId);
+
+            if (session) {
+              await addMessageToChat(session, 'assistant', assistantContent, {
+                id: assistantMessageId,
+                turnId,
+              });
+            }
+          }
+        }
+
+        session.messages = finalMessages;
         setMessages(finalMessages);
         messagesRef.current = finalMessages;
         setStreamingContent('');
+        if (typeof window !== 'undefined' && isDevLoggingEnabled()) {
+          (window as any).__NABOKOV_DEBUG_LAST_MESSAGES__ = finalMessages;
+        }
+
+        if (isDevLoggingEnabled()) {
+          const assistantCount = finalMessages.filter(message => message.role === 'assistant').length;
+          console.debug('[ElementChatWindow] Assistant messages after update', { elementId, assistantCount });
+        }
 
       } catch (error) {
         console.error('[ElementChatWindow] Error sending message:', error);
@@ -550,11 +811,12 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           timestamp: Date.now()
         };
         setMessages(prev => {
-          const next = [...prev, errorMessage];
+          const next = dedupeMessagesById([...prev, errorMessage]);
           messagesRef.current = next;
           return next;
         });
       } finally {
+        isSendingRef.current = false;
         if (!isMountedRef.current) {
           return;
         }
@@ -581,7 +843,7 @@ const processQueue = useCallback(async () => {
   isProcessingQueueRef.current = true;
   setActiveQueuedId(nextMessage.id);
 
-  await sendMessageToAPI(nextMessage.content, nextMessage.images || []);
+  await sendMessageToAPI(nextMessage.content, nextMessage.images || [], nextMessage.messageId);
 
   setActiveQueuedId(null);
   setIsProcessingQueue(false);
@@ -644,23 +906,51 @@ const processQueue = useCallback(async () => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() && pendingImages.length === 0) return;
+    if (!inputValue.trim() && pendingImages.length === 0) {
+      return;
+    }
 
-    const content = inputValue.trim() || (pendingImages.length > 0 ? '(Image attached)' : '');
+    const trimmed = inputValue.trim();
+    const now = Date.now();
+    const content = trimmed || (pendingImages.length > 0 ? '(Image attached)' : '');
     const imagesToSend = [...pendingImages];
+    const signature = JSON.stringify({
+      content,
+      images: imagesToSend.map(img => img.dataURL),
+    });
+
+    const lastSubmission = lastSubmittedMessageRef.current;
+    if (
+      lastSubmission &&
+      lastSubmission.signature === signature &&
+      now - lastSubmission.timestamp < 1500
+    ) {
+      console.warn('[ElementChatWindow] Duplicate send suppressed');
+      setInputValue('');
+      setPendingImages([]);
+      return;
+    }
+
+    const messageId = `msg-${now}-${Math.random().toString(36).substring(2, 9)}`;
     const queuedMessage: QueuedMessage = {
-      id: `queued-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      id: `queued-${now}-${Math.random().toString(36).substring(2, 9)}`,
       content,
       images: imagesToSend.length > 0 ? imagesToSend : undefined,
-      createdAt: Date.now()
+      createdAt: now,
+      messageId,
     };
+
+    lastSubmittedMessageRef.current = { signature, timestamp: now, messageId };
 
     setInputValue('');
     setPendingImages([]);
 
-    if (isStreaming || isProcessingQueueRef.current) {
+    if (isStreaming || isProcessingQueueRef.current || isSendingRef.current) {
       console.log('[ElementChatWindow] Queueing message (busy):', queuedMessage.content);
       setMessageQueue(prev => {
+        if (prev.some(item => item.messageId === queuedMessage.messageId)) {
+          return prev;
+        }
         const next = [...prev, queuedMessage];
         messageQueueRef.current = next;
         return next;
@@ -669,7 +959,18 @@ const processQueue = useCallback(async () => {
       return;
     }
 
-    await sendMessageToAPI(queuedMessage.content, queuedMessage.images || []);
+    try {
+      await sendMessageToAPI(queuedMessage.content, queuedMessage.images || [], queuedMessage.messageId);
+      lastSubmittedMessageRef.current = {
+        signature,
+        timestamp: Date.now(),
+        messageId,
+      };
+    } catch (error) {
+      console.error('[ElementChatWindow] Failed to send message:', error);
+      lastSubmittedMessageRef.current = null;
+      return;
+    }
     if (messageQueueRef.current.length > 0) {
       void processQueue();
     }
@@ -726,6 +1027,16 @@ const processQueue = useCallback(async () => {
     }
   };
 
+  const handleResize = (
+    _e: any,
+    _dir: any,
+    ref: HTMLElement
+  ) => {
+    const width = parseInt(ref.style.width, 10);
+    const height = parseInt(ref.style.height, 10);
+    setWindowSize({ width, height });
+  };
+
   const handleToggleCollapse = () => {
     setCollapsed(!collapsed);
   };
@@ -750,6 +1061,7 @@ const processQueue = useCallback(async () => {
       messagesRef.current = [];
       setStreamingContent('');
       handleClearQueue();
+      removeIndicatorsForChat(elementId);
     } catch (error) {
       console.error('[ElementChatWindow] Failed to clear history:', error);
     }
@@ -810,15 +1122,15 @@ const processQueue = useCallback(async () => {
     // Add selected text banner if present
     if (selectedText) {
       conversationHTML += `
-        <div style="background: linear-gradient(135deg, rgba(123, 44, 191, 0.1), rgba(199, 125, 255, 0.15));
+        <div style="background: ${ELEMENT_CHAT_THEME.selectedBannerBackground};
                     padding: 12px;
-                    border-left: 4px solid #9D4EDD;
+                    border-left: 4px solid ${ELEMENT_CHAT_THEME.selectedBannerContentBorder};
                     margin-bottom: 16px;
                     border-radius: 4px;">
-          <div style="font-weight: 600; color: #7B2CBF; font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
+          <div style="font-weight: 600; color: ${ELEMENT_CHAT_THEME.selectedBannerLabel}; font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
             📝 Selected Text
           </div>
-          <div style="font-style: italic; color: #333; line-height: 1.5;">
+          <div style="font-style: italic; color: ${ELEMENT_CHAT_THEME.messageTextColor}; line-height: 1.5;">
             "${selectedText}"
           </div>
         </div>
@@ -826,22 +1138,22 @@ const processQueue = useCallback(async () => {
     } else {
       // Add element info
       conversationHTML += `
-        <div style="background: rgba(123, 44, 191, 0.05);
+        <div style="background: ${ELEMENT_CHAT_THEME.queueBackground};
                     padding: 12px;
-                    border-left: 4px solid #7B2CBF;
+                    border-left: 4px solid ${ELEMENT_CHAT_THEME.containerAccent};
                     margin-bottom: 16px;
                     border-radius: 4px;">
-          <div style="font-weight: 600; color: #7B2CBF; font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
+          <div style="font-weight: 600; color: ${ELEMENT_CHAT_THEME.messageRoleColor}; font-size: 11px; text-transform: uppercase; margin-bottom: 8px;">
             💬 Element Context
           </div>
-          <div style="font-family: monospace; font-size: 12px; margin-bottom: 4px;">
+          <div style="font-family: monospace; font-size: 12px; margin-bottom: 4px; color: ${ELEMENT_CHAT_THEME.messageTextColor};">
             Primary: ${elementLabel}
           </div>
-          <div style="color: #666; font-size: 12px; margin-bottom: ${descriptorList.length > 1 ? '8px' : '0'};">
+          <div style="color: ${ELEMENT_CHAT_THEME.messageTextColor}; font-size: 12px; margin-bottom: ${descriptorList.length > 1 ? '8px' : '0'};">
             ${elementSummary}
           </div>
           ${descriptorList.length > 1 ? `
-            <div style="font-size: 12px; color: #555;">
+            <div style="font-size: 12px; color: ${ELEMENT_CHAT_THEME.messageTextColor};">
               <strong>Attached:</strong>
               <ul style="margin: 6px 0 0 16px; padding: 0;">
                 ${descriptorList.slice(1).map(descriptor => `
@@ -860,17 +1172,17 @@ const processQueue = useCallback(async () => {
       conversationHTML += `
         <div style="margin-bottom: 16px;">
           <div style="font-weight: 600;
-                      color: ${isUser ? '#7B2CBF' : '#9D4EDD'};
+                      color: ${isUser ? ELEMENT_CHAT_THEME.messageRoleColor : ELEMENT_CHAT_THEME.assistantRoleColor};
                       font-size: 11px;
                       text-transform: uppercase;
                       margin-bottom: 6px;">
             ${isUser ? 'You' : 'Assistant'}
           </div>
-          <div style="background: ${isUser ? 'rgba(123, 44, 191, 0.08)' : 'rgba(157, 78, 221, 0.08)'};
+          <div style="background: ${isUser ? ELEMENT_CHAT_THEME.messageUserBackground : ELEMENT_CHAT_THEME.messageAssistantBackground};
                       padding: 10px;
                       border-radius: 6px;
                       line-height: 1.5;
-                      color: #333;">
+                      color: ${ELEMENT_CHAT_THEME.messageTextColor};">
             ${message.content}
           </div>
         </div>
@@ -948,8 +1260,11 @@ const processQueue = useCallback(async () => {
         width: windowSize.width,
         height: collapsed ? headerOnlyHeight : windowSize.height
       }}
+      style={{ pointerEvents: 'auto' }}
       onDragStop={handleDragStop}
+      onResize={handleResize}
       onResizeStop={handleResizeStop}
+      resizeHandleComponent={resizeHandleComponents}
       minWidth={300}
       minHeight={200}
       bounds="window"
@@ -1093,6 +1408,8 @@ const processQueue = useCallback(async () => {
               <div
                 key={message.id}
                 css={messageStyles(message.role)}
+                data-message-role={message.role}
+                data-message-id={message.id}
               >
                 <div css={messageRoleStyles}>
                   {message.role === 'user' ? 'You' : 'Assistant'}
@@ -1118,7 +1435,11 @@ const processQueue = useCallback(async () => {
 
             {/* Streaming message */}
             {isStreaming && streamingContent && (
-              <div css={messageStyles('assistant')}>
+              <div
+                css={messageStyles('assistant')}
+                data-message-role="assistant"
+                data-message-streaming="true"
+              >
                 <div css={messageRoleStyles}>Assistant</div>
               <div css={messageContentStyles}>
                 {renderMarkdown(streamingContent)}
@@ -1260,30 +1581,28 @@ const processQueue = useCallback(async () => {
 };
 
 // ============================================================================
-// Styles (purple/chat theme)
+// Styles (red chat theme)
 // ============================================================================
 
 const containerStyles = (collapsed: boolean) => css`
   width: 100%;
   height: ${collapsed ? 'auto' : '100%'};
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(199, 125, 255, 0.02));
-  border: 2px solid #7B2CBF;
+  background: ${ELEMENT_CHAT_THEME.containerBackgroundGradient};
+  border: 2px solid ${ELEMENT_CHAT_THEME.containerAccent};
   border-radius: 8px;
-  box-shadow:
-    0 8px 32px rgba(123, 44, 191, 0.3),
-    0 0 0 1px rgba(199, 125, 255, 0.1);
+  box-shadow: ${ELEMENT_CHAT_THEME.containerShadow};
   display: flex;
   flex-direction: column;
   z-index: 999999;
   pointer-events: auto;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-family: ${ELEMENT_CHAT_THEME.fontFamily};
   transition: all 0.3s ease;
   overflow: ${collapsed ? 'hidden' : 'visible'};
 `;
 
 const headerStyles = css`
-  background: linear-gradient(135deg, #7B2CBF, #9D4EDD);
-  color: white;
+  background: ${ELEMENT_CHAT_THEME.headerGradient};
+  color: ${ELEMENT_CHAT_THEME.headerTextColor};
   padding: 10px 12px;
   border-radius: 6px 6px 0 0;
   display: flex;
@@ -1322,22 +1641,24 @@ const elementLabelStyles = css`
 
 const elementSummaryStyles = css`
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.85);
+  color: ${ELEMENT_CHAT_THEME.headerInfoText};
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 `;
 
 const messageCountStyles = css`
-  background: rgba(255, 255, 255, 0.25);
+  background: ${ELEMENT_CHAT_THEME.headerBadgeBackground};
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 11px;
   font-weight: 700;
+  color: ${ELEMENT_CHAT_THEME.headerBadgeText};
 `;
 
 const iconStyles = css`
   font-size: 16px;
+  color: ${ELEMENT_CHAT_THEME.iconColor};
 `;
 
 const headerActionsStyles = css`
@@ -1346,18 +1667,18 @@ const headerActionsStyles = css`
 `;
 
 const headerButtonStyles = css`
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(224, 170, 255, 0.3);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 3px;
   padding: 3px 8px;
-  color: white;
+  color: ${ELEMENT_CHAT_THEME.headerTextColor};
   font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(224, 170, 255, 0.5);
+    background: rgba(255, 255, 255, 0.28);
+    border-color: rgba(255, 255, 255, 0.5);
   }
 
   &:disabled {
@@ -1367,18 +1688,18 @@ const headerButtonStyles = css`
 `;
 
 const saveButtonStyles = css`
-  background: rgba(255, 255, 255, 0.25);
-  border: 1px solid rgba(224, 170, 255, 0.4);
+  background: rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 3px;
   padding: 3px 8px;
-  color: white;
+  color: ${ELEMENT_CHAT_THEME.headerTextColor};
   font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.4);
-    border-color: rgba(224, 170, 255, 0.6);
+    background: rgba(255, 255, 255, 0.32);
+    border-color: rgba(255, 255, 255, 0.55);
     transform: translateY(-1px);
   }
 
@@ -1389,8 +1710,8 @@ const saveButtonStyles = css`
 `;
 
 const selectedTextBannerStyles = css`
-  background: linear-gradient(135deg, rgba(123, 44, 191, 0.05), rgba(199, 125, 255, 0.08));
-  border-bottom: 2px solid rgba(123, 44, 191, 0.2);
+  background: ${ELEMENT_CHAT_THEME.selectedBannerBackground};
+  border-bottom: ${ELEMENT_CHAT_THEME.selectedBannerBorder};
   padding: 10px 12px;
   flex-shrink: 0;
 `;
@@ -1401,7 +1722,7 @@ const selectedTextLabelStyles = css`
   gap: 6px;
   font-weight: 600;
   font-size: 11px;
-  color: #7B2CBF;
+  color: ${ELEMENT_CHAT_THEME.selectedBannerLabel};
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
@@ -1413,12 +1734,12 @@ const selectedTextIconStyles = css`
 
 const selectedTextContentStyles = css`
   font-size: 13px;
-  color: #333;
+  color: ${ELEMENT_CHAT_THEME.messageTextColor};
   line-height: 1.5;
   font-style: italic;
   padding: 8px;
-  background: rgba(255, 255, 255, 0.7);
-  border-left: 3px solid #9D4EDD;
+  background: ${ELEMENT_CHAT_THEME.selectedBannerContentBackground};
+  border-left: 3px solid ${ELEMENT_CHAT_THEME.selectedBannerContentBorder};
   border-radius: 4px;
   max-height: 100px;
   overflow-y: auto;
@@ -1432,7 +1753,7 @@ const selectedTextContentStyles = css`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(123, 44, 191, 0.3);
+    background: ${ELEMENT_CHAT_THEME.containerAccent};
     border-radius: 2px;
   }
 `;
@@ -1441,7 +1762,7 @@ const messagesContainerStyles = css`
   flex: 1;
   overflow-y: auto;
   padding: 12px;
-  background: white;
+  background: ${ELEMENT_CHAT_THEME.messagesBackground};
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -1452,11 +1773,11 @@ const messagesContainerStyles = css`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(123, 44, 191, 0.3);
+    background: ${ELEMENT_CHAT_THEME.containerAccent};
     border-radius: 3px;
 
     &:hover {
-      background: rgba(123, 44, 191, 0.5);
+      background: ${ELEMENT_CHAT_THEME.containerAccent};
     }
   }
 `;
@@ -1481,7 +1802,7 @@ const emptyIconStyles = css`
 const emptyTitleStyles = css`
   font-size: 18px;
   font-weight: 600;
-  color: #7B2CBF;
+  color: ${ELEMENT_CHAT_THEME.messageRoleColor};
   margin-bottom: 8px;
 `;
 
@@ -1495,7 +1816,7 @@ const emptyHintStyles = css`
   font-size: 12px;
   color: #999;
   padding: 8px 12px;
-  background: rgba(123, 44, 191, 0.05);
+  background: ${ELEMENT_CHAT_THEME.queueBackground};
   border-radius: 4px;
   max-width: 100%;
   overflow: hidden;
@@ -1522,15 +1843,17 @@ const messageStyles = (role: 'user' | 'assistant') => css`
     }
   }
 
-  ${role === 'user' ? css`
-    background: linear-gradient(135deg, rgba(123, 44, 191, 0.1), rgba(199, 125, 255, 0.05));
-    border-left: 3px solid #7B2CBF;
-    margin-left: 20px;
-  ` : css`
-    background: rgba(0, 0, 0, 0.03);
-    border-left: 3px solid #C77DFF;
-    margin-right: 20px;
-  `}
+  ${role === 'user'
+    ? css`
+        background: ${ELEMENT_CHAT_THEME.messageUserBackground};
+        border-left: 3px solid ${ELEMENT_CHAT_THEME.messageUserBorder};
+        margin-left: 20px;
+      `
+    : css`
+        background: ${ELEMENT_CHAT_THEME.messageAssistantBackground};
+        border-left: 3px solid ${ELEMENT_CHAT_THEME.messageAssistantBorder};
+        margin-right: 20px;
+      `}
 `;
 
 const messageRoleStyles = css`
@@ -1538,12 +1861,12 @@ const messageRoleStyles = css`
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #7B2CBF;
+  color: ${ELEMENT_CHAT_THEME.messageRoleColor};
   margin-bottom: 4px;
 `;
 
 const messageContentStyles = css`
-  color: #311c1c;
+  color: ${ELEMENT_CHAT_THEME.messageTextColor};
   word-break: break-word;
 
   p {
@@ -1561,7 +1884,7 @@ const messageContentStyles = css`
   }
 
   code {
-    background: rgba(177, 60, 60, 0.12);
+    background: ${ELEMENT_CHAT_THEME.codeBackground};
     padding: 2px 5px;
     border-radius: 4px;
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -1569,7 +1892,7 @@ const messageContentStyles = css`
   }
 
   pre {
-    background: rgba(177, 60, 60, 0.08);
+    background: ${ELEMENT_CHAT_THEME.preBackground};
     padding: 10px;
     border-radius: 8px;
     overflow-x: auto;
@@ -1577,14 +1900,14 @@ const messageContentStyles = css`
   }
 
   a {
-    color: #b02a2a;
+    color: ${ELEMENT_CHAT_THEME.messageLinkColor};
     text-decoration: underline;
   }
 `;
 
 const cursorStyles = css`
   animation: blink 1s infinite;
-  color: #b23232;
+  color: ${ELEMENT_CHAT_THEME.containerAccent};
 
   @keyframes blink {
     0%, 50% { opacity: 1; }
@@ -1600,7 +1923,7 @@ const loadingDotsStyles = css`
   span {
     width: 6px;
     height: 6px;
-    background: #b23232;
+    background: ${ELEMENT_CHAT_THEME.containerAccent};
     border-radius: 50%;
     animation: bounce 1.4s infinite ease-in-out both;
 
@@ -1624,28 +1947,29 @@ const loadingDotsStyles = css`
 `;
 
 const inputContainerStyles = css`
-  border-top: 1px solid rgba(123, 44, 191, 0.2);
+  border-top: 1px solid ${ELEMENT_CHAT_THEME.inputBorder};
   padding: 10px;
   display: flex;
   gap: 8px;
-  background: rgba(224, 170, 255, 0.05);
+  background: ${ELEMENT_CHAT_THEME.inputBackground};
   flex-shrink: 0;
 `;
 
 const textareaStyles = css`
   flex: 1;
-  border: 1px solid rgba(123, 44, 191, 0.2);
+  border: 1px solid ${ELEMENT_CHAT_THEME.inputBorder};
   border-radius: 4px;
   padding: 8px 10px;
   font-size: 13px;
   font-family: inherit;
   resize: none;
   line-height: 1.4;
+  background: ${ELEMENT_CHAT_THEME.messagesBackground};
 
   &:focus {
     outline: none;
-    border-color: #7B2CBF;
-    box-shadow: 0 0 0 2px rgba(123, 44, 191, 0.1);
+    border-color: ${ELEMENT_CHAT_THEME.inputFocus};
+    box-shadow: 0 0 0 2px rgba(194, 59, 34, 0.2);
   }
 
   &:disabled {
@@ -1655,9 +1979,9 @@ const textareaStyles = css`
 `;
 
 const sendButtonStyles = css`
-  background: linear-gradient(135deg, #7B2CBF, #9D4EDD);
-  color: white;
-  border: 1px solid rgba(224, 170, 255, 0.3);
+  background: ${ELEMENT_CHAT_THEME.sendButtonGradient};
+  color: ${ELEMENT_CHAT_THEME.headerTextColor};
+  border: 1px solid ${ELEMENT_CHAT_THEME.sendButtonBorder};
   border-radius: 4px;
   padding: 8px 16px;
   font-size: 16px;
@@ -1668,8 +1992,8 @@ const sendButtonStyles = css`
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(123, 44, 191, 0.3);
-    border-color: #C77DFF;
+    box-shadow: ${ELEMENT_CHAT_THEME.sendButtonShadow};
+    border-color: ${ELEMENT_CHAT_THEME.containerAccent};
   }
 
   &:active:not(:disabled) {
@@ -1683,8 +2007,8 @@ const sendButtonStyles = css`
 `;
 
 const queueContainerStyles = css`
-  background: #f7efed;
-  border: 1px solid rgba(177, 60, 60, 0.2);
+  background: ${ELEMENT_CHAT_THEME.queueBackground};
+  border: 1px solid ${ELEMENT_CHAT_THEME.queueBorder};
   border-radius: 10px;
   padding: 10px 12px;
   display: flex;
@@ -1700,17 +2024,17 @@ const queueHeaderStyles = css`
 `;
 
 const queueToggleButtonStyles = css`
-  background: rgba(177, 60, 60, 0.16);
-  border: 1px solid rgba(177, 60, 60, 0.32);
+  background: ${ELEMENT_CHAT_THEME.queueAccentSoft};
+  border: 1px solid ${ELEMENT_CHAT_THEME.queueBorder};
   border-radius: 6px;
   padding: 4px 12px;
   font-size: 12px;
-  color: #7a2f2f;
+  color: ${ELEMENT_CHAT_THEME.queueText};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(177, 60, 60, 0.25);
+    background: ${ELEMENT_CHAT_THEME.queueBackground};
   }
 `;
 
@@ -1722,21 +2046,21 @@ const queueHeaderActionsStyles = css`
 
 const queueStatusStyles = css`
   font-size: 11px;
-  color: #a32020;
+  color: ${ELEMENT_CHAT_THEME.queueAccent};
 `;
 
 const queueClearButtonStyles = css`
-  background: rgba(177, 60, 60, 0.12);
-  border: 1px solid rgba(177, 60, 60, 0.32);
+  background: ${ELEMENT_CHAT_THEME.queueAccentSoft};
+  border: 1px solid ${ELEMENT_CHAT_THEME.queueBorder};
   border-radius: 6px;
   padding: 3px 10px;
   font-size: 11px;
-  color: #7a2f2f;
+  color: ${ELEMENT_CHAT_THEME.queueText};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(177, 60, 60, 0.22);
+    background: ${ELEMENT_CHAT_THEME.queueBackground};
   }
 `;
 
@@ -1752,7 +2076,7 @@ const queueListStyles = css`
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(177, 60, 60, 0.35);
+    background: ${ELEMENT_CHAT_THEME.queueAccent};
     border-radius: 4px;
   }
 `;
@@ -1763,20 +2087,20 @@ const queueItemStyles = css`
   gap: 8px;
   align-items: flex-start;
   padding: 6px 8px;
-  border: 1px solid rgba(177, 60, 60, 0.28);
+  border: 1px solid ${ELEMENT_CHAT_THEME.queueBorder};
   border-radius: 8px;
-  background: #ffffff;
+  background: ${ELEMENT_CHAT_THEME.messagesBackground};
   font-size: 12px;
 
   &[data-active='true'] {
-    border-color: rgba(177, 60, 60, 0.55);
-    box-shadow: 0 0 0 1px rgba(177, 60, 60, 0.3);
+    border-color: ${ELEMENT_CHAT_THEME.queueAccent};
+    box-shadow: 0 0 0 1px rgba(194, 59, 34, 0.2);
   }
 `;
 
 const queueItemTextStyles = css`
   flex: 1;
-  color: #7a3b3b;
+  color: ${ELEMENT_CHAT_THEME.queueText};
   white-space: pre-wrap;
   word-break: break-word;
 `;
@@ -1788,25 +2112,25 @@ const queueItemActionsStyles = css`
 `;
 
 const queueBadgeStyles = css`
-  background: rgba(177, 60, 60, 0.16);
-  color: #7a2f2f;
+  background: ${ELEMENT_CHAT_THEME.queueAccentSoft};
+  color: ${ELEMENT_CHAT_THEME.queueText};
   border-radius: 10px;
   padding: 1px 6px;
   font-size: 11px;
 `;
 
 const queueRemoveButtonStyles = css`
-  background: rgba(177, 60, 60, 0.1);
-  border: 1px solid rgba(177, 60, 60, 0.3);
+  background: ${ELEMENT_CHAT_THEME.queueAccentSoft};
+  border: 1px solid ${ELEMENT_CHAT_THEME.queueBorder};
   border-radius: 6px;
   padding: 2px 6px;
   font-size: 11px;
-  color: #912d2d;
+  color: ${ELEMENT_CHAT_THEME.queueText};
   cursor: pointer;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba(177, 60, 60, 0.18);
+    background: ${ELEMENT_CHAT_THEME.queueBackground};
   }
 `;
 
@@ -1815,7 +2139,7 @@ const queuePreferenceStyles = css`
   align-items: center;
   gap: 6px;
   font-size: 11px;
-  color: #7a2f2f;
+  color: ${ELEMENT_CHAT_THEME.queueText};
   margin: 4px 0 8px;
 
   input {
@@ -1835,7 +2159,7 @@ const imagePreviewsContainerStyles = css`
   gap: 6px;
   flex-wrap: wrap;
   padding: 4px;
-  background: rgba(123, 44, 191, 0.03);
+  background: ${ELEMENT_CHAT_THEME.queueBackground};
   border-radius: 3px;
 `;
 
@@ -1843,7 +2167,7 @@ const imagePreviewStyles = css`
   position: relative;
   width: 80px;
   height: 80px;
-  border: 1px solid rgba(123, 44, 191, 0.2);
+  border: 1px solid ${ELEMENT_CHAT_THEME.imagePreviewBorder};
   border-radius: 3px;
   overflow: hidden;
 `;
@@ -1888,7 +2212,7 @@ const messageImageStyles = css`
   max-width: 200px;
   max-height: 200px;
   border-radius: 4px;
-  border: 1px solid rgba(123, 44, 191, 0.2);
+  border: 1px solid ${ELEMENT_CHAT_THEME.imagePreviewBorder};
   object-fit: contain;
   background: rgba(0, 0, 0, 0.02);
 `;
@@ -1900,9 +2224,9 @@ const anchorChipRowStyles = css`
 `;
 
 const anchorChipStyles = (active: boolean) => css`
-  border: 1px solid ${active ? 'rgba(177, 50, 50, 0.55)' : 'rgba(177, 50, 50, 0.28)'};
-  background: ${active ? 'rgba(177, 50, 50, 0.16)' : 'rgba(177, 50, 50, 0.08)'};
-  color: #752525;
+  border: 1px solid ${active ? ELEMENT_CHAT_THEME.containerAccent : ELEMENT_CHAT_THEME.anchorChipBorder};
+  background: ${active ? ELEMENT_CHAT_THEME.anchorChipActiveBg : ELEMENT_CHAT_THEME.anchorChipInactiveBg};
+  color: ${ELEMENT_CHAT_THEME.queueText};
   border-radius: 999px;
   padding: 4px 12px;
   font-size: 12px;
@@ -1913,7 +2237,41 @@ const anchorChipStyles = (active: boolean) => css`
   transition: all 0.2s ease;
 
   &:hover {
-    border-color: rgba(177, 50, 50, 0.55);
-    background: rgba(177, 50, 50, 0.2);
+    border-color: ${ELEMENT_CHAT_THEME.containerAccent};
+    background: ${ELEMENT_CHAT_THEME.anchorChipActiveBg};
   }
 `;
+
+
+
+const resizeHandleCornerStyles = css`
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: ${ELEMENT_CHAT_THEME.containerAccent};
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
+`;
+
+const resizeHandleHorizontalStyles = css`
+  width: 48px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(194, 59, 34, 0.28);
+  margin-bottom: 6px;
+`;
+
+const resizeHandleVerticalStyles = css`
+  width: 8px;
+  height: 48px;
+  border-radius: 999px;
+  background: rgba(194, 59, 34, 0.28);
+  margin-right: 6px;
+`;
+
+const resizeHandleComponents = {
+  bottomRight: <span css={resizeHandleCornerStyles} />,
+  bottomLeft: <span css={resizeHandleCornerStyles} />,
+  bottom: <span css={resizeHandleHorizontalStyles} />,
+  right: <span css={resizeHandleVerticalStyles} />,
+  left: <span css={resizeHandleVerticalStyles} />,
+};
