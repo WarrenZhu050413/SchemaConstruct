@@ -1869,6 +1869,10 @@ const messageContentStyles = css`
   color: ${ELEMENT_CHAT_THEME.messageTextColor};
   word-break: break-word;
 
+  strong {
+    font-weight: 600;
+  }
+
   p {
     margin: 0 0 8px 0;
   }
