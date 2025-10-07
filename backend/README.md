@@ -35,7 +35,8 @@ You should see:
 ═══════════════════════════════════════════════════════
 
   Status: Running
-  Port: 3100
+  Host: 0.0.0.0 (override with HOST)
+  Port: 3100 (override with PORT)
   Health: http://localhost:3100/health
 
   Endpoints:
@@ -203,6 +204,11 @@ Logs now highlight key details with ANSI colors when running in a TTY (request i
 - **Completed** responses → green action word with status code bucketed by color (200s green, 400s yellow, 500s red)
 - **Retrying/Fallback** paths → yellow context
 - **Errors** → red headers and messages, with multi-line metadata prefixed by `|`
+
+Additional environment toggles:
+- `HOST` – bind to a specific interface (defaults to `0.0.0.0`)
+- `PORT` – choose a custom port (defaults to `3100`)
+- `NABOKOV_BACKEND_NO_LISTEN=1` – skip listening so you can import `server.mjs` in scripts or tests without binding a socket
 
 ## Architecture
 

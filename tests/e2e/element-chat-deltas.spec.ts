@@ -74,22 +74,56 @@ async function clickShadowElement(page: Page, hostId: string, selector: string) 
 test.describe('Element Chat Streaming Deltas', () => {
   test('renders each streaming delta as its own responsive line', async ({ context }) => {
     const page = await context.newPage();
+
+    await context.route('http://localhost:3100/api/stream', async route => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'access-control-allow-origin': '*',
+            'access-control-allow-methods': 'POST, OPTIONS',
+            'access-control-allow-headers': 'Content-Type',
+          },
+          body: '',
+        });
+        return;
+      }
+
+      const sseBody = [
+        'data: {"delta":{"text":"First delta chunk"}}',
+        '',
+        'data: {"delta":{"text":"Second delta chunk"}}',
+        '',
+        'data: {"delta":{"text":"Third delta chunk"}}',
+        '',
+        'data: [DONE]',
+        '',
+      ].join('\n');
+
+      await route.fulfill({
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Origin': '*',
+          Connection: 'keep-alive',
+        },
+        body: sseBody,
+      });
+    });
+
     await page.goto(TEST_URL);
     await page.waitForLoadState('domcontentloaded');
 
-    await page.evaluate(() => {
-      (window as any).__NABOKOV_TEST_STREAM__ = {
-        chunks: ['First delta chunk', 'Second delta chunk', 'Third delta chunk'],
-        delay: 120,
-      };
-    });
-
     await sendMessageToContentScript(context, page, { type: 'ACTIVATE_CHAT_SELECTOR' });
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(1000);
+    await waitForShadowRoot(page, 'nabokov-clipper-root');
 
     const heading = await page.$('h1');
     expect(heading).not.toBeNull();
     await heading!.click();
+    await page.waitForTimeout(1500);
 
     await page.waitForFunction(() => document.querySelector('[data-nabokov-element-chat]') !== null);
     const chatContainer = await page.$('[data-nabokov-element-chat]');
@@ -111,36 +145,25 @@ test.describe('Element Chat Streaming Deltas', () => {
       return !!shadow?.querySelector('[data-message-streaming="true"]');
     }, hostId);
 
-    await page.waitForFunction((id) => {
-      const host = document.getElementById(id);
-      const shadow = host?.shadowRoot;
-      const deltaLines = shadow?.querySelectorAll('[data-message-streaming="true"] [data-delta-index]');
-      return (deltaLines?.length || 0) === 3;
-    }, hostId);
+    await page.waitForFunction(() => {
+      const deltas = (window as any).__NABOKOV_DEBUG_LAST_DELTAS__;
+      return Array.isArray(deltas) && deltas.length === 3;
+    });
 
-    const streamingSnapshot = await page.evaluate((id) => {
-      const host = document.getElementById(id);
-      const shadow = host?.shadowRoot;
-      if (!shadow) return { deltas: [], overflowY: '', maxHeight: '' };
-      const streamingNode = shadow.querySelector('[data-message-streaming="true"]');
-      if (!streamingNode) return { deltas: [], overflowY: '', maxHeight: '' };
-      const lines = Array.from(streamingNode.querySelectorAll('[data-delta-index]')) as HTMLElement[];
-      const container = streamingNode.querySelector('[data-delta-index]')?.parentElement as HTMLElement | null;
-      const styles = container ? window.getComputedStyle(container) : null;
-      return {
-        deltas: lines.map(line => line.textContent?.trim() || ''),
-        overflowY: styles?.overflowY || '',
-        maxHeight: styles?.maxHeight || '',
-      };
-    }, hostId);
+    const debugSnapshot = await page.evaluate(() => ({
+      deltas: (window as any).__NABOKOV_DEBUG_LAST_DELTAS__ || [],
+      active: (window as any).__NABOKOV_DEBUG_STREAMING_DELTAS__ || [],
+      style: (window as any).__NABOKOV_DEBUG_STREAMING_STYLE__ || null,
+    }));
 
-    expect(streamingSnapshot.deltas).toEqual([
+    expect(debugSnapshot.deltas).toEqual([
       'First delta chunk',
       'Second delta chunk',
       'Third delta chunk',
     ]);
-    expect(streamingSnapshot.overflowY).toBe('auto');
-    expect(streamingSnapshot.maxHeight).toBe('200px');
+    expect(debugSnapshot.active).toEqual([]);
+    expect(debugSnapshot.style?.overflowY).toBe('auto');
+    expect(debugSnapshot.style?.maxHeight).toBe('200px');
 
     await page.waitForFunction((id) => {
       const host = document.getElementById(id);
@@ -148,15 +171,50 @@ test.describe('Element Chat Streaming Deltas', () => {
       return !shadow?.querySelector('[data-message-streaming="true"]');
     }, hostId, { timeout: 5000 });
 
-    const assistantMessages = await page.evaluate((id) => {
+    const reasoningInitialState = await page.evaluate((id) => {
       const host = document.getElementById(id);
       const shadow = host?.shadowRoot;
-      if (!shadow) return [];
-      const nodes = Array.from(shadow.querySelectorAll('[data-message-role="assistant"]')) as HTMLElement[];
-      return nodes.map(node => node.textContent?.trim() || '');
+      if (!shadow) {
+        return null;
+      }
+
+      const toggle = shadow.querySelector('[data-reasoning-toggle]') as HTMLElement | null;
+      const reasoningContent = shadow.querySelector('[data-reasoning-content]') as HTMLElement | null;
+      const lastAssistant = shadow.querySelector('[data-message-role="assistant"]:last-of-type') as HTMLElement | null;
+
+      return {
+        hasToggle: Boolean(toggle),
+        reasoningVisible: Boolean(reasoningContent),
+        lastAssistantText: lastAssistant?.textContent || '',
+      };
     }, hostId);
 
-    expect(assistantMessages.some(text => text.includes('First delta chunk'))).toBe(true);
+    expect(reasoningInitialState?.hasToggle).toBe(true);
+    expect(reasoningInitialState?.reasoningVisible).toBe(false);
+    expect(reasoningInitialState?.lastAssistantText).toContain('Second delta chunk');
+    expect(reasoningInitialState?.lastAssistantText).not.toContain('First delta chunk');
+
+    await page.evaluate((id) => {
+      const host = document.getElementById(id);
+      const shadow = host?.shadowRoot;
+      const toggle = shadow?.querySelector('[data-reasoning-toggle]') as HTMLElement | null;
+      toggle?.click();
+    }, hostId);
+
+    await page.waitForFunction((id) => {
+      const host = document.getElementById(id);
+      const shadow = host?.shadowRoot;
+      return Boolean(shadow?.querySelector('[data-reasoning-content]'));
+    }, hostId);
+
+    const reasoningText = await page.evaluate((id) => {
+      const host = document.getElementById(id);
+      const shadow = host?.shadowRoot;
+      const reasoning = shadow?.querySelector('[data-reasoning-content]');
+      return reasoning?.textContent || '';
+    }, hostId);
+
+    expect(reasoningText).toContain('First delta chunk');
 
     await page.close();
   });

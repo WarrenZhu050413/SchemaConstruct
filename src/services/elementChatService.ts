@@ -40,6 +40,15 @@ function normalizeSession(session: ElementChatSession): ElementChatSession {
     session.elementIds.unshift(session.elementDescriptor.chatId);
   }
 
+  if (session.windowState) {
+    if (!session.windowState.collapseState) {
+      session.windowState.collapseState = session.windowState.collapsed ? 'rectangle' : 'expanded';
+    }
+    if (typeof session.windowState.collapsed === 'undefined') {
+      session.windowState.collapsed = session.windowState.collapseState !== 'expanded';
+    }
+  }
+
   return session;
 }
 
@@ -191,6 +200,7 @@ export async function addMessageToChat(
     id?: string;
     turnId?: string;
     images?: ChatMessage['images'];
+    thinking?: string;
   }
 ): Promise<ElementChatSession> {
   const message: ChatMessage = {
@@ -203,6 +213,11 @@ export async function addMessageToChat(
 
   if (options?.images && options.images.length > 0) {
     message.images = options.images;
+  }
+
+  if (options && 'thinking' in options) {
+    const trimmedThinking = options.thinking?.trim();
+    message.thinking = trimmedThinking ? trimmedThinking : undefined;
   }
 
   const existingIndex = session.messages.findIndex(existing => existing.id === message.id);

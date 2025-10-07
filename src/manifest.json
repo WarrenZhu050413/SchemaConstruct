@@ -52,6 +52,13 @@
         "mac": "Ctrl+Shift+C"
       },
       "description": "Toggle inline chat with page"
+    },
+    "trigger-hypertext": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+H",
+        "mac": "Ctrl+Shift+H"
+      },
+      "description": "Create inline hypertext annotation"
     }
   },
   "web_accessible_resources": [
@@ -62,7 +69,8 @@
         "src/canvas/*.css",
         "src/sidepanel/index.html",
         "src/sidepanel/*.js",
-        "src/sidepanel/*.css"
+        "src/sidepanel/*.css",
+        "src/lib/hypertext-experience.js"
       ],
       "matches": ["<all_urls>"]
     }

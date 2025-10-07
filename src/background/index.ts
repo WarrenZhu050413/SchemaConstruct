@@ -75,6 +75,22 @@ chrome.commands.onCommand.addListener((command) => {
         console.error('[background] No active tab found for toggle-inline-chat');
       }
     });
+  } else if (command === 'trigger-hypertext') {
+    // Trigger hypertext annotation (Ctrl+Shift+H)
+    console.log('[background] Triggering hypertext...');
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs[0]?.id) {
+        console.log('[background] Sending TRIGGER_HYPERTEXT to tab:', tabs[0].id);
+        chrome.tabs.sendMessage(tabs[0].id, {
+          type: 'TRIGGER_HYPERTEXT'
+        }).catch(err => {
+          console.error('[background] Failed to send TRIGGER_HYPERTEXT message:', err);
+          console.error('[background] This usually means content script is not loaded. Try refreshing the page.');
+        });
+      } else {
+        console.error('[background] No active tab found for trigger-hypertext');
+      }
+    });
   } else {
     console.warn('[background] Unknown command received:', command);
   }

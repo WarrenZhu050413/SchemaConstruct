@@ -5,6 +5,7 @@
 
 /**
  * Message in a conversation thread
+ * @deprecated Use Message from './chat' instead for new code
  */
 export interface Message {
   id: string;
@@ -13,6 +14,13 @@ export interface Message {
   timestamp: number;
   streaming?: boolean;
   parentId?: string;
+  // Multimodal support
+  images?: Array<{
+    dataURL: string;
+    width: number;
+    height: number;
+  }>;
+  thinking?: string; // Optional assistant reasoning block (collapsed UI)
 }
 
 /**
@@ -81,6 +89,22 @@ export interface FillInHistoryEntry {
 }
 
 /**
+ * Hypertext-specific metadata for inline annotation cards
+ */
+export interface HypertextData {
+  sessionId: string; // Original hypertext session ID
+  pillText: string; // Display text for the highlight
+  mode: 'inline' | 'reference'; // Inline explanation or reference link
+  subject: string; // Original selected text
+  tooltipPosition?: { x: number; y: number }; // Saved tooltip position
+  tooltipSize?: { width: number; height: number }; // Saved tooltip size
+  isPinned?: boolean; // Whether tooltip was pinned
+  url?: string; // Reference URL (if mode === 'reference')
+  pageUrl: string; // URL where hypertext was created
+  pageTitle: string; // Page title where hypertext was created
+}
+
+/**
  * Main card data structure for the canvas view
  * This is the primary Card type used throughout the application
  */
@@ -99,7 +123,7 @@ export interface Card {
   styles?: import('../types').RelevantStyles; // Computed styles for rendering
   context?: string; // Parent element context (HTML snippet)
   // Card type and relationships
-  cardType?: 'clipped' | 'generated' | 'note' | 'image'; // Type of card
+  cardType?: 'clipped' | 'generated' | 'note' | 'image' | 'hypertext'; // Type of card
   parentCardId?: string; // Reference to parent card (for generated cards)
   generationContext?: {
     sourceMessageId: string;
@@ -109,6 +133,7 @@ export interface Card {
   // Image upload fields
   imageData?: string; // Base64-encoded image data for drag-dropped images
   imageMimeType?: string; // MIME type of image (e.g., 'image/png', 'image/jpeg')
+  imageDimensions?: { width: number; height: number }; // Original image dimensions
   // UI state
   collapsed?: boolean; // Whether card is collapsed to minimal height
   stashed?: boolean; // Whether card is stashed (hidden from canvas)
@@ -120,6 +145,8 @@ export interface Card {
   beautificationTimestamp?: number; // When beautification was applied
   // Fill-in synthesis fields
   fillInHistory?: FillInHistoryEntry[]; // History of fill-in operations
+  // Hypertext annotation fields (for cardType === 'hypertext')
+  hypertextData?: HypertextData; // Hypertext-specific metadata
 }
 
 /**

@@ -9,13 +9,13 @@
 import { css } from '@emotion/react';
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
-import type { ElementChatSession, ChatMessage } from '@/types/elementChat';
+import type { ElementChatSession, ChatMessage, CollapseState } from '@/types/elementChat';
 import type { ElementDescriptor } from '@/services/elementIdService';
 import type { Card } from '@/types/card';
 import { ImageUploadZone } from '@/shared/components/ImageUpload/ImageUploadZone';
 import { fileToBase64, getImageDimensions, isImageFile } from '@/utils/imageUpload';
 import { findElementByDescriptor } from '@/services/elementIdService';
-import { upsertIndicatorsForSession, removeIndicatorsForChat } from '@/services/elementChatIndicatorService';
+import { upsertIndicatorsForSession, removeIndicatorsForChat, hideIndicatorsForChat, showIndicatorsForChat } from '@/services/elementChatIndicatorService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -142,6 +142,53 @@ const dedupeMessagesById = (messages: ChatMessage[]): ChatMessage[] => {
   return deduped;
 };
 
+const normalizeNewlines = (value: string): string => value.replace(/\r\n/g, '\n');
+
+const separateAssistantResponse = (
+  fullContent: string,
+  deltaHistory: string[]
+): { answer: string; thinking?: string } => {
+  const normalizedFull = normalizeNewlines(fullContent ?? '');
+  const trimmedFull = normalizedFull.trim();
+
+  if (!trimmedFull) {
+    return { answer: '' };
+  }
+
+  const doubleBreakIndex = normalizedFull.indexOf('\n\n');
+  if (doubleBreakIndex !== -1) {
+    const thinkingCandidate = normalizedFull.slice(0, doubleBreakIndex).trim();
+    const answerRaw = normalizedFull.slice(doubleBreakIndex + 2);
+    const answerCandidate = answerRaw.replace(/^\s+/, '');
+
+    if (thinkingCandidate && answerCandidate.trim().length > 0) {
+      return {
+        answer: answerCandidate,
+        thinking: thinkingCandidate,
+      };
+    }
+  }
+
+  if (deltaHistory.length > 1) {
+    const [firstChunk, ...restChunks] = deltaHistory.map(chunk => normalizeNewlines(chunk));
+    const thinkingCandidate = (firstChunk || '').trim();
+    const restCombinedRaw = restChunks.join('');
+    const restCombinedNormalized = normalizeNewlines(restCombinedRaw);
+    const answerCandidate = restCombinedNormalized.replace(/^\s+/, '');
+
+    if (thinkingCandidate && answerCandidate.trim().length > 0) {
+      return {
+        answer: answerCandidate,
+        thinking: thinkingCandidate,
+      };
+    }
+  }
+
+  return {
+    answer: normalizedFull.replace(/^\s+/, ''),
+  };
+};
+
 /**
  * ElementChatWindow Component
  */
@@ -198,9 +245,16 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamingDeltas, setStreamingDeltas] = useState<string[]>([]);
-  const [collapsed, setCollapsed] = useState(
-    existingSession?.windowState?.collapsed || false
-  );
+  const [expandedReasoningMap, setExpandedReasoningMap] = useState<Record<string, boolean>>({});
+  const [collapseState, setCollapseState] = useState<CollapseState>(() => {
+    if (existingSession?.windowState?.collapseState) {
+      return existingSession.windowState.collapseState;
+    }
+    if (existingSession?.windowState?.collapsed) {
+      return 'rectangle';
+    }
+    return 'expanded';
+  });
   const [windowSize, setWindowSize] = useState(
     existingSession?.windowState?.size || { width: 420, height: 550 }
   );
@@ -230,6 +284,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const rootContainerRef = useRef<HTMLDivElement>(null);
+  const hostElementRef = useRef<HTMLElement | null>(null);
+  const hostListenerAttachedRef = useRef(false);
+  const hostCollapseHandlerRef = useRef<((event: Event) => void) | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const sessionRef = useRef<ElementChatSession | null>(existingSession || null);
@@ -237,10 +295,11 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const anchorElementRef = useRef<HTMLElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const streamingDeltasRef = useRef<HTMLDivElement | null>(null);
+  const streamingDeltaHistoryRef = useRef<string[]>([]);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const positionRef = useRef(position);
   const windowSizeRef = useRef(windowSize);
-  const collapsedRef = useRef(collapsed);
+  const collapseStateRef = useRef<CollapseState>(collapseState);
   const anchorOffsetRef = useRef<{ x: number; y: number } | null>(anchorOffset);
   const queueExpandedRef = useRef(queueExpanded);
   const clearPreviousAssistantRef = useRef(clearPreviousAssistant);
@@ -252,6 +311,40 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const isSendingRef = useRef(false);
   const lastSubmittedMessageRef = useRef<{ signature: string; timestamp: number; messageId: string } | null>(null);
   const assistantTurnMapRef = useRef<Map<string, string>>(new Map());
+
+  const applyStreamingSnapshot = (next: string[]) => {
+    streamingDeltaHistoryRef.current = next;
+    if (typeof window !== 'undefined') {
+      (window as any).__NABOKOV_DEBUG_STREAMING_DELTAS__ = next;
+    }
+  };
+
+  const resetStreamingSnapshot = (preserveHistory: boolean) => {
+    if (typeof window !== 'undefined') {
+      if (preserveHistory) {
+        (window as any).__NABOKOV_DEBUG_LAST_DELTAS__ = [...streamingDeltaHistoryRef.current];
+        if (streamingDeltasRef.current) {
+          const computed = window.getComputedStyle(streamingDeltasRef.current);
+          (window as any).__NABOKOV_DEBUG_STREAMING_STYLE__ = {
+            overflowY: computed.overflowY,
+            maxHeight: computed.maxHeight,
+          };
+        }
+      } else if ((window as any).__NABOKOV_DEBUG_STREAMING_STYLE__) {
+        delete (window as any).__NABOKOV_DEBUG_STREAMING_STYLE__;
+      }
+      (window as any).__NABOKOV_DEBUG_STREAMING_DELTAS__ = [];
+    }
+    streamingDeltaHistoryRef.current = [];
+    setStreamingDeltas([]);
+  };
+
+  const toggleReasoningForMessage = useCallback((messageId: string) => {
+    setExpandedReasoningMap(prev => ({
+      ...prev,
+      [messageId]: !prev[messageId],
+    }));
+  }, []);
 
   const isDevLoggingEnabled = () => {
     if (import.meta.env?.DEV) {
@@ -298,8 +391,58 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
+      if (hostElementRef.current) {
+        if (hostCollapseHandlerRef.current) {
+          hostElementRef.current.removeEventListener('nabokov:test:set-collapse-state', hostCollapseHandlerRef.current as EventListener);
+          hostListenerAttachedRef.current = false;
+          hostCollapseHandlerRef.current = null;
+        }
+        hostElementRef.current.removeAttribute('data-collapse-state');
+        hostElementRef.current.removeAttribute('data-processing');
+        hostElementRef.current.removeAttribute('data-message-count');
+        hostElementRef.current.removeAttribute('data-rectangle-icon');
+        hostElementRef.current.removeAttribute('data-rectangle-title');
+        hostElementRef.current.removeAttribute('data-square-icon');
+        hostElementRef.current.removeAttribute('data-square-title');
+        hostElementRef.current.removeAttribute('data-square-toggle-icon');
+        hostElementRef.current.removeAttribute('data-square-toggle-title');
+        hostElementRef.current.removeAttribute('data-rendered-width');
+        hostElementRef.current.removeAttribute('data-rendered-height');
+      }
     };
   }, []);
+
+  useEffect(() => {
+    hideIndicatorsForChat(elementId);
+    return () => {
+      showIndicatorsForChat(elementId);
+    };
+  }, [elementId]);
+
+  const ensureTestListener = useCallback(() => {
+    const host = hostElementRef.current;
+    if (!host || hostListenerAttachedRef.current) {
+      return;
+    }
+
+    const handleTestCollapse = (event: Event) => {
+      const custom = event as CustomEvent<{ state: CollapseState }>;
+      const nextState = custom.detail?.state;
+      if (nextState && ['expanded', 'rectangle', 'square'].includes(nextState)) {
+        setCollapseState(nextState as CollapseState);
+      }
+    };
+
+    host.addEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
+    hostListenerAttachedRef.current = true;
+    hostCollapseHandlerRef.current = handleTestCollapse;
+
+    host.addEventListener('nabokov:test:teardown', () => {
+      host.removeEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
+      hostListenerAttachedRef.current = false;
+      hostCollapseHandlerRef.current = null;
+    }, { once: true });
+  }, [setCollapseState]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -324,8 +467,75 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   }, [windowSize]);
 
   useEffect(() => {
-    collapsedRef.current = collapsed;
-  }, [collapsed]);
+    collapseStateRef.current = collapseState;
+  }, [collapseState]);
+
+  const hasHistory = messages.length > 0;
+  const isExpanded = collapseState === 'expanded';
+  const isRectangleCollapsed = collapseState === 'rectangle';
+  const isSquareCollapsed = collapseState === 'square';
+
+  const squareSize = 64;
+
+  // Calculate header-only height (header padding + content + border)
+  const headerOnlyHeight = 44; // 10px top + 10px bottom padding + ~20px content + 4px border
+
+  const updateHostMetadata = useCallback(() => {
+    const host = hostElementRef.current;
+    const container = rootContainerRef.current;
+    if (!host || !container) {
+      return;
+    }
+
+    const rectangleIcon = isRectangleCollapsed ? '⤢' : '▭';
+    const rectangleTitle = isRectangleCollapsed ? 'Expand to full window' : 'Collapse to rectangle';
+    const squareIcon = isSquareCollapsed ? '⤢' : '◼';
+    const squareTitle = isSquareCollapsed ? 'Expand to full window' : 'Collapse to square';
+    const squareToggleIcon = '💬';
+    const squareToggleTitle = 'Expand chat';
+
+    host.setAttribute('data-collapse-state', collapseState);
+    host.setAttribute('data-processing', isStreaming ? 'true' : 'false');
+    host.setAttribute('data-message-count', String(messages.length));
+    host.setAttribute('data-rectangle-icon', rectangleIcon);
+    host.setAttribute('data-rectangle-title', rectangleTitle);
+    host.setAttribute('data-square-icon', squareIcon);
+    host.setAttribute('data-square-title', squareTitle);
+    host.setAttribute('data-square-toggle-icon', squareToggleIcon);
+    host.setAttribute('data-square-toggle-title', squareToggleTitle);
+
+    const rect = container.getBoundingClientRect();
+    host.setAttribute('data-rendered-width', rect.width.toFixed(2));
+    host.setAttribute('data-rendered-height', rect.height.toFixed(2));
+  }, [collapseState, isRectangleCollapsed, isSquareCollapsed, isStreaming, messages.length]);
+
+  useEffect(() => {
+    if (!rootContainerRef.current) {
+      return;
+    }
+    const rootNode = rootContainerRef.current.getRootNode();
+    if (rootNode instanceof ShadowRoot) {
+      hostElementRef.current = rootNode.host as HTMLElement;
+      ensureTestListener();
+      updateHostMetadata();
+    }
+  }, [ensureTestListener, updateHostMetadata]);
+
+  useEffect(() => {
+    if (hostElementRef.current) {
+      return;
+    }
+    const host = document.querySelector<HTMLElement>(`[data-nabokov-element-chat="${elementId}"]`);
+    if (host) {
+      hostElementRef.current = host;
+      ensureTestListener();
+      updateHostMetadata();
+    }
+  }, [elementId, ensureTestListener, updateHostMetadata]);
+
+  useEffect(() => {
+    updateHostMetadata();
+  }, [updateHostMetadata, windowSize.width, windowSize.height]);
 
   useEffect(() => {
     anchorOffsetRef.current = anchorOffset;
@@ -346,6 +556,24 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   useEffect(() => {
     isProcessingQueueRef.current = isProcessingQueue;
   }, [isProcessingQueue]);
+
+  useEffect(() => {
+    setExpandedReasoningMap(prev => {
+      const validIds = new Set(messages.map(message => message.id));
+      let changed = false;
+      const next: Record<string, boolean> = {};
+
+      for (const [id, value] of Object.entries(prev)) {
+        if (validIds.has(id)) {
+          next[id] = value;
+        } else {
+          changed = true;
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [messages]);
 
   const renderMarkdown = useCallback(
     (content: string) => (
@@ -492,17 +720,49 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     inputRef.current?.focus();
   }, []);
 
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
+  const persistSessionState = useCallback(async (updatedMessages?: ChatMessage[]) => {
+    try {
+      const { saveElementChat, createElementChatSession } = await import('@/services/elementChatService');
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+      let session = sessionRef.current;
+      if (!session) {
+        session = createElementChatSession(
+          elementId,
+          window.location.href,
+          primaryDescriptor,
+          {
+            position: positionRef.current,
+            size: windowSizeRef.current,
+            collapsed: collapseStateRef.current !== 'expanded',
+            collapseState: collapseStateRef.current,
+            anchorOffset: anchorOffsetRef.current || undefined,
+            queueExpanded: queueExpandedRef.current,
+            clearPreviousAssistant: clearPreviousAssistantRef.current,
+            activeAnchorChatId: activeAnchorChatIdRef.current
+          },
+          descriptorList
+        );
+        sessionRef.current = session;
+      }
+
+      session.messages = updatedMessages || messagesRef.current;
+      session.windowState = {
+        position: positionRef.current,
+        size: windowSizeRef.current,
+        collapsed: collapseStateRef.current !== 'expanded',
+        collapseState: collapseStateRef.current,
+        anchorOffset: anchorOffsetRef.current || undefined,
+        queueExpanded: queueExpandedRef.current,
+        clearPreviousAssistant: clearPreviousAssistantRef.current,
+        activeAnchorChatId: activeAnchorChatIdRef.current
+      };
+
+      await saveElementChat(session);
+      console.log('[ElementChatWindow] Session saved:', elementId);
+    } catch (error) {
+      console.error('[ElementChatWindow] Failed to save session:', error);
+    }
+  }, [primaryDescriptor, descriptorList, elementId]);
 
   /**
    * Save chat session (debounced)
@@ -512,55 +772,17 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       clearTimeout(saveTimeoutRef.current);
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const { saveElementChat, createElementChatSession } = await import('@/services/elementChatService');
-
-        let session = sessionRef.current;
-        if (!session) {
-          session = createElementChatSession(
-            elementId,
-            window.location.href,
-            primaryDescriptor,
-            {
-              position: positionRef.current,
-              size: windowSizeRef.current,
-              collapsed: collapsedRef.current,
-              anchorOffset: anchorOffsetRef.current || undefined,
-              queueExpanded: queueExpandedRef.current,
-              clearPreviousAssistant: clearPreviousAssistantRef.current,
-              activeAnchorChatId: activeAnchorChatIdRef.current
-            },
-            descriptorList
-          );
-          sessionRef.current = session;
-        }
-
-        session.messages = updatedMessages || messagesRef.current;
-        session.windowState = {
-          position: positionRef.current,
-          size: windowSizeRef.current,
-          collapsed: collapsedRef.current,
-          anchorOffset: anchorOffsetRef.current || undefined,
-          queueExpanded: queueExpandedRef.current,
-          clearPreviousAssistant: clearPreviousAssistantRef.current,
-          activeAnchorChatId: activeAnchorChatIdRef.current
-        };
-
-        await saveElementChat(session);
-        console.log('[ElementChatWindow] Session saved:', elementId);
-      } catch (error) {
-        console.error('[ElementChatWindow] Failed to save session:', error);
-      }
+    saveTimeoutRef.current = setTimeout(() => {
+      void persistSessionState(updatedMessages);
     }, 500);
-  }, [primaryDescriptor, descriptorList, elementId]);
+  }, [persistSessionState]);
 
-  // Save when messages, position, size, or collapsed state changes
+  // Save when messages, position, size, or collapse state changes
   useEffect(() => {
     if (messages.length > 0 || sessionRef.current) {
       saveSession();
     }
-  }, [messages, position, windowSize, collapsed, anchorOffset, queueExpanded, clearPreviousAssistant, saveSession]);
+  }, [messages, position, windowSize, collapseState, anchorOffset, queueExpanded, clearPreviousAssistant, saveSession]);
 
   const sendMessageToAPI = useCallback(
     async (userMessage: string, images: PendingImage[] = [], messageId?: string) => {
@@ -582,7 +804,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             {
               position: positionRef.current,
               size: windowSizeRef.current,
-              collapsed: collapsedRef.current,
+              collapsed: collapseStateRef.current !== 'expanded',
+              collapseState: collapseStateRef.current,
               anchorOffset: anchorOffsetRef.current || undefined,
               queueExpanded: queueExpandedRef.current,
               clearPreviousAssistant: clearPreviousAssistantRef.current,
@@ -642,7 +865,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           }))
         );
 
-        setStreamingDeltas([]);
+        resetStreamingSnapshot(false);
 
         for await (const chunk of stream) {
           if (isDevLoggingEnabled()) {
@@ -652,7 +875,11 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           if (!isMountedRef.current) {
             return;
           }
-          setStreamingDeltas(prev => [...prev, chunk]);
+          setStreamingDeltas(prev => {
+            const next = [...prev, chunk];
+            applyStreamingSnapshot(next);
+            return next;
+          });
         }
 
         if (!isMountedRef.current) {
@@ -693,11 +920,23 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             })()
           : newMessages;
 
-        const normalisedAssistant = assistantContent.trim();
+        const deltaHistorySnapshot = [...streamingDeltaHistoryRef.current];
+        const { answer: assistantAnswerRaw, thinking: assistantThinkingRaw } = separateAssistantResponse(
+          assistantContent,
+          deltaHistorySnapshot
+        );
+        const assistantContentForStorage = assistantAnswerRaw.trim().length > 0
+          ? assistantAnswerRaw
+          : assistantContent.replace(/^\s+/, '');
+        const normalisedAssistant = assistantContentForStorage.trim();
         if (!normalisedAssistant) {
-          setStreamingDeltas([]);
+          resetStreamingSnapshot(true);
           return;
         }
+
+        const assistantThinkingForStorage = assistantAnswerRaw.trim().length > 0 && assistantThinkingRaw
+          ? assistantThinkingRaw.trim()
+          : undefined;
 
         const shouldForceDuplicate = Boolean(testDuplicateConfig) && !(
           typeof testDuplicateConfig === 'object' && testDuplicateConfig !== null && testDuplicateConfig.duplicate === false
@@ -707,7 +946,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           const forcedAssistantMessage: ChatMessage = {
             id: `forced-duplicate-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
             role: 'assistant',
-            content: assistantContent,
+            content: assistantContentForStorage,
+            thinking: assistantThinkingForStorage,
             timestamp: Date.now(),
             turnId,
           };
@@ -737,7 +977,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             if (message.id === existingAssistantId) {
               return {
                 ...message,
-                content: assistantContent,
+                content: assistantContentForStorage,
+                thinking: assistantThinkingForStorage,
                 timestamp: assistantTimestamp,
                 turnId,
               };
@@ -752,15 +993,26 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             if (sessionIndex >= 0) {
               session.messages[sessionIndex] = finalMessages.find(message => message.id === existingAssistantId) || session.messages[sessionIndex];
             }
+            await addMessageToChat(session, 'assistant', assistantContentForStorage, {
+              id: existingAssistantId,
+              turnId,
+              thinking: assistantThinkingForStorage,
+            });
           }
         } else {
           const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
           const lastMessage = baseMessages[baseMessages.length - 1];
 
-          if (lastMessage?.role === 'assistant' && lastMessage.content.trim() === normalisedAssistant) {
+          const lastMessageContentTrimmed = lastMessage?.content.trim();
+          if (
+            lastMessage?.role === 'assistant' &&
+            lastMessageContentTrimmed &&
+            (lastMessageContentTrimmed === normalisedAssistant || lastMessageContentTrimmed === assistantContent.trim())
+          ) {
             const updatedLast: ChatMessage = {
               ...lastMessage,
-              content: assistantContent,
+              content: assistantContentForStorage,
+              thinking: assistantThinkingForStorage,
               timestamp: assistantTimestamp,
               turnId,
             };
@@ -779,7 +1031,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             const assistantMessage: ChatMessage = {
               id: assistantMessageId,
               role: 'assistant',
-              content: assistantContent,
+              content: assistantContentForStorage,
+              thinking: assistantThinkingForStorage,
               timestamp: assistantTimestamp,
               turnId,
             };
@@ -788,9 +1041,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             assistantTurnMapRef.current.set(turnId, assistantMessageId);
 
             if (session) {
-              await addMessageToChat(session, 'assistant', assistantContent, {
+              await addMessageToChat(session, 'assistant', assistantContentForStorage, {
                 id: assistantMessageId,
                 turnId,
+                thinking: assistantThinkingForStorage,
               });
             }
           }
@@ -799,7 +1053,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         session.messages = finalMessages;
         setMessages(finalMessages);
         messagesRef.current = finalMessages;
-        setStreamingDeltas([]);
+        resetStreamingSnapshot(true);
         if (typeof window !== 'undefined' && isDevLoggingEnabled()) {
           (window as any).__NABOKOV_DEBUG_LAST_MESSAGES__ = finalMessages;
         }
@@ -814,6 +1068,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         if (!isMountedRef.current) {
           return;
         }
+        resetStreamingSnapshot(true);
         const errorMessage: ChatMessage = {
           id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           role: 'assistant',
@@ -1047,9 +1302,35 @@ const processQueue = useCallback(async () => {
     setWindowSize({ width, height });
   };
 
-  const handleToggleCollapse = () => {
-    setCollapsed(!collapsed);
+  const handleCollapseToRectangle = () => {
+    setCollapseState(prev => (prev === 'rectangle' ? 'expanded' : 'rectangle'));
   };
+
+  const handleCollapseToSquare = () => {
+    setCollapseState(prev => (prev === 'square' ? 'expanded' : 'square'));
+  };
+
+  const handleRequestClose = useCallback(async () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+
+    await persistSessionState();
+    showIndicatorsForChat(elementId);
+    onClose();
+  }, [elementId, onClose, persistSessionState]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        void handleRequestClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRequestClose]);
 
   const handleClearHistory = async () => {
     if (messagesRef.current.length === 0 && messageQueueRef.current.length === 0) {
@@ -1069,7 +1350,7 @@ const processQueue = useCallback(async () => {
 
       setMessages([]);
       messagesRef.current = [];
-      setStreamingDeltas([]);
+      resetStreamingSnapshot(false);
       handleClearQueue();
       removeIndicatorsForChat(elementId);
     } catch (error) {
@@ -1258,28 +1539,25 @@ const processQueue = useCallback(async () => {
     return 'No text content';
   }, [primaryDescriptor.textPreview, selectedText]);
 
-  const hasHistory = messages.length > 0;
-
-  // Calculate header-only height (header padding + content + border)
-  const headerOnlyHeight = 44; // 10px top + 10px bottom padding + ~20px content + 4px border
-
   return (
     <Rnd
       position={position}
       size={{
-        width: windowSize.width,
-        height: collapsed ? headerOnlyHeight : windowSize.height
+        width: isSquareCollapsed ? squareSize : windowSize.width,
+        height: isExpanded
+          ? windowSize.height
+          : (isRectangleCollapsed ? headerOnlyHeight : squareSize)
       }}
       style={{ pointerEvents: 'auto' }}
       onDragStop={handleDragStop}
       onResize={handleResize}
       onResizeStop={handleResizeStop}
       resizeHandleComponent={resizeHandleComponents}
-      minWidth={300}
-      minHeight={200}
+      minWidth={isExpanded ? 300 : squareSize}
+      minHeight={isExpanded ? 200 : (isSquareCollapsed ? squareSize : headerOnlyHeight)}
       bounds="window"
       dragHandleClassName="drag-handle"
-      enableResizing={!collapsed ? {
+      enableResizing={isExpanded ? {
         bottom: true,
         bottomRight: true,
         bottomLeft: true,
@@ -1291,308 +1569,366 @@ const processQueue = useCallback(async () => {
       } : false}
     >
       <div
-        css={containerStyles(collapsed)}
-        data-collapsed={collapsed ? 'true' : 'false'}
+        ref={rootContainerRef}
+        css={containerStyles(collapseState)}
+        data-collapse-state={collapseState}
+        data-processing={isStreaming ? 'true' : 'false'}
+        data-message-count={messages.length}
+        className={isSquareCollapsed ? 'drag-handle' : undefined}
       >
-        {/* Header */}
-        <div css={headerStyles} className="drag-handle">
-          <div css={headerTitleStyles} title={primaryDescriptor.cssSelector}>
-            <span css={iconStyles}>💬</span>
-            <div css={elementInfoStyles}>
-              <span css={elementLabelStyles}>{elementLabel}</span>
-              <span css={elementSummaryStyles}>{elementSummary}</span>
-            </div>
-            {hasHistory && <span css={messageCountStyles}>{messages.length}</span>}
-          </div>
-          <div css={headerActionsStyles}>
-            {hasHistory && (
-              <>
-                <button
-                  css={saveButtonStyles}
-                  onClick={handleSaveToStash}
-                  title="Save conversation to Stash"
-                  disabled={isStreaming}
-                >
-                  📥
-                </button>
-                <button
-                  css={saveButtonStyles}
-                  onClick={handleSaveToCanvas}
-                  title="Save conversation to Canvas"
-                  disabled={isStreaming}
-                >
-                  🎨
-                </button>
-              </>
-            )}
-            <button
-              css={headerButtonStyles}
-              onClick={handleClearHistory}
-              title="Clear chat history"
-              disabled={messages.length === 0 && messageQueue.length === 0}
-              data-test-id="clear-history"
-            >
-              🧹
-            </button>
-            <button
-              css={headerButtonStyles}
-              onClick={handleToggleCollapse}
-              title={collapsed ? "Expand" : "Collapse"}
-              data-test-id="collapse-button"
-            >
-              {collapsed ? '▼' : '▲'}
-            </button>
-            <button
-              css={headerButtonStyles}
-              onClick={onClose}
-              title="Close"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {!collapsed && (
-          <div css={anchorChipRowStyles} data-test-id="element-anchor-list">
-            {descriptorList.map((descriptor, index) => (
-              <button
-                key={descriptor.chatId}
-                css={anchorChipStyles(descriptor.chatId === activeAnchorChatId)}
-                onClick={() => {
-                  activeAnchorChatIdRef.current = descriptor.chatId;
-                  setActiveAnchorChatId(descriptor.chatId);
-                  anchorOffsetRef.current = null;
-                  setAnchorOffset(null);
-                  ensureAnchorPosition();
-                }}
-                type="button"
-              >
-                #{index + 1} · &lt;{descriptor.tagName}{descriptor.id ? `#${descriptor.id}` : ''}&gt;
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Selected Text Banner (for text-contextual chat) */}
-        {!collapsed && selectedText && (
-          <div css={selectedTextBannerStyles}>
-            <div css={selectedTextLabelStyles}>
-              <span css={selectedTextIconStyles}>📝</span>
-              <span>Selected Text</span>
-            </div>
-            <div css={selectedTextContentStyles}>
-              "{selectedText.length > 200 ? selectedText.substring(0, 200) + '...' : selectedText}"
-            </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        {!collapsed && (
-          <div css={messagesContainerStyles}>
-            {messages.length === 0 && (
-              <div css={emptyStateStyles}>
-                <div css={emptyIconStyles}>{selectedText ? '📝' : '💬'}</div>
-                <div css={emptyTitleStyles}>
-                  {selectedText ? 'Discuss selected text' : 'Chat with this element'}
+        {isSquareCollapsed ? (
+          <button
+            css={squareToggleButtonStyles(hasHistory)}
+            onClick={() => setCollapseState('expanded')}
+            title="Expand chat"
+            type="button"
+            data-test-id="square-expand-toggle"
+          >
+            <span css={squareIconStyles}>💬</span>
+            {hasHistory && <span css={squareBadgeStyles}>{messages.length}</span>}
+          </button>
+        ) : (
+          <>
+            <div css={headerStyles} className="drag-handle">
+              <div css={headerTitleStyles} title={primaryDescriptor.cssSelector}>
+                <span css={iconStyles}>💬</span>
+                <div css={elementInfoStyles}>
+                  <span css={elementLabelStyles}>{elementLabel}</span>
+                  <span css={elementSummaryStyles}>{elementSummary}</span>
                 </div>
-                <div css={emptyDescStyles}>
-                  {selectedText
-                    ? 'Ask questions about the selected text, get explanations, or explore its meaning.'
-                    : 'Ask questions about this element, its purpose, or how it works.'
-                  }
-                </div>
-                {!selectedText && (
+                {hasHistory && <span css={messageCountStyles}>{messages.length}</span>}
+              </div>
+              <div css={headerActionsStyles}>
+                {hasHistory && (
                   <>
-                    <div css={emptyHintStyles}>
-                      <strong>Element:</strong> {elementLabel}
-                    </div>
-                    <div css={emptyHintStyles} style={{ marginTop: '8px' }}>
-                      <strong>Text:</strong> {elementSummary}
-                    </div>
+                    <button
+                      css={saveButtonStyles}
+                      onClick={handleSaveToStash}
+                      title="Save conversation to Stash"
+                      disabled={isStreaming}
+                    >
+                      📥
+                    </button>
+                    <button
+                      css={saveButtonStyles}
+                      onClick={handleSaveToCanvas}
+                      title="Save conversation to Canvas"
+                      disabled={isStreaming}
+                    >
+                      🎨
+                    </button>
                   </>
                 )}
+                <button
+                  css={headerButtonStyles}
+                  onClick={handleClearHistory}
+                  title="Clear chat history"
+                  disabled={messages.length === 0 && messageQueue.length === 0}
+                  data-test-id="clear-history"
+                  type="button"
+                >
+                  🧹
+                </button>
+                <button
+                  css={[headerButtonStyles, collapseToggleButtonStyles(isRectangleCollapsed)]}
+                  onClick={handleCollapseToRectangle}
+                  title={isRectangleCollapsed ? 'Expand to full window' : 'Collapse to rectangle'}
+                  aria-pressed={isRectangleCollapsed}
+                  data-test-id="collapse-rectangle-button"
+                  type="button"
+                >
+                  {isRectangleCollapsed ? '⤢' : '▭'}
+                </button>
+                <button
+                  css={[headerButtonStyles, collapseToggleButtonStyles(isSquareCollapsed)]}
+                  onClick={handleCollapseToSquare}
+                  title={isSquareCollapsed ? 'Expand to full window' : 'Collapse to square'}
+                  aria-pressed={isSquareCollapsed}
+                  data-test-id="collapse-square-button"
+                  type="button"
+                >
+                  {isSquareCollapsed ? '⤢' : '◼'}
+                </button>
+                <button
+                  css={headerButtonStyles}
+                  onClick={() => { void handleRequestClose(); }}
+                  title="Close"
+                  type="button"
+                >
+                  ✕
+                </button>
               </div>
-            )}
+            </div>
 
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                css={messageStyles(message.role)}
-                data-message-role={message.role}
-                data-message-id={message.id}
-              >
-                <div css={messageRoleStyles}>
-                  {message.role === 'user' ? 'You' : 'Assistant'}
-                </div>
-                {/* Display images if present */}
-                {message.images && message.images.length > 0 && (
-                  <div css={messageImagesStyles}>
-                    {message.images.map((img, idx) => (
-                      <img
-                        key={idx}
-                        src={img.dataURL}
-                        alt="Message attachment"
-                        css={messageImageStyles}
-                      />
-                    ))}
-                  </div>
-                )}
-                <div css={messageContentStyles}>
-                  {renderMarkdown(message.content)}
-                </div>
-              </div>
-            ))}
-
-            {/* Streaming message */}
-            {isStreaming && streamingDeltas.length > 0 && (
-              <div
-                css={messageStyles('assistant')}
-                data-message-role="assistant"
-                data-message-streaming="true"
-              >
-                <div css={messageRoleStyles}>Assistant</div>
-              <div css={messageContentStyles}>
-                <div css={streamingDeltasContainerStyles} ref={streamingDeltasRef}>
-                  {streamingDeltas.map((delta, index) => (
-                    <div
-                      css={streamingDeltaLineStyles}
-                      key={`delta-${index}`}
-                      data-delta-index={index}
-                    >
-                      {delta}
-                    </div>
-                  ))}
-                </div>
-                <span css={cursorStyles}>▊</span>
-              </div>
-              </div>
-            )}
-
-            {/* Loading indicator */}
-            {isStreaming && streamingDeltas.length === 0 && (
-              <div css={messageStyles('assistant')}>
-                <div css={messageRoleStyles}>Assistant</div>
-                <div css={loadingDotsStyles}>
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-
-        {/* Input */}
-        {!collapsed && (
-          <>
-            {(messageQueue.length > 0 || isProcessingQueue) && (
-              <div css={queueContainerStyles} data-expanded={queueExpanded ? 'true' : 'false'}>
-                <div css={queueHeaderStyles}>
+            {isExpanded && (
+              <div css={anchorChipRowStyles} data-test-id="element-anchor-list">
+                {descriptorList.map((descriptor, index) => (
                   <button
-                    css={queueToggleButtonStyles}
-                    onClick={() => setQueueExpanded(prev => !prev)}
-                    data-test-id="toggle-queue"
+                    key={descriptor.chatId}
+                    css={anchorChipStyles(descriptor.chatId === activeAnchorChatId)}
+                    onClick={() => {
+                      activeAnchorChatIdRef.current = descriptor.chatId;
+                      setActiveAnchorChatId(descriptor.chatId);
+                      anchorOffsetRef.current = null;
+                      setAnchorOffset(null);
+                      ensureAnchorPosition();
+                    }}
+                    type="button"
                   >
-                    {queueExpanded ? `Hide queue (${messageQueue.length})` : `Show queue (${messageQueue.length})`}
+                    #{index + 1} · &lt;{descriptor.tagName}{descriptor.id ? `#${descriptor.id}` : ''}&gt;
                   </button>
-                  <div css={queueHeaderActionsStyles}>
-                    {isProcessingQueue && <span css={queueStatusStyles}>Processing…</span>}
-                    {messageQueue.length > 0 && (
-                      <button
-                        css={queueClearButtonStyles}
-                        onClick={handleClearQueue}
-                        title="Clear queued messages"
-                      >
-                        Clear
-                      </button>
+                ))}
+              </div>
+            )}
+
+            {/* Selected Text Banner (for text-contextual chat) */}
+            {isExpanded && selectedText && (
+              <div css={selectedTextBannerStyles}>
+                <div css={selectedTextLabelStyles}>
+                  <span css={selectedTextIconStyles}>📝</span>
+                  <span>Selected Text</span>
+                </div>
+                <div css={selectedTextContentStyles}>
+                  "{selectedText.length > 200 ? selectedText.substring(0, 200) + '...' : selectedText}"
+                </div>
+              </div>
+            )}
+
+            {/* Messages */}
+            {isExpanded && (
+              <div css={messagesContainerStyles}>
+                {messages.length === 0 && (
+                  <div css={emptyStateStyles}>
+                    <div css={emptyIconStyles}>{selectedText ? '📝' : '💬'}</div>
+                    <div css={emptyTitleStyles}>
+                      {selectedText ? 'Discuss selected text' : 'Chat with this element'}
+                    </div>
+                    <div css={emptyDescStyles}>
+                      {selectedText
+                        ? 'Ask questions about the selected text, get explanations, or explore its meaning.'
+                        : 'Ask questions about this element, its purpose, or how it works.'
+                      }
+                    </div>
+                    {!selectedText && (
+                      <>
+                        <div css={emptyHintStyles}>
+                          <strong>Element:</strong> {elementLabel}
+                        </div>
+                        <div css={emptyHintStyles} style={{ marginTop: '8px' }}>
+                          <strong>Text:</strong> {elementSummary}
+                        </div>
+                      </>
                     )}
                   </div>
-                </div>
+                )}
 
-                {queueExpanded && messageQueue.length > 0 && (
-                  <div css={queueListStyles} data-test-id="element-chat-queue-list">
-                    {messageQueue.map(message => (
-                      <div
-                        key={message.id}
-                        css={queueItemStyles}
-                        data-active={message.id === activeQueuedId ? 'true' : 'false'}
-                      >
-                        <span css={queueItemTextStyles}>
-                          {message.content}
-                        </span>
-                        <div css={queueItemActionsStyles}>
-                          {message.images && message.images.length > 0 && (
-                            <span css={queueBadgeStyles}>🖼️ {message.images.length}</span>
-                          )}
-                          <button
-                            css={queueRemoveButtonStyles}
-                            onClick={() => handleRemoveQueuedMessage(message.id)}
-                            title="Remove from queue"
-                          >
-                            Remove
-                          </button>
-                        </div>
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    css={messageStyles(message.role)}
+                    data-message-role={message.role}
+                    data-message-id={message.id}
+                  >
+                    <div css={messageRoleStyles}>
+                      {message.role === 'user' ? 'You' : 'Assistant'}
+                    </div>
+                    {message.images && message.images.length > 0 && (
+                      <div css={messageImagesStyles}>
+                        {message.images.map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={img.dataURL}
+                            alt="Message attachment"
+                            css={messageImageStyles}
+                          />
+                        ))}
                       </div>
-                    ))}
+                    )}
+                    <div css={messageContentStyles}>
+                      {message.role === 'assistant' && message.thinking && (
+                        <div
+                          css={reasoningContainerStyles}
+                          data-reasoning-container={message.id}
+                        >
+                          <button
+                            type="button"
+                            css={reasoningToggleStyles}
+                            onClick={() => toggleReasoningForMessage(message.id)}
+                            data-reasoning-toggle={message.id}
+                            aria-expanded={expandedReasoningMap[message.id] ? 'true' : 'false'}
+                            aria-controls={`assistant-reasoning-${message.id}`}
+                          >
+                            <span css={reasoningToggleIconStyles} aria-hidden="true">
+                              {expandedReasoningMap[message.id] ? '▾' : '▸'}
+                            </span>
+                            <span>{expandedReasoningMap[message.id] ? 'Hide reasoning' : 'Show reasoning'}</span>
+                          </button>
+                          {expandedReasoningMap[message.id] && (
+                            <div
+                              css={reasoningContentStyles}
+                              id={`assistant-reasoning-${message.id}`}
+                              data-reasoning-content={message.id}
+                            >
+                              {renderMarkdown(message.thinking)}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {renderMarkdown(message.content)}
+                    </div>
+                  </div>
+                ))}
+
+                {isStreaming && streamingDeltas.length > 0 && (
+                  <div
+                    css={messageStyles('assistant')}
+                    data-message-role="assistant"
+                    data-message-streaming="true"
+                  >
+                    <div css={messageRoleStyles}>Assistant</div>
+                    <div css={messageContentStyles}>
+                      <div css={streamingDeltasContainerStyles} ref={streamingDeltasRef}>
+                        {streamingDeltas.map((delta, index) => (
+                          <div
+                            css={streamingDeltaLineStyles}
+                            key={`delta-${index}`}
+                            data-delta-index={index}
+                          >
+                            {renderMarkdown(delta)}
+                          </div>
+                        ))}
+                      </div>
+                      <span css={cursorStyles}>▊</span>
+                    </div>
                   </div>
                 )}
+
+                {isStreaming && streamingDeltas.length === 0 && (
+                  <div css={messageStyles('assistant')}>
+                    <div css={messageRoleStyles}>Assistant</div>
+                    <div css={loadingDotsStyles}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                )}
+
+                <div ref={messagesEndRef} />
               </div>
             )}
 
-            <label css={queuePreferenceStyles}>
-              <input
-                type="checkbox"
-                checked={clearPreviousAssistant}
-                onChange={(e) => setClearPreviousAssistant(e.target.checked)}
-              />
-              <span>Replace last assistant reply when queue sends</span>
-            </label>
-
-            <div css={inputContainerStyles}>
-            <ImageUploadZone onImageUpload={handleImageDrop}>
-              <div css={inputWrapperStyles}>
-                {/* Image previews */}
-                {pendingImages.length > 0 && (
-                  <div css={imagePreviewsContainerStyles}>
-                    {pendingImages.map((img, idx) => (
-                      <div key={idx} css={imagePreviewStyles}>
-                        <img src={img.dataURL} alt="Pending upload" css={imagePreviewImgStyles} />
-                        <button
-                          css={removeImageButtonStyles}
-                          onClick={() => {
-                            setPendingImages(prev => prev.filter((_, i) => i !== idx));
-                          }}
-                          title="Remove image"
-                        >
-                          ✕
-                        </button>
+            {/* Input */}
+            {isExpanded && (
+              <>
+                {(messageQueue.length > 0 || isProcessingQueue) && (
+                  <div css={queueContainerStyles} data-expanded={queueExpanded ? 'true' : 'false'}>
+                    <div css={queueHeaderStyles}>
+                      <button
+                        css={queueToggleButtonStyles}
+                        onClick={() => setQueueExpanded(prev => !prev)}
+                        data-test-id="toggle-queue"
+                      >
+                        {queueExpanded ? `Hide queue (${messageQueue.length})` : `Show queue (${messageQueue.length})`}
+                      </button>
+                      <div css={queueHeaderActionsStyles}>
+                        {isProcessingQueue && <span css={queueStatusStyles}>Processing…</span>}
+                        {messageQueue.length > 0 && (
+                          <button
+                            css={queueClearButtonStyles}
+                            onClick={handleClearQueue}
+                            title="Clear queued messages"
+                          >
+                            Clear
+                          </button>
+                        )}
                       </div>
-                    ))}
+                    </div>
+
+                    {queueExpanded && messageQueue.length > 0 && (
+                      <div css={queueListStyles} data-test-id="element-chat-queue-list">
+                        {messageQueue.map(message => (
+                          <div
+                            key={message.id}
+                            css={queueItemStyles}
+                            data-active={message.id === activeQueuedId ? 'true' : 'false'}
+                          >
+                            <span css={queueItemTextStyles}>
+                              {message.content}
+                            </span>
+                            <div css={queueItemActionsStyles}>
+                              {message.images && message.images.length > 0 && (
+                                <span css={queueBadgeStyles}>🖼️ {message.images.length}</span>
+                              )}
+                              <button
+                                css={queueRemoveButtonStyles}
+                                onClick={() => handleRemoveQueuedMessage(message.id)}
+                                title="Remove from queue"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <textarea
-                  ref={inputRef}
-                  css={textareaStyles}
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder={isStreaming ? "Composing next message..." : "Ask about this element (drag images here)..."}
-                  rows={2}
-                />
-              </div>
-            </ImageUploadZone>
-            <button
-              css={sendButtonStyles}
-              onClick={handleSendMessage}
-              disabled={!inputValue.trim() && pendingImages.length === 0}
-              title={isStreaming ? "Queue message" : "Send message"}
-            >
-              {isStreaming ? '➕' : '➤'}
-            </button>
-          </div>
+                <label css={queuePreferenceStyles}>
+                  <input
+                    type="checkbox"
+                    checked={clearPreviousAssistant}
+                    onChange={(e) => setClearPreviousAssistant(e.target.checked)}
+                  />
+                  <span>Replace last assistant reply when queue sends</span>
+                </label>
+
+                <div css={inputContainerStyles}>
+                  <ImageUploadZone onImageUpload={handleImageDrop}>
+                    <div css={inputWrapperStyles}>
+                      {pendingImages.length > 0 && (
+                        <div css={imagePreviewsContainerStyles}>
+                          {pendingImages.map((img, idx) => (
+                            <div key={idx} css={imagePreviewStyles}>
+                              <img src={img.dataURL} alt="Pending upload" css={imagePreviewImgStyles} />
+                              <button
+                                css={removeImageButtonStyles}
+                                onClick={() => {
+                                  setPendingImages(prev => prev.filter((_, i) => i !== idx));
+                                }}
+                                title="Remove image"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <textarea
+                        ref={inputRef}
+                        css={textareaStyles}
+                        value={inputValue}
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={handleInputKeyDown}
+                        placeholder={isStreaming ? "Composing next message..." : "Ask about this element (drag images here)..."}
+                        rows={2}
+                      />
+                    </div>
+                  </ImageUploadZone>
+              <button
+                css={sendButtonStyles}
+                onClick={handleSendMessage}
+                disabled={!inputValue.trim() && pendingImages.length === 0}
+                title={isStreaming ? "Queue message" : "Send message"}
+                data-test-id="send-button"
+              >
+                {isStreaming ? '➕' : '➤'}
+              </button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
@@ -1604,20 +1940,66 @@ const processQueue = useCallback(async () => {
 // Styles (red chat theme)
 // ============================================================================
 
-const containerStyles = (collapsed: boolean) => css`
+const containerStyles = (collapseState: CollapseState) => css`
   width: 100%;
-  height: ${collapsed ? 'auto' : '100%'};
+  height: ${collapseState === 'expanded' ? '100%' : 'auto'};
   background: ${ELEMENT_CHAT_THEME.containerBackgroundGradient};
   border: 2px solid ${ELEMENT_CHAT_THEME.containerAccent};
   border-radius: 8px;
   box-shadow: ${ELEMENT_CHAT_THEME.containerShadow};
   display: flex;
   flex-direction: column;
+  align-items: ${collapseState === 'square' ? 'center' : 'stretch'};
+  justify-content: ${collapseState === 'square' ? 'center' : 'flex-start'};
+  padding: ${collapseState === 'square' ? '6px' : '0'};
   z-index: 999999;
   pointer-events: auto;
   font-family: ${ELEMENT_CHAT_THEME.fontFamily};
   transition: all 0.3s ease;
-  overflow: ${collapsed ? 'hidden' : 'visible'};
+  overflow: ${collapseState === 'expanded' ? 'visible' : 'hidden'};
+`;
+
+const squareToggleButtonStyles = (hasHistory: boolean) => css`
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 6px;
+  background: ${hasHistory ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.08)'};
+  color: ${ELEMENT_CHAT_THEME.iconColor};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+  }
+`;
+
+const squareIconStyles = css`
+  font-size: 26px;
+`;
+
+const squareBadgeStyles = css`
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: ${ELEMENT_CHAT_THEME.containerAccent};
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(139, 0, 0, 0.35);
 `;
 
 const headerStyles = css`
@@ -1705,6 +2087,12 @@ const headerButtonStyles = css`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const collapseToggleButtonStyles = (isActive: boolean) => css`
+  background: ${isActive ? 'rgba(255, 255, 255, 0.32)' : 'rgba(255, 255, 255, 0.18)'};
+  border-color: ${isActive ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.35)'};
+  color: ${isActive ? ELEMENT_CHAT_THEME.iconColor : ELEMENT_CHAT_THEME.headerTextColor};
 `;
 
 const saveButtonStyles = css`
@@ -1926,6 +2314,59 @@ const messageContentStyles = css`
   a {
     color: ${ELEMENT_CHAT_THEME.messageLinkColor};
     text-decoration: underline;
+  }
+`;
+
+const reasoningContainerStyles = css`
+  border: 1px solid rgba(177, 60, 60, 0.25);
+  background: rgba(177, 60, 60, 0.08);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+`;
+
+const reasoningToggleStyles = css`
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: ${ELEMENT_CHAT_THEME.assistantRoleColor};
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: rgba(177, 60, 60, 0.12);
+  }
+
+  &:focus-visible {
+    outline: 2px solid ${ELEMENT_CHAT_THEME.containerAccent};
+    outline-offset: 2px;
+  }
+`;
+
+const reasoningToggleIconStyles = css`
+  font-size: 14px;
+  line-height: 1;
+`;
+
+const reasoningContentStyles = css`
+  padding: 8px 12px;
+  border-top: 1px solid rgba(177, 60, 60, 0.2);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+
+  p {
+    margin: 0 0 6px 0;
+  }
+
+  ul,
+  ol {
+    margin: 0 0 6px 18px;
   }
 `;
 

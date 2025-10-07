@@ -87,6 +87,7 @@ class ElementChatWindowManager {
     const windowState: ChatWindowState = existingWindowState || {
       position: this.getDefaultPosition(element),
       size: this.getDefaultSize(),
+      collapseState: 'expanded',
       collapsed: false
     };
 
@@ -159,8 +160,10 @@ class ElementChatWindowManager {
   toggleCollapse(elementId: string): void {
     const chatWindow = this.windows.get(elementId);
     if (chatWindow) {
-      chatWindow.windowState.collapsed = !chatWindow.windowState.collapsed;
-      console.log('[ElementChatWindowManager] Toggled collapse:', elementId, chatWindow.windowState.collapsed);
+      const nextState = chatWindow.windowState.collapseState === 'expanded' ? 'rectangle' : 'expanded';
+      chatWindow.windowState.collapseState = nextState;
+      chatWindow.windowState.collapsed = nextState !== 'expanded';
+      console.log('[ElementChatWindowManager] Toggled collapse:', elementId, chatWindow.windowState.collapseState);
       this.notifyListeners();
     }
   }

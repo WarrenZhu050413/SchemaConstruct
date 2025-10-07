@@ -12,6 +12,7 @@ interface IndicatorEntry {
 
 const INDICATOR_ATTRIBUTE = 'data-nabokov-chat-indicator';
 const indicators = new Map<string, IndicatorEntry>();
+const hiddenChats = new Set<string>();
 let mutationObserver: MutationObserver | null = null;
 let rafHandle: number | null = null;
 let initialized = false;
@@ -72,6 +73,12 @@ const getDescriptorKey = (chatId: string, descriptor: ElementDescriptor): string
 };
 
 const positionBadge = (entry: IndicatorEntry): void => {
+  if (hiddenChats.has(entry.chatId)) {
+    entry.badge.style.display = 'none';
+    entry.badge.style.opacity = '0';
+    return;
+  }
+
   let element = entry.element;
 
   if (!element || !document.contains(element)) {
@@ -116,6 +123,7 @@ const removeIndicatorByKey = (key: string): void => {
   if (entry.badge.parentNode) {
     entry.badge.parentNode.removeChild(entry.badge);
   }
+  hiddenChats.delete(entry.chatId);
   indicators.delete(key);
 };
 
@@ -217,6 +225,28 @@ export const removeIndicatorsForChat = (chatId: string): void => {
       removeIndicatorByKey(entry.key);
     }
   });
+  hiddenChats.delete(chatId);
+};
+
+export const hideIndicatorsForChat = (chatId: string): void => {
+  hiddenChats.add(chatId);
+  Array.from(indicators.values()).forEach((entry) => {
+    if (entry.chatId === chatId) {
+      entry.badge.style.display = 'none';
+      entry.badge.style.opacity = '0';
+    }
+  });
+  scheduleRefresh();
+};
+
+export const showIndicatorsForChat = (chatId: string): void => {
+  if (!hiddenChats.has(chatId)) {
+    scheduleRefresh();
+    return;
+  }
+
+  hiddenChats.delete(chatId);
+  scheduleRefresh();
 };
 
 export const teardownElementChatIndicators = (): void => {

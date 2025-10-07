@@ -413,42 +413,26 @@ test.describe('Element-Attached Chat System', () => {
     await h1.click();
     await page.waitForTimeout(1000);
 
-    // Check if chat window is initially expanded
-    const isInitiallyExpanded = await page.evaluate(() => {
-      const chatWindow = document.querySelector('[data-nabokov-element-chat]');
-      if (!chatWindow) return false;
-      return !chatWindow.classList.contains('collapsed');
+    const getCollapseState = () => page.evaluate(() => {
+      const host = document.querySelector('[data-nabokov-element-chat]');
+      return host?.getAttribute('data-collapse-state') ?? null;
     });
 
-    expect(isInitiallyExpanded).toBe(true);
+    const dispatchState = (state: 'expanded' | 'rectangle' | 'square') => page.evaluate((nextState) => {
+      const host = document.querySelector('[data-nabokov-element-chat]');
+      host?.dispatchEvent(new CustomEvent('nabokov:test:set-collapse-state', { detail: { state: nextState } }));
+    }, state);
 
-    // Find and click collapse button (if it exists)
-    const collapseButton = await page.locator('[data-nabokov-element-chat] .collapse-button').first();
-    if (await collapseButton.count() > 0) {
-      await collapseButton.click();
-      await page.waitForTimeout(500);
+    await expect.poll(getCollapseState).toBe('expanded');
 
-      // Check if window is collapsed
-      const isCollapsed = await page.evaluate(() => {
-        const chatWindow = document.querySelector('[data-nabokov-element-chat]');
-        if (!chatWindow) return false;
-        return chatWindow.classList.contains('collapsed');
-      });
+    await dispatchState('rectangle');
+    await expect.poll(getCollapseState).toBe('rectangle');
 
-      expect(isCollapsed).toBe(true);
+    await dispatchState('square');
+    await expect.poll(getCollapseState).toBe('square');
 
-      // Expand again
-      await collapseButton.click();
-      await page.waitForTimeout(500);
-
-      const isExpanded = await page.evaluate(() => {
-        const chatWindow = document.querySelector('[data-nabokov-element-chat]');
-        if (!chatWindow) return false;
-        return !chatWindow.classList.contains('collapsed');
-      });
-
-      expect(isExpanded).toBe(true);
-    }
+    await dispatchState('expanded');
+    await expect.poll(getCollapseState).toBe('expanded');
 
     console.log('[Test] ✅ Window collapse/expand functionality tested');
 

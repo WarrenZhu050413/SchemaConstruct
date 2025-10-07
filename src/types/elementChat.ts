@@ -5,6 +5,14 @@
 import type { ElementDescriptor } from '@/services/elementIdService';
 
 /**
+ * Collapse state for element chat window
+ * - 'expanded': Full window with all content visible
+ * - 'rectangle': Header-only (44px height, full width)
+ * - 'square': Icon-only (64×64px, minimal UI)
+ */
+export type CollapseState = 'expanded' | 'rectangle' | 'square';
+
+/**
  * Message in a chat conversation
  */
 export interface ChatMessage {
@@ -18,6 +26,7 @@ export interface ChatMessage {
     width: number;     // Original width
     height: number;    // Original height
   }>;
+  thinking?: string;   // Optional assistant reasoning block (collapsed by default)
 }
 
 /**
@@ -26,11 +35,16 @@ export interface ChatMessage {
 export interface ChatWindowState {
   position: { x: number; y: number };
   size: { width: number; height: number };
-  collapsed: boolean;
+  expandedSize?: { width: number; height: number }; // Size to restore when expanding
+  collapseState: CollapseState;
   anchorOffset?: { x: number; y: number };
   queueExpanded?: boolean;
   clearPreviousAssistant?: boolean;
   activeAnchorChatId?: string;
+
+  // Legacy support (deprecated, for migration only)
+  /** @deprecated Use collapseState instead */
+  collapsed?: boolean;
 }
 
 /**
