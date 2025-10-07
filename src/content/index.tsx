@@ -27,7 +27,6 @@ import { captureElementContext } from '../services/elementContextCapture';
 import { Card } from '../types';
 import { saveCard, generateId } from '../utils/storage';
 import type { ElementDescriptor } from '@/services/elementIdService';
-import { hypertextService } from '@/services/hypertextService';
 
 // ============================================================================
 // State Management
@@ -1059,8 +1058,7 @@ type MessageType =
   | 'PING'
   | 'OPEN_INLINE_CHAT'
   | 'CLOSE_INLINE_CHAT'
-  | 'OPEN_ELEMENT_CHAT'
-  | 'TRIGGER_HYPERTEXT';
+  | 'OPEN_ELEMENT_CHAT';
 
 /**
  * Message structure
@@ -1122,17 +1120,6 @@ function handleMessage(
         console.log('[content] Opening element chat');
         openElementChat();
         sendResponse({ success: true });
-        break;
-
-      case 'TRIGGER_HYPERTEXT':
-        console.log('[content] Triggering hypertext');
-        if (hypertextService.isInitialized()) {
-          const triggered = hypertextService.trigger();
-          sendResponse({ success: triggered });
-        } else {
-          console.warn('[content] Hypertext service not initialized');
-          sendResponse({ success: false, error: 'Hypertext not initialized' });
-        }
         break;
 
       case 'GET_STATE':
@@ -1228,48 +1215,6 @@ function handleContextMenu(event: MouseEvent): void {
   console.log('[content] Context menu opened on element:', lastRightClickedElement.tagName);
 }
 
-/**
- * Loads the hypertext-experience.js library dynamically
- */
-async function loadHypertextLibrary(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if ((window as any).createHypertextExperience) {
-      console.log('[content] Hypertext library already loaded');
-      resolve();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = chrome.runtime.getURL('src/lib/hypertext-experience.js');
-    script.onload = () => {
-      console.log('[content] Hypertext library loaded successfully');
-      resolve();
-    };
-    script.onerror = (error) => {
-      console.error('[content] Failed to load hypertext library:', error);
-      reject(error);
-    };
-    document.head.appendChild(script);
-  });
-}
-
-/**
- * Initializes the hypertext service
- */
-async function initializeHypertext(): Promise<void> {
-  try {
-    // Load the hypertext library
-    await loadHypertextLibrary();
-
-    // Initialize the service
-    hypertextService.init(document);
-
-    console.log('[content] Hypertext service initialized');
-  } catch (error) {
-    console.error('[content] Failed to initialize hypertext:', error);
-  }
-}
 
 /**
  * Initializes the content script
@@ -1289,9 +1234,6 @@ function initialize(): void {
   // Initialize element chat indicators
   initElementChatIndicators();
   void bootstrapElementChatIndicators();
-
-  // Initialize hypertext (async, non-blocking)
-  void initializeHypertext();
 
   // Add keyboard shortcut listener
   document.addEventListener('keydown', handleKeyboardShortcut, true);
@@ -1342,11 +1284,6 @@ function cleanup(): void {
 
   // Close all element chat windows
   closeAllElementChatWindows();
-
-  // Cleanup hypertext service
-  if (hypertextService.isInitialized()) {
-    hypertextService.destroy();
-  }
 
   // Remove event listeners
   document.removeEventListener('keydown', handleKeyboardShortcut, true);

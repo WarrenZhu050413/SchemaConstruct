@@ -88,21 +88,6 @@ export interface FillInHistoryEntry {
   previousContent?: string; // Snapshot before fill-in (for undo)
 }
 
-/**
- * Hypertext-specific metadata for inline annotation cards
- */
-export interface HypertextData {
-  sessionId: string; // Original hypertext session ID
-  pillText: string; // Display text for the highlight
-  mode: 'inline' | 'reference'; // Inline explanation or reference link
-  subject: string; // Original selected text
-  tooltipPosition?: { x: number; y: number }; // Saved tooltip position
-  tooltipSize?: { width: number; height: number }; // Saved tooltip size
-  isPinned?: boolean; // Whether tooltip was pinned
-  url?: string; // Reference URL (if mode === 'reference')
-  pageUrl: string; // URL where hypertext was created
-  pageTitle: string; // Page title where hypertext was created
-}
 
 /**
  * Main card data structure for the canvas view
@@ -123,7 +108,7 @@ export interface Card {
   styles?: import('../types').RelevantStyles; // Computed styles for rendering
   context?: string; // Parent element context (HTML snippet)
   // Card type and relationships
-  cardType?: 'clipped' | 'generated' | 'note' | 'image' | 'hypertext'; // Type of card
+  cardType?: 'clipped' | 'generated' | 'note' | 'image'; // Type of card
   parentCardId?: string; // Reference to parent card (for generated cards)
   generationContext?: {
     sourceMessageId: string;
@@ -145,8 +130,6 @@ export interface Card {
   beautificationTimestamp?: number; // When beautification was applied
   // Fill-in synthesis fields
   fillInHistory?: FillInHistoryEntry[]; // History of fill-in operations
-  // Hypertext annotation fields (for cardType === 'hypertext')
-  hypertextData?: HypertextData; // Hypertext-specific metadata
 }
 
 /**

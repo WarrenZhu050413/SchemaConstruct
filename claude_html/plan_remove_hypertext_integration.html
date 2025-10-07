@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Plan: Remove Hypertext Integration</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            background: #fdf8f6;
+            color: #3e3226;
+        }
+        h1 { color: #8B0000; margin-bottom: 12px; font-size: 28px; }
+        h2 { color: #8B0000; margin: 20px 0 10px 0; font-size: 20px; border-bottom: 2px solid #D4AF37; padding-bottom: 4px; }
+        h3 { color: #CD5C5C; margin: 16px 0 8px 0; font-size: 16px; }
+        h4 { color: #8B7355; margin: 12px 0 6px 0; font-size: 14px; }
+
+        .important-always-visible {
+            background: linear-gradient(135deg, #fff8dc 0%, #f5f5dc 100%);
+            border: 2px solid #D4AF37;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(139, 0, 0, 0.1);
+        }
+
+        .critical-issue {
+            background: linear-gradient(135deg, #ffe4e1 0%, #ffebcd 100%);
+            border: 2px solid #CD5C5C;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            box-shadow: 0 4px 12px rgba(205, 92, 92, 0.15);
+        }
+
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 16px;
+            margin: 12px 0;
+        }
+
+        .collapsible {
+            border: 1px solid #D4AF37;
+            border-radius: 8px;
+            margin: 12px 0;
+            background: white;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .collapsible.critical { border-color: #CD5C5C; border-width: 2px; }
+        .collapsible.secondary { border-color: #DEB887; }
+        .collapsible.full-width { grid-column: 1 / -1; }
+
+        .collapsible-header {
+            padding: 12px 16px;
+            cursor: pointer;
+            user-select: none;
+            background: linear-gradient(135deg, #f9f5f0 0%, #faf6f2 100%);
+            border-radius: 7px 7px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #8B0000;
+            transition: background 0.2s;
+        }
+
+        .collapsible-header:hover { background: linear-gradient(135deg, #f5f0e8 0%, #f7f2ed 100%); }
+        .critical .collapsible-header { background: linear-gradient(135deg, #ffe4e1 0%, #ffebcd 100%); }
+
+        .arrow {
+            transition: transform 0.3s;
+            font-size: 12px;
+            color: #CD5C5C;
+        }
+
+        .collapsible[data-collapsible="open"] .arrow { transform: rotate(90deg); }
+        .collapsible[data-collapsible="closed"] .collapsible-content { display: none; }
+
+        .collapsible-content {
+            padding: 16px;
+            border-top: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .dense-list { margin: 8px 0; padding-left: 24px; }
+        .dense-list li { margin: 6px 0; }
+        .dense-list li strong { color: #8B0000; }
+
+        .indent-1 { margin-left: 24px; margin-top: 4px; }
+        .indent-2 { margin-left: 48px; margin-top: 4px; }
+
+        .muted { color: #8B7355; font-size: 13px; }
+        .metric {
+            display: inline-block;
+            padding: 4px 12px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 4px 4px 4px 0;
+        }
+        .metric.important { background: rgba(205, 92, 92, 0.2); color: #8B0000; }
+
+        code {
+            background: rgba(212, 175, 55, 0.15);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            color: #8B0000;
+        }
+
+        pre {
+            background: #faf6f2;
+            border: 1px solid #D4AF37;
+            border-radius: 6px;
+            padding: 12px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        pre code { background: none; padding: 0; }
+
+        button {
+            background: linear-gradient(135deg, #8B0000 0%, #CD5C5C 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0 4px;
+            box-shadow: 0 2px 4px rgba(139, 0, 0, 0.2);
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(139, 0, 0, 0.3);
+        }
+
+        .file-path {
+            background: rgba(139, 115, 85, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #8B7355;
+        }
+
+        .warning-box {
+            background: #fff9e6;
+            border-left: 4px solid #ffcc00;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Expand/Collapse Controls -->
+    <div style="margin: 8px 0; text-align: right;">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+
+    <!-- Executive Summary -->
+    <div class="important-always-visible">
+        <h1>📋 Complete Removal of Hypertext Integration</h1>
+        <div class="two-column-layout">
+            <div>
+                <h3>Objective</h3>
+                <p>Remove all hypertext annotation functionality from NabokovsWeb extension because it's not working and no longer aligns with product vision.</p>
+                <div class="metric important">Complexity: Medium</div>
+                <div class="metric">Est. Time: 30-45 min</div>
+            </div>
+            <div>
+                <h3>Approach</h3>
+                <p><strong>Systematic cleanup:</strong> Delete created files → Revert code changes → Migrate storage → Update docs → Verify build</p>
+                <div class="warning-box">
+                    <strong>⚠️ Critical:</strong> Must handle existing hypertext cards in storage and remove test files before build
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Codex Review Summary -->
+    <div class="critical-issue">
+        <h2>🔍 Codex Review Summary</h2>
+        <div class="two-column-layout">
+            <div>
+                <h4>Key Feedback from Codex MCP</h4>
+                <ul class="dense-list">
+                    <li><strong>High Priority:</strong> E2E test <code>hypertext-demo.spec.ts</code> will break build if not removed</li>
+                    <li><strong>Medium Priority:</strong> Existing cards with <code>cardType: 'hypertext'</code> won't render after removal</li>
+                    <li><strong>Medium Priority:</strong> Documentation still references hypertext (README, research docs)</li>
+                    <li><strong>Low Priority:</strong> Demo files in <code>claude_html_demo/</code> should be archived</li>
+                </ul>
+            </div>
+            <div>
+                <h4>Plan Adjustments Made</h4>
+                <ul class="dense-list">
+                    <li>✅ Added test file deletion step</li>
+                    <li>✅ Created storage migration strategy</li>
+                    <li>✅ Added documentation cleanup phase</li>
+                    <li>✅ Verified removal order prevents build breakage</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- How Hypertext Was Integrated (Explanation) -->
+    <div class="collapsible critical full-width" data-collapsible="open">
+        <div class="collapsible-header">
+            <span>📖 How Hypertext Was Integrated (Explanation)</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <h3>Architecture Pattern: Wrapper Adapter</h3>
+            <p>The integration used a "minimal wrapper" approach to integrate the vanilla JS hypertext module with the TypeScript NabokovsWeb codebase:</p>
+
+            <div class="two-column-layout">
+                <div>
+                    <h4>1. File Structure</h4>
+                    <ul class="dense-list">
+                        <li><code>src/lib/hypertext-experience.js</code> (63KB) - Vanilla JS hypertext module copied from separate repo</li>
+                        <li><code>src/services/hypertextService.ts</code> - TypeScript adapter service</li>
+                        <li><code>src/types/chat.ts</code> - Unified Message interface</li>
+                        <li><code>docs/hypertext-integration-plan.md</code> - Integration documentation</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4>2. Type System Extensions</h4>
+                    <ul class="dense-list">
+                        <li><strong>HypertextData:</strong> Interface for annotation metadata (pill text, mode, subject, position)</li>
+                        <li><strong>Card.cardType:</strong> Extended enum to include <code>'hypertext'</code></li>
+                        <li><strong>Message interface:</strong> Added multimodal support and thinking field</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Data Flow (How It Worked)</h3>
+            <ol class="dense-list">
+                <li><strong>User Trigger:</strong> Press <code>Ctrl+Shift+H</code> → Background worker sends <code>TRIGGER_HYPERTEXT</code> message</li>
+                <li><strong>Dynamic Loading:</strong> Content script calls <code>chrome.runtime.getURL('src/lib/hypertext-experience.js')</code> to load library</li>
+                <li><strong>Service Init:</strong> <code>hypertextService.init(document)</code> creates hypertext experience using <code>window.createHypertextExperience()</code></li>
+                <li><strong>User Creates Annotation:</strong> Select text → Palette appears → LLM generates inline explanation or reference link</li>
+                <li><strong>Session Storage:</strong> Hypertext sessions stored in closure Map (vanilla JS state)</li>
+                <li><strong>Auto-Save:</strong> Every 2 min, sessions older than 5 min are converted to Card format via adapter</li>
+                <li><strong>Card Creation:</strong> <code>sessionToCard()</code> transforms hypertext session into <code>{ cardType: 'hypertext', hypertextData: {...}, conversation: [...] }</code></li>
+                <li><strong>Canvas Display:</strong> CardNode renders with special <code>💡 Hypertext</code> badge and gradient styling</li>
+            </ol>
+
+            <h3>Why It's Failing</h3>
+            <div class="warning-box">
+                <strong>Root Cause:</strong> <code>[HypertextService] createHypertextExperience not found</code>
+
+                <p style="margin-top: 8px;"><strong>Diagnosis:</strong></p>
+                <ul class="dense-list">
+                    <li><strong>Timing Issue:</strong> <code>loadHypertextLibrary()</code> is async but <code>hypertextService.init()</code> may be called before script fully loads</li>
+                    <li><strong>Web Resource Config:</strong> <code>manifest.json</code> includes <code>src/lib/hypertext-experience.js</code> but Vite build may not copy it correctly</li>
+                    <li><strong>CSP Restrictions:</strong> Content Security Policy may block dynamic script loading</li>
+                    <li><strong>Module Resolution:</strong> Chrome extension runtime may not resolve <code>chrome.runtime.getURL()</code> path correctly for lib files</li>
+                </ul>
+
+                <p style="margin-top: 8px;"><strong>Why Not Fixed:</strong> No longer fits product vision, so removal is preferred over debugging</p>
+            </div>
+
+            <h3>Integration Touch Points (What Needs Reverting)</h3>
+            <div class="two-column-layout">
+                <div>
+                    <h4>Content Script Integration</h4>
+                    <pre><code>// Added in src/content/index.tsx
+import { hypertextService } from '@/services/hypertextService';
+
+async function loadHypertextLibrary() {
+  const script = document.createElement('script');
+  script.src = chrome.runtime.getURL('src/lib/hypertext-experience.js');
+  // ...
+}
+
+async function initializeHypertext() {
+  await loadHypertextLibrary();
+  hypertextService.init(document);
+}</code></pre>
+                </div>
+
+                <div>
+                    <h4>Message Handler</h4>
+                    <pre><code>// Added in handleMessage()
+case 'TRIGGER_HYPERTEXT':
+  if (hypertextService.isInitialized()) {
+    const triggered = hypertextService.trigger();
+    sendResponse({ success: triggered });
+  } else {
+    sendResponse({ success: false });
+  }
+  break;</code></pre>
+                </div>
+            </div>
+
+            <div class="two-column-layout">
+                <div>
+                    <h4>Background Worker Command</h4>
+                    <pre><code>// Added in src/background/index.ts
+else if (command === 'trigger-hypertext') {
+  chrome.tabs.sendMessage(tabs[0].id, {
+    type: 'TRIGGER_HYPERTEXT'
+  });
+}</code></pre>
+                </div>
+
+                <div>
+                    <h4>Manifest Keyboard Shortcut</h4>
+                    <pre><code>// Added in manifest.json
+"trigger-hypertext": {
+  "suggested_key": {
+    "default": "Ctrl+Shift+H",
+    "mac": "Ctrl+Shift+H"
+  },
+  "description": "Create inline hypertext annotation"
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Two-Column Layout for Main Content -->
+    <div class="two-column-layout">
+        <!-- Implementation Steps -->
+        <div class="collapsible critical" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>⚡ Implementation Steps</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Phase 1: Delete Created Files (Critical First)</h4>
+                <ol class="dense-list">
+                    <li><strong>Delete hypertext library:</strong>
+                        <div class="indent-1 muted"><code>rm src/lib/hypertext-experience.js</code></div>
+                        <div class="indent-1 muted"><code>rmdir src/lib</code> (if empty)</div>
+                    </li>
+                    <li><strong>Delete adapter service:</strong>
+                        <div class="indent-1 muted"><code>rm src/services/hypertextService.ts</code></div>
+                    </li>
+                    <li><strong>Delete unified types:</strong>
+                        <div class="indent-1 muted"><code>rm src/types/chat.ts</code></div>
+                        <div class="indent-1"><strong>Note:</strong> Check if anything imports this first!</div>
+                    </li>
+                    <li><strong>Delete integration docs:</strong>
+                        <div class="indent-1 muted"><code>rm docs/hypertext-integration-plan.md</code></div>
+                        <div class="indent-1 muted"><code>rm docs/hypertext-integration-plan-v2.md</code></div>
+                    </li>
+                    <li><strong>Delete E2E test (CRITICAL):</strong>
+                        <div class="indent-1 muted"><code>rm tests/e2e/hypertext-demo.spec.ts</code></div>
+                        <div class="indent-1"><strong>⚠️ Must do before build!</strong> Will break test suite</div>
+                    </li>
+                </ol>
+
+                <h4>Phase 2: Revert Code Changes</h4>
+                <ol class="dense-list" start="6">
+                    <li><strong>src/types/card.ts:</strong>
+                        <div class="indent-1">❌ Remove <code>HypertextData</code> interface (lines ~93-104)</div>
+                        <div class="indent-1">❌ Remove <code>'hypertext'</code> from <code>cardType</code> enum (line 125)</div>
+                        <div class="indent-1">❌ Remove <code>hypertextData?: HypertextData;</code> field (line 148)</div>
+                        <div class="indent-1">✅ Keep <code>thinking?: string</code> in Message (useful for future)</div>
+                        <div class="indent-1">✅ Keep <code>images</code> array in Message (already used elsewhere)</div>
+                    </li>
+
+                    <li><strong>src/content/index.tsx:</strong>
+                        <div class="indent-1">❌ Remove import: <code>import { hypertextService } from '@/services/hypertextService';</code></div>
+                        <div class="indent-1">❌ Remove <code>loadHypertextLibrary()</code> function (lines ~1234-1255)</div>
+                        <div class="indent-1">❌ Remove <code>initializeHypertext()</code> function (lines ~1260-1272)</div>
+                        <div class="indent-1">❌ Remove <code>void initializeHypertext();</code> call in <code>initialize()</code></div>
+                        <div class="indent-1">❌ Remove <code>TRIGGER_HYPERTEXT</code> from MessageType enum</div>
+                        <div class="indent-1">❌ Remove <code>case 'TRIGGER_HYPERTEXT':</code> handler in <code>handleMessage()</code></div>
+                        <div class="indent-1">❌ Remove hypertext cleanup in <code>cleanup()</code> function</div>
+                    </li>
+
+                    <li><strong>src/background/index.ts:</strong>
+                        <div class="indent-1">❌ Remove entire <code>else if (command === 'trigger-hypertext')</code> block (lines ~78-93)</div>
+                    </li>
+
+                    <li><strong>src/manifest.json:</strong>
+                        <div class="indent-1">❌ Remove <code>"trigger-hypertext"</code> command object (lines ~56-62)</div>
+                        <div class="indent-1">❌ Remove <code>"src/lib/hypertext-experience.js"</code> from web_accessible_resources (line 73)</div>
+                    </li>
+
+                    <li><strong>src/canvas/CardNode.tsx:</strong>
+                        <div class="indent-1">❌ Remove hypertext-specific domain styling (lines ~568-573, ~678-683)</div>
+                        <div class="indent-1">❌ Remove <code>{card.cardType === 'hypertext' ? '💡 Hypertext' : card.metadata.domain}</code></div>
+                        <div class="indent-1">✅ Restore simple: <code>{card.metadata.domain}</code></div>
+                    </li>
+                </ol>
+
+                <h4>Phase 3: Storage Migration (Handle Existing Cards)</h4>
+                <ol class="dense-list" start="11">
+                    <li><strong>Create migration utility:</strong>
+                        <div class="indent-1">Create <code>src/utils/removeHypertextCards.ts</code></div>
+                        <div class="indent-1">Function to convert <code>cardType: 'hypertext'</code> → <code>'note'</code></div>
+                        <div class="indent-1">Or provide option to delete them entirely</div>
+                    </li>
+
+                    <li><strong>Add defensive guard in CardNode:</strong>
+                        <div class="indent-1">Handle case where <code>card.cardType === 'hypertext'</code> even after code removal</div>
+                        <div class="indent-1">Render as generic card with warning badge</div>
+                    </li>
+                </ol>
+
+                <h4>Phase 4: Documentation Cleanup</h4>
+                <ol class="dense-list" start="13">
+                    <li><strong>Update README.md:</strong>
+                        <div class="indent-1">Remove hypertext mentions from feature list</div>
+                        <div class="indent-1">Remove keyboard shortcut documentation</div>
+                    </li>
+
+                    <li><strong>Archive research docs:</strong>
+                        <div class="indent-1">Move hypertext HTML demos to <code>archive/</code> folder</div>
+                        <div class="indent-1">Update <code>FEATURES_IMPLEMENTED.md</code> to reflect removal</div>
+                    </li>
+                </ol>
+
+                <h4>Phase 5: Verification</h4>
+                <ol class="dense-list" start="15">
+                    <li><strong>Type check:</strong> <code>npm run type-check</code></li>
+                    <li><strong>Build:</strong> <code>npm run build</code></li>
+                    <li><strong>Search for orphans:</strong> <code>grep -r "hypertext" src/</code></li>
+                    <li><strong>Run tests:</strong> <code>npm run test:e2e</code> (verify no hypertext specs fail)</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Storage Migration Strategy -->
+        <div class="collapsible secondary" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>💾 Storage Migration Strategy</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Problem: Orphaned Hypertext Cards</h4>
+                <p>Users who created hypertext annotations will have cards with:</p>
+                <ul class="dense-list">
+                    <li><code>cardType: 'hypertext'</code></li>
+                    <li><code>hypertextData: { sessionId, pillText, mode, ... }</code></li>
+                    <li>These won't render correctly after code removal</li>
+                </ul>
+
+                <h4>Solution: Migration Utility</h4>
+                <pre><code>// src/utils/removeHypertextCards.ts
+import { getCards, saveCard } from './storage';
+import type { Card } from '@/types/card';
+
+export async function migrateHypertextCards(
+  action: 'convert' | 'delete' = 'convert'
+): Promise<number> {
+  const cards = await getCards();
+  const hypertextCards = cards.filter(c => c.cardType === 'hypertext');
+
+  if (hypertextCards.length === 0) {
+    return 0;
+  }
+
+  if (action === 'delete') {
+    // Remove hypertext cards entirely
+    const keepCards = cards.filter(c => c.cardType !== 'hypertext');
+    await chrome.storage.local.set({ cards: keepCards });
+    return hypertextCards.length;
+  }
+
+  // Convert to note cards
+  const migratedCards = cards.map(card => {
+    if (card.cardType !== 'hypertext') return card;
+
+    // Convert hypertext → note
+    const updated: Card = {
+      ...card,
+      cardType: 'note',
+      metadata: {
+        ...card.metadata,
+        domain: 'hypertext-archive',
+        title: `📝 ${card.metadata.title}`,
+      }
+    };
+
+    // Remove hypertext-specific fields
+    delete (updated as any).hypertextData;
+
+    return updated;
+  });
+
+  await chrome.storage.local.set({ cards: migratedCards });
+  return hypertextCards.length;
+}</code></pre>
+
+                <h4>Execution Options</h4>
+                <div class="two-column-layout">
+                    <div>
+                        <strong>Option A: Manual Migration</strong>
+                        <ul class="dense-list">
+                            <li>Add migration button in Canvas settings</li>
+                            <li>User clicks "Convert Old Hypertext Cards"</li>
+                            <li>Cards converted to notes with archive badge</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <strong>Option B: Automatic on Load</strong>
+                        <ul class="dense-list">
+                            <li>Run migration in <code>useCanvasState</code> hook</li>
+                            <li>Detect hypertext cards on first load</li>
+                            <li>Auto-convert with toast notification</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h4>Defensive Rendering (Fallback)</h4>
+                <pre><code>// In CardNode.tsx - handle legacy hypertext cards gracefully
+const displayDomain = card.cardType === 'hypertext'
+  ? '📝 Legacy Note (migrated from hypertext)'
+  : card.metadata.domain;</code></pre>
+            </div>
+        </div>
+
+        <!-- Testing & Validation -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>✓ Testing & Validation</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Pre-Removal Checks</h4>
+                <ul class="dense-list">
+                    <li><strong>Backup:</strong> Create git branch: <code>git checkout -b backup-before-hypertext-removal</code></li>
+                    <li><strong>Storage snapshot:</strong> Export chrome.storage.local before changes</li>
+                    <li><strong>Count hypertext cards:</strong> Check how many will be affected</li>
+                </ul>
+
+                <h4>Post-Removal Validation</h4>
+                <ol class="dense-list">
+                    <li><strong>Type Check:</strong>
+                        <div class="indent-1"><code>npm run type-check</code></div>
+                        <div class="indent-1">✅ Should pass with 0 errors</div>
+                    </li>
+
+                    <li><strong>Build Verification:</strong>
+                        <div class="indent-1"><code>npm run build 2>&1 | grep -i "hypertext\|error"</code></div>
+                        <div class="indent-1">✅ No references to hypertext</div>
+                        <div class="indent-1">✅ dist/ folder should NOT contain hypertext-experience.js</div>
+                    </li>
+
+                    <li><strong>Grep for Orphans:</strong>
+                        <div class="indent-1"><code>grep -r "hypertext" src/ --exclude-dir=node_modules</code></div>
+                        <div class="indent-1">✅ Should only find git history references</div>
+                    </li>
+
+                    <li><strong>Test Suite:</strong>
+                        <div class="indent-1"><code>npm run test:e2e</code></div>
+                        <div class="indent-1">✅ No hypertext-demo.spec.ts failures</div>
+                        <div class="indent-1">✅ All other tests pass</div>
+                    </li>
+
+                    <li><strong>Manual Extension Test:</strong>
+                        <div class="indent-1">Load extension in Chrome</div>
+                        <div class="indent-1">Press Ctrl+Shift+H → Nothing should happen</div>
+                        <div class="indent-1">Open canvas → Verify existing cards render</div>
+                        <div class="indent-1">Check console for no errors</div>
+                    </li>
+                </ol>
+
+                <h4>Success Criteria</h4>
+                <div class="success-box">
+                    <strong>✅ Removal Complete When:</strong>
+                    <ul class="dense-list">
+                        <li>Type check passes</li>
+                        <li>Build completes without hypertext references</li>
+                        <li>Grep finds no hypertext in src/</li>
+                        <li>Extension loads without errors</li>
+                        <li>Ctrl+Shift+H does nothing (no palette)</li>
+                        <li>Existing cards still render (migrated or with fallback)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Potential Issues -->
+        <div class="collapsible secondary" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>⚠️ Potential Issues & Mitigations</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Issue 1: Broken Imports After chat.ts Deletion</h4>
+                <div class="warning-box">
+                    <strong>Risk:</strong> Other files may import from <code>src/types/chat.ts</code>
+
+                    <p style="margin-top: 8px;"><strong>Check Before Deleting:</strong></p>
+                    <pre><code>grep -r "from '@/types/chat'" src/</code></pre>
+
+                    <p style="margin-top: 8px;"><strong>Mitigation:</strong></p>
+                    <ul class="dense-list">
+                        <li>If found, move Message interface back to card.ts</li>
+                        <li>Update imports to use card.ts instead</li>
+                        <li>Only delete chat.ts if truly unused</li>
+                    </ul>
+                </div>
+
+                <h4>Issue 2: User Has Orphaned Hypertext Cards</h4>
+                <div class="warning-box">
+                    <strong>Risk:</strong> Cards with <code>cardType: 'hypertext'</code> won't render, causing blank cards or errors
+
+                    <p style="margin-top: 8px;"><strong>Mitigation:</strong></p>
+                    <ul class="dense-list">
+                        <li><strong>Immediate:</strong> Add defensive check in CardNode.tsx to treat unknown types as 'note'</li>
+                        <li><strong>Long-term:</strong> Run migration utility to convert to notes</li>
+                        <li><strong>UX:</strong> Show toast on first load: "Migrated X hypertext cards to notes"</li>
+                    </ul>
+                </div>
+
+                <h4>Issue 3: Git History References</h4>
+                <div class="warning-box">
+                    <strong>Risk:</strong> Commit messages, git log contain hypertext references
+
+                    <p style="margin-top: 8px;"><strong>Mitigation:</strong></p>
+                    <ul class="dense-list">
+                        <li>This is fine - git history is immutable</li>
+                        <li>Just update current docs and code</li>
+                        <li>Add note in removal commit message explaining why</li>
+                    </ul>
+                </div>
+
+                <h4>Issue 4: Demo HTML Files Remain</h4>
+                <div class="warning-box">
+                    <strong>Risk:</strong> <code>claude_html_demo/hypertext*.html</code> files still reference removed features
+
+                    <p style="margin-top: 8px;"><strong>Mitigation:</strong></p>
+                    <ul class="dense-list">
+                        <li>Move to <code>archive/hypertext-demos/</code></li>
+                        <li>Add README explaining these are historical</li>
+                        <li>OR delete entirely if not needed</li>
+                    </ul>
+                </div>
+
+                <h4>Issue 5: Documentation Mentions Keyboard Shortcuts</h4>
+                <div class="warning-box">
+                    <strong>Risk:</strong> README.md lists Ctrl+Shift+H as a feature
+
+                    <p style="margin-top: 8px;"><strong>Mitigation:</strong></p>
+                    <ul class="dense-list">
+                        <li>Update keyboard shortcuts section</li>
+                        <li>Remove from feature list</li>
+                        <li>Update FEATURES_IMPLEMENTED.md</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Post-Implementation -->
+    <div class="collapsible full-width" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>📊 Post-Implementation Cleanup</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <h3>Git Commit Strategy</h3>
+            <pre><code>git add -A
+git commit -m "refactor: remove hypertext integration
+
+Remove hypertext inline annotation system completely. No longer
+aligns with product vision and was experiencing loading issues.
+
+Changes:
+- Deleted src/lib/hypertext-experience.js (63KB vanilla JS module)
+- Deleted src/services/hypertextService.ts (adapter service)
+- Deleted src/types/chat.ts (unified Message interface)
+- Deleted tests/e2e/hypertext-demo.spec.ts
+- Reverted src/content/index.tsx (removed dynamic loader)
+- Reverted src/background/index.ts (removed keyboard handler)
+- Reverted src/manifest.json (removed Ctrl+Shift+H command)
+- Reverted src/canvas/CardNode.tsx (removed hypertext badge)
+- Updated src/types/card.ts (removed HypertextData, kept thinking field)
+
+Migration:
+- Added defensive rendering for legacy hypertext cards
+- Converts cardType: 'hypertext' → 'note' on load
+- Preserves conversation history and metadata
+
+Docs updated:
+- Archived hypertext research docs
+- Updated README keyboard shortcuts
+- Updated FEATURES_IMPLEMENTED.md
+
+Resolves: Hypertext loading error
+Reason: Feature no longer fits product vision"</code></pre>
+
+            <h3>Documentation Updates Needed</h3>
+            <div class="two-column-layout">
+                <div>
+                    <h4>Files to Update</h4>
+                    <ul class="dense-list">
+                        <li><code>README.md</code> - Remove hypertext from features</li>
+                        <li><code>CLAUDE.md</code> - Remove hypertext sections</li>
+                        <li><code>docs/project/FEATURES_IMPLEMENTED.md</code></li>
+                        <li><code>docs/implementation/IMPLEMENTATION_QUICKSTART.md</code></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Files to Archive</h4>
+                    <ul class="dense-list">
+                        <li><code>claude_html/hypertext_*.html</code> → archive/</li>
+                        <li><code>claude_html_demo/hypertext*.html</code> → archive/</li>
+                        <li><code>docs/research/*hypertext*.md</code> → archive/</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Monitoring After Deployment</h3>
+            <ul class="dense-list">
+                <li>Check Chrome extension console for errors related to missing hypertext</li>
+                <li>Verify no users report broken cards</li>
+                <li>Monitor for any <code>cardType: 'hypertext'</code> cards still in storage</li>
+            </ul>
+
+            <h3>Future Considerations</h3>
+            <div class="warning-box">
+                <strong>If Hypertext Needed Again:</strong>
+                <ul class="dense-list">
+                    <li>Review git history: <code>git log --grep="hypertext"</code></li>
+                    <li>Check out commit before removal: <code>git show 938dfbf</code></li>
+                    <li>Consider fixing loading issue instead of re-implementing</li>
+                    <li>Alternative: Build inline annotations from scratch with better architecture</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Collapsible functionality
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const collapsible = this.parentElement;
+                const currentState = collapsible.getAttribute('data-collapsible');
+                const newState = currentState === 'open' ? 'closed' : 'open';
+                collapsible.setAttribute('data-collapsible', newState);
+            });
+        });
+
+        // Expand/Collapse All
+        document.getElementById('expand-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'open');
+            });
+        });
+
+        document.getElementById('collapse-all').addEventListener('click', () => {
+            document.querySelectorAll('.collapsible').forEach(el => {
+                el.setAttribute('data-collapsible', 'closed');
+            });
+        });
+    </script>
+</body>
+</html>

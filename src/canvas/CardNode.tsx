@@ -565,14 +565,8 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
             <div style={{
               ...styles.domain,
               ...(card.cardType === 'note' ? styles.noteDomain : {}),
-              ...(card.cardType === 'hypertext' ? {
-                background: 'linear-gradient(135deg, rgba(177, 50, 50, 0.1), rgba(212, 175, 55, 0.1))',
-                border: '1px solid rgba(177, 50, 50, 0.25)',
-                color: '#8B0000',
-                fontWeight: 600,
-              } : {}),
             }}>
-              {card.cardType === 'hypertext' ? '💡 Hypertext' : card.metadata.domain}
+              {card.metadata.domain}
             </div>
           </div>
           <div style={styles.editButtons}>
@@ -681,14 +675,8 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
           <div style={{
             ...styles.domain,
             ...(card.cardType === 'note' ? styles.noteDomain : {}),
-            ...(card.cardType === 'hypertext' ? {
-              background: 'linear-gradient(135deg, rgba(177, 50, 50, 0.1), rgba(212, 175, 55, 0.1))',
-              border: '1px solid rgba(177, 50, 50, 0.25)',
-              color: '#8B0000',
-              fontWeight: 600,
-            } : {}),
           }}>
-            {card.cardType === 'hypertext' ? '💡 Hypertext' : card.metadata.domain}
+            {card.metadata.domain}
           </div>
         </div>
         <div style={styles.headerRight}>
