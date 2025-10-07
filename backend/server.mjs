@@ -38,7 +38,8 @@ const levelPalette = {
 };
 
 const app = express();
-const PORT = process.env.PORT || 3100;
+const PORT = Number(process.env.PORT) || 3100;
+const HOST = process.env.HOST || '0.0.0.0';
 
 let llmService;
 try {
@@ -582,17 +583,31 @@ app.post('/api/stream', async (req, res) => {
     eventCount = 0;
     streamMetadata = undefined;
     let debugTokens = DEBUG_MODE ? [] : null;
+    let lastChar = '\n';
 
     await llmService.streamMessage({
       messages,
       options: currentOptions,
       onToken: token => {
         ensureSSEHeaders(res);
-        res.write(`data: ${JSON.stringify({ delta: { text: token } })}\n\n`);
-        emittedChars += token?.length || 0;
+        let text = typeof token === 'string' ? token : token != null ? String(token) : '';
+        if (!text) {
+          return;
+        }
+        const startsWithWhitespace = /^\s/.test(text);
+        const lastCharIsWhitespace = /\s/.test(lastChar);
+        if (!lastCharIsWhitespace && !startsWithWhitespace) {
+          text = `\n${text}`;
+        }
+        const trailingChar = text[text.length - 1];
+        if (trailingChar) {
+          lastChar = trailingChar;
+        }
+        res.write(`data: ${JSON.stringify({ delta: { text } })}\n\n`);
+        emittedChars += text?.length || 0;
         eventCount += 1;
-        if (Array.isArray(debugTokens) && typeof token === 'string') {
-          debugTokens.push(token);
+        if (Array.isArray(debugTokens) && typeof text === 'string') {
+          debugTokens.push(text);
         }
       },
       onDone: metadata => {
@@ -739,32 +754,37 @@ app.post('/api/stream', async (req, res) => {
 /**
  * Start server
  */
-app.listen(PORT, () => {
-  console.log('');
-  console.log('═══════════════════════════════════════════════════════');
-  console.log('  🚀 Nabokov Backend Server');
-  console.log('═══════════════════════════════════════════════════════');
-  console.log('');
-  console.log(`  Status: Running`);
-  console.log(`  Port: ${PORT}`);
-  console.log(`  Health: http://localhost:${PORT}/health`);
-  console.log('');
-  console.log('  Endpoints:');
-  console.log(`    POST http://localhost:${PORT}/api/message`);
-  console.log(`    POST http://localhost:${PORT}/api/stream`);
-  console.log('');
-  console.log('  Provider:');
-  console.log(`    Active: ${llmService.getProviderName()} (${llmService.getProviderKey()})`);
-  console.log('');
-  console.log('  Authentication / Execution:');
-  console.log('    - Claude Agent SDK (if provider = claude)');
-  console.log('    - Codex CLI (if provider = codex, default)');
-  console.log('');
-  console.log('═══════════════════════════════════════════════════════');
-  console.log('');
-  console.log('Press Ctrl+C to stop');
-  console.log('');
-});
+if (process.env.NABOKOV_BACKEND_NO_LISTEN === '1') {
+  console.log('[Backend] Listen skipped (NABOKOV_BACKEND_NO_LISTEN=1)');
+} else {
+  app.listen(PORT, HOST, () => {
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('  🚀 Nabokov Backend Server');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('');
+    console.log(`  Status: Running`);
+    console.log(`  Host: ${HOST}`);
+    console.log(`  Port: ${PORT}`);
+    console.log(`  Health: http://localhost:${PORT}/health`);
+    console.log('');
+    console.log('  Endpoints:');
+    console.log(`    POST http://localhost:${PORT}/api/message`);
+    console.log(`    POST http://localhost:${PORT}/api/stream`);
+    console.log('');
+    console.log('  Provider:');
+    console.log(`    Active: ${llmService.getProviderName()} (${llmService.getProviderKey()})`);
+    console.log('');
+    console.log('  Authentication / Execution:');
+    console.log('    - Claude Agent SDK (if provider = claude)');
+    console.log('    - Codex CLI (if provider = codex, default)');
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('');
+    console.log('Press Ctrl+C to stop');
+    console.log('');
+  });
+}
 
 // Graceful shutdown
 process.on('SIGINT', () => {
