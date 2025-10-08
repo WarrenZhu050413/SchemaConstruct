@@ -76,6 +76,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     width: number;
     height: number;
   }>>([]);
+  const [queueSize, setQueueSize] = useState(0);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [windowPosition, setWindowPosition] = useState(defaultPosition);
   const [anchorOffset, setAnchorOffset] = useState<{ x: number; y: number } | null>(null);
@@ -109,6 +110,27 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         : formatPageContextAsPrompt(initialContext),
     [isElement, initialContext]
   );
+
+  const lastMessageLabel = useMemo(() => {
+    if (messages.length === 0) {
+      return 'No messages yet';
+    }
+    const last = messages[messages.length - 1];
+    const owner = last.role === 'user' ? 'You' : 'Assistant';
+
+    switch (last.status) {
+      case 'queued':
+        return `${owner} (queued)`;
+      case 'processing':
+        return `${owner} (processing)`;
+      case 'error':
+        return `${owner} (error)`;
+      default:
+        return owner;
+    }
+  }, [messages]);
+
+  const displayQueueCount = Math.max(queueSize - (isStreaming ? 1 : 0), 0);
 
   const isContainerAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -302,6 +324,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       insertAssistantAfter(nextMessage.id, errorAssistantMessage, 'error');
     } finally {
       messageQueueRef.current = messageQueueRef.current.slice(1);
+      setQueueSize(messageQueueRef.current.length);
       setStreamingContent('');
       setIsStreaming(false);
       isProcessingQueueRef.current = false;
@@ -599,6 +622,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
     updateMessages(prev => [...prev, userMessage]);
     messageQueueRef.current = [...messageQueueRef.current, userMessage];
+    setQueueSize(messageQueueRef.current.length);
     processQueue();
   };
 
@@ -742,11 +766,18 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
               </button>
             )}
             <button
-              css={headerButtonStyles}
+              css={collapseToggleStyles(collapsed)}
               onClick={() => setCollapsed(!collapsed)}
-              title={collapsed ? 'Expand' : 'Collapse to header'}
+              title={collapsed ? 'Expand chat' : 'Collapse chat'}
+              data-testid="inline-chat-collapse"
             >
-              {collapsed ? '▼' : '▲'}
+              <span css={collapseIconStyles}>{collapsed ? '▢' : '▾'}</span>
+              <span css={collapseInfoStyles}>
+                {collapsed ? 'Expand' : `Last: ${lastMessageLabel}`}
+              </span>
+              {displayQueueCount > 0 && (
+                <span css={collapseBadgeStyles}>{displayQueueCount}</span>
+              )}
             </button>
             <button
               css={headerButtonStyles}
@@ -984,6 +1015,53 @@ const headerButtonStyles = css`
     opacity: 0.55;
     cursor: not-allowed;
   }
+`;
+
+const collapseToggleStyles = (collapsed: boolean) => css`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: #fff6f4;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  justify-content: ${collapsed ? 'center' : 'flex-start'};
+  max-width: ${collapsed ? '120px' : '200px'};
+  overflow: hidden;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+`;
+
+const collapseIconStyles = css`
+  font-size: 12px;
+  line-height: 1;
+`;
+
+const collapseInfoStyles = css`
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+`;
+
+const collapseBadgeStyles = css`
+  background: rgba(255, 215, 0, 0.92);
+  color: #8b0000;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  line-height: 1;
 `;
 
 const contentWrapperStyles = css`

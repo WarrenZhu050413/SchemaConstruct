@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { InlineChatWindow } from '../../../src/components/InlineChatWindow';
 import type { PageContext } from '../../../src/services/pageContextCapture';
 import * as imageUpload from '../../../src/utils/imageUpload';
@@ -285,6 +285,60 @@ describe('InlineChatWindow - Image Drop Support', () => {
     });
   });
 
+  describe('Collapse toggle UX', () => {
+    it('displays last message status and queued count', async () => {
+      const resolvers: Array<() => void> = [];
+      let callIndex = 0;
+
+      chatWithPageMock.mockImplementation(async function* () {
+        const current = callIndex++;
+        const label = current === 0 ? 'first' : 'second';
+        yield `${label}-chunk`;
+        await new Promise<void>(resolve => {
+          resolvers[current] = resolve;
+        });
+        yield `${label}-done`;
+      });
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      const sendButton = screen.getByTestId('inline-chat-send');
+      const collapseButton = screen.getByTestId('inline-chat-collapse');
+
+      fireEvent.change(input, { target: { value: 'First collapse test' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await screen.findByText('First collapse test');
+      expect(collapseButton).toHaveTextContent(/Last: You \(processing\)/i);
+
+      fireEvent.change(input, { target: { value: 'Second collapse test' } });
+      await waitFor(() => expect(sendButton).not.toBeDisabled());
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await waitFor(() => {
+        expect(within(collapseButton).getByText('1')).toBeDefined();
+      });
+
+      resolvers[0]?.();
+      await waitFor(() => expect(chatWithPageMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(resolvers.length).toBeGreaterThanOrEqual(2));
+      await waitFor(() => {
+        expect(within(collapseButton).queryByText('1')).toBeNull();
+      });
+
+      resolvers[1]?.();
+      await waitFor(() => {
+        expect(collapseButton).toHaveTextContent(/Last: Assistant/i);
+      });
+    });
+  });
+
   describe('Image Validation', () => {
     it('should accept valid image files', async () => {
       const { container } = render(
@@ -388,7 +442,7 @@ describe('InlineChatWindow - Image Drop Support', () => {
         />
       );
 
-      const collapseButton = screen.getByTitle(/collapse to header/i);
+      const collapseButton = screen.getByTitle(/collapse chat/i);
       expect(collapseButton).toBeDefined();
     });
   });
