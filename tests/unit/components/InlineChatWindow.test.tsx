@@ -135,6 +135,62 @@ describe('InlineChatWindow - Image Drop Support', () => {
     });
   });
 
+  describe('Highlight to context shortcut', () => {
+    const mockStream = async function* () {
+      yield 'chunk';
+      yield 'done';
+    };
+
+    it('moves selected chat text into the input when Enter is pressed', async () => {
+      chatWithPageMock.mockImplementation(mockStream);
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      fireEvent.change(input, { target: { value: 'Context snippet' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await screen.findByText('Context snippet');
+
+      const messageNode = screen.getByText('Context snippet');
+      const range = document.createRange();
+      range.selectNodeContents(messageNode);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+
+      fireEvent.keyDown(messageNode, { key: 'Enter', code: 'Enter' });
+
+      const textarea = screen.getByPlaceholderText(/ask about this page/i) as HTMLTextAreaElement;
+      await waitFor(() => {
+        expect(textarea.value).toBe('Context snippet');
+      });
+
+      expect(window.getSelection()?.toString()).toBe('');
+    });
+
+    it('ignores Enter when no chat selection exists', () => {
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      window.getSelection()?.removeAllRanges();
+      const textarea = screen.getByPlaceholderText(/ask about this page/i) as HTMLTextAreaElement;
+
+      fireEvent.keyDown(document.body, { key: 'Enter', code: 'Enter' });
+
+      expect(textarea.value).toBe('');
+    });
+  });
+
   describe('Image Validation', () => {
     it('should accept valid image files', async () => {
       const { container } = render(

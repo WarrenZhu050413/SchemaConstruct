@@ -103,6 +103,45 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     setIsUserAnchoredBottom(isContainerAtBottom());
   }, [isContainerAtBottom]);
 
+  const appendSelectionToContext = useCallback(() => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) {
+      return false;
+    }
+
+    const selectedText = selection.toString().trim();
+    if (!selectedText) {
+      return false;
+    }
+
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return false;
+    }
+
+    const isNodeInsideContainer = (node: Node | null): boolean => {
+      while (node) {
+        if (node === container) {
+          return true;
+        }
+        node = node.parentNode;
+      }
+      return false;
+    };
+
+    const anchorInside = isNodeInsideContainer(selection.anchorNode);
+    const focusInside = isNodeInsideContainer(selection.focusNode);
+
+    if (!anchorInside || !focusInside) {
+      return false;
+    }
+
+    setInputValue(prev => (prev ? `${prev}\n\n${selectedText}` : selectedText));
+    selection.removeAllRanges();
+    inputRef.current?.focus();
+    return true;
+  }, [setInputValue]);
+
   // Auto-scroll to bottom when messages change only if user is anchored
   useEffect(() => {
     if (!isUserAnchoredBottom) {
@@ -127,11 +166,27 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       if (e.key === 'Escape') {
         onClose();
       }
+
+      const isModifierPressed = e.shiftKey || e.metaKey || e.ctrlKey || e.altKey;
+      if (e.key === 'Enter' && !isModifierPressed) {
+        const target = e.target as HTMLElement | null;
+        if (target) {
+          const isInputTarget = target.tagName === 'TEXTAREA' || target.closest('textarea') || target.isContentEditable;
+          if (isInputTarget) {
+            return;
+          }
+        }
+
+        const added = appendSelectionToContext();
+        if (added) {
+          e.preventDefault();
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, appendSelectionToContext]);
 
   useEffect(() => {
     positionRef.current = windowPosition;
