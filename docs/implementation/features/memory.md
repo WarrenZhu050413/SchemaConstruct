@@ -68510,3 +68510,10 @@ await registration.pushManager.subscribe(options);
 **Production-Ready**: 432+ (427 + 5 Production: getUserMedia ~95%, MediaRecorder ~90%, getDisplayMedia ~90%, WebRTC ~95%, Media Session ~90%)
 **Limited Support**: 181+ (178 + 3 Limited: Picture-in-Picture ~85%, Image Capture Chromium-only, WebCodecs ~80%)
 **Standards**: W3C Media Capture CR Draft Sep 2025, W3C MediaStream Recording Mar 2025 (MDN Aug 2025), W3C Screen Capture, W3C WebRTC (OpenAI Realtime API 2025), Picture-in-Picture (Document PiP), W3C Media Session (MDN Jul 2025), Image Capture (MDN Feb 2025), WebCodecs (May 2025 support)
+
+## Test Recovery Log (2025-10-08)
+
+### Keyboard Shortcuts Spec
+- Problem: Playwright shortcut tests queried legacy container IDs (`nabokov-selector-container`, `nabokov-inline-chat-container`), so they could not detect the shadow DOM overlays that the current content script mounts under `nabokov-clipper-root` and `nabokov-inline-chat-root` after receiving ACTIVATE_SELECTOR / OPEN_INLINE_CHAT messages.
+- Fix: Updated the spec to assert against the live IDs used by the content script so the tests verify the real overlay without breaking other suites that rely on the existing IDs.
+- Status: ✅ Playwright `keyboard-shortcuts.spec.ts` now passes locally.

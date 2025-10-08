@@ -95,7 +95,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(2000);
 
       // Check if Shadow DOM container exists
-      const hasShadowRoot = await waitForShadowRoot(page, 'nabokov-selector-container');
+      const hasShadowRoot = await waitForShadowRoot(page, 'nabokov-clipper-root');
       expect(hasShadowRoot).toBe(true);
 
       console.log('[Test] ✅ Element selector activated in stash mode');
@@ -116,7 +116,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(2000);
 
       const shadowContent = await page.evaluate(() => {
-        const container = document.querySelector('#nabokov-selector-container');
+        const container = document.querySelector('#nabokov-clipper-root');
         if (!container || !container.shadowRoot) return '';
         return container.shadowRoot.textContent || '';
       });
@@ -141,7 +141,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
 
       await page.waitForTimeout(1500);
 
-      const hasShadowBefore = await waitForShadowRoot(page, 'nabokov-selector-container');
+      const hasShadowBefore = await waitForShadowRoot(page, 'nabokov-clipper-root');
       expect(hasShadowBefore).toBe(true);
 
       // Press ESC to close
@@ -149,7 +149,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(500);
 
       const hasShadowAfter = await page.evaluate(() => {
-        return document.querySelector('#nabokov-selector-container') !== null;
+        return document.querySelector('#nabokov-clipper-root') !== null;
       });
 
       expect(hasShadowAfter).toBe(false);
@@ -174,7 +174,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(2000);
 
       const hasChatContainer = await page.evaluate(() => {
-        const container = document.querySelector('#nabokov-inline-chat-container');
+        const container = document.querySelector('#nabokov-inline-chat-root');
         return container !== null && container.shadowRoot !== null;
       });
 
@@ -196,7 +196,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(2000);
 
       const hasInputField = await page.evaluate(() => {
-        const container = document.querySelector('#nabokov-inline-chat-container');
+        const container = document.querySelector('#nabokov-inline-chat-root');
         if (!container || !container.shadowRoot) return false;
 
         const input = container.shadowRoot.querySelector('input, textarea');
@@ -222,7 +222,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(1500);
 
       const openedFirst = await page.evaluate(() => {
-        return document.querySelector('#nabokov-inline-chat-container') !== null;
+        return document.querySelector('#nabokov-inline-chat-root') !== null;
       });
 
       expect(openedFirst).toBe(true);
@@ -236,7 +236,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(500);
 
       const closedAfter = await page.evaluate(() => {
-        return document.querySelector('#nabokov-inline-chat-container') === null;
+        return document.querySelector('#nabokov-inline-chat-root') === null;
       });
 
       expect(closedAfter).toBe(true);
@@ -263,7 +263,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
 
       await page.waitForTimeout(2000);
 
-      const hasShadowRoot = await waitForShadowRoot(page, 'nabokov-selector-container');
+      const hasShadowRoot = await waitForShadowRoot(page, 'nabokov-clipper-root');
       expect(hasShadowRoot).toBe(true);
 
       console.log('[Test] ✅ Element selector activated in canvas mode');
@@ -284,7 +284,7 @@ test.describe('Keyboard Shortcuts - Content Script Handlers', () => {
       await page.waitForTimeout(2000);
 
       const shadowContent = await page.evaluate(() => {
-        const container = document.querySelector('#nabokov-selector-container');
+        const container = document.querySelector('#nabokov-clipper-root');
         if (!container || !container.shadowRoot) return '';
         return container.shadowRoot.textContent || '';
       });
