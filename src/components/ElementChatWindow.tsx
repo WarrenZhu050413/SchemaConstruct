@@ -6,7 +6,7 @@
  * Automatically saves conversation history and window state.
  */
 
-import { css } from '@emotion/react';
+import { css, keyframes } from '@emotion/react';
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import type { ElementChatSession, ChatMessage, CollapseState } from '@/types/elementChat';
@@ -24,6 +24,8 @@ type DuplicateTestConfig = {
   persist?: boolean;
   duplicate?: boolean;
 };
+
+type SquareState = 'processing' | 'queued' | 'idle' | 'empty';
 
 let forceDevLogsFlag = false;
 let duplicateTestConfig: DuplicateTestConfig | boolean | null = null;
@@ -558,6 +560,28 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
 
   // Calculate header-only height (header padding + content + border)
   const headerOnlyHeight = 44; // 10px top + 10px bottom padding + ~20px content + 4px border
+
+  const queuedCount = messageQueue.length;
+  const squareState: SquareState = isStreaming
+    ? 'processing'
+    : queuedCount > 0
+      ? 'queued'
+      : hasHistory
+        ? 'idle'
+        : 'empty';
+
+  const squareStatusLabel = useMemo(() => {
+    switch (squareState) {
+      case 'processing':
+        return 'Processing…';
+      case 'queued':
+        return queuedCount === 1 ? '1 queued' : `${queuedCount} queued`;
+      case 'idle':
+        return messages.length === 1 ? '1 message' : `${messages.length} messages`;
+      default:
+        return 'Start chat';
+    }
+  }, [squareState, queuedCount, messages.length]);
 
   const updateHostMetadata = useCallback(() => {
     const host = hostElementRef.current;
@@ -1769,14 +1793,15 @@ const processQueue = useCallback(async () => {
       >
         {isSquareCollapsed ? (
           <button
-            css={squareToggleButtonStyles(hasHistory)}
+            css={squareToggleButtonStyles(squareState)}
             onClick={() => setCollapseState('expanded')}
             title="Expand chat"
             type="button"
             data-test-id="square-expand-toggle"
+            data-square-state={squareState}
           >
-            <span css={squareIconStyles}>💬</span>
-            {hasHistory && <span css={squareBadgeStyles}>{messages.length}</span>}
+            <span css={squareIconStyles(squareState)}>💬</span>
+            <span css={squareStatusStyles(squareState)}>{squareStatusLabel}</span>
           </button>
         ) : (
           <>
@@ -2211,47 +2236,86 @@ const containerStyles = (collapseState: CollapseState, isStreaming: boolean) => 
   overflow: ${collapseState === 'expanded' ? 'visible' : 'hidden'};
 `;
 
-const squareToggleButtonStyles = (hasHistory: boolean) => css`
+const SQUARE_STATE_STYLES: Record<SquareState, { background: string; hover: string; boxShadow: string; iconColor: string; statusColor: string; }> = {
+  processing: {
+    background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.32), rgba(255, 239, 184, 0.2))',
+    hover: 'linear-gradient(135deg, rgba(255, 215, 0, 0.42), rgba(255, 239, 184, 0.28))',
+    boxShadow: '0 0 0 2px rgba(255, 215, 0, 0.45)',
+    iconColor: '#FFD700',
+    statusColor: '#FFF8DC'
+  },
+  queued: {
+    background: 'linear-gradient(135deg, rgba(178, 34, 34, 0.45), rgba(255, 215, 0, 0.18))',
+    hover: 'linear-gradient(135deg, rgba(178, 34, 34, 0.55), rgba(255, 215, 0, 0.26))',
+    boxShadow: '0 0 0 2px rgba(178, 34, 34, 0.45)',
+    iconColor: '#FFF5F2',
+    statusColor: '#FFF5F2'
+  },
+  idle: {
+    background: 'rgba(255, 255, 255, 0.18)',
+    hover: 'rgba(255, 255, 255, 0.26)',
+    boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.18)',
+    iconColor: ELEMENT_CHAT_THEME.iconColor,
+    statusColor: '#FFF5F2'
+  },
+  empty: {
+    background: 'rgba(255, 255, 255, 0.08)',
+    hover: 'rgba(255, 255, 255, 0.14)',
+    boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
+    iconColor: 'rgba(255, 255, 255, 0.85)',
+    statusColor: 'rgba(255, 255, 255, 0.78)'
+  }
+};
+
+const squarePulse = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 215, 0, 0.25);
+    transform: scale(1.04);
+  }
+`;
+
+const squareToggleButtonStyles = (state: SquareState) => css`
   width: 100%;
   height: 100%;
   border: none;
-  border-radius: 6px;
-  background: ${hasHistory ? 'rgba(255, 255, 255, 0.14)' : 'rgba(255, 255, 255, 0.08)'};
+  border-radius: 12px;
+  background: ${SQUARE_STATE_STYLES[state].background};
   color: ${ELEMENT_CHAT_THEME.iconColor};
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   position: relative;
   cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  transition: all 0.25s ease;
+  box-shadow: ${SQUARE_STATE_STYLES[state].boxShadow};
+  animation: ${state === 'processing' ? `${squarePulse} 1.6s ease-in-out infinite` : 'none'};
 
   &:hover {
-    background: rgba(255, 255, 255, 0.22);
+    background: ${SQUARE_STATE_STYLES[state].hover};
     transform: translateY(-1px);
   }
 `;
 
-const squareIconStyles = css`
-  font-size: 26px;
+const squareIconStyles = (state: SquareState) => css`
+  font-size: 28px;
+  color: ${SQUARE_STATE_STYLES[state].iconColor};
+  transition: color 0.2s ease;
 `;
 
-const squareBadgeStyles = css`
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: ${ELEMENT_CHAT_THEME.containerAccent};
-  color: #fff;
-  font-size: 11px;
+const squareStatusStyles = (state: SquareState) => css`
+  font-size: 12px;
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(139, 0, 0, 0.35);
+  line-height: 1.2;
+  text-align: center;
+  color: ${SQUARE_STATE_STYLES[state].statusColor};
+  text-transform: ${state === 'empty' ? 'none' : 'uppercase'};
+  letter-spacing: ${state === 'empty' ? '0' : '0.35px'};
 `;
 
 const headerStyles = css`

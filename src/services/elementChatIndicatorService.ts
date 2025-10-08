@@ -29,6 +29,11 @@ let mutationObserver: MutationObserver | null = null;
 let rafHandle: number | null = null;
 let initialized = false;
 
+// Persistence note:
+// Element chat sessions are stored via elementChatService using chrome.storage.local.
+// On startup the content script loads those sessions and calls syncIndicatorsForSessions,
+// which recreates the indicator DOM nodes so the badges/squares survive page reloads.
+
 const scheduleRefresh = () => {
   if (rafHandle !== null) {
     return;
