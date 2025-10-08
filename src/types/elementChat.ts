@@ -40,6 +40,7 @@ export interface ChatWindowState {
   anchorOffset?: { x: number; y: number };
   queueExpanded?: boolean;
   clearPreviousAssistant?: boolean;
+  activeAnchorKey?: string;
   activeAnchorChatId?: string;
 
   // Legacy support (deprecated, for migration only)

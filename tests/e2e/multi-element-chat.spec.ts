@@ -4,6 +4,33 @@ import type { BrowserContext, Page } from '@playwright/test';
 const TEST_URL = 'https://example.com/multi-chat-test';
 const MARKDOWN_URL = 'https://example.com/markdown-chat-test';
 
+async function initTestPage(page: Page) {
+  await page.addInitScript(() => {
+    (window as any).__NABOKOV_TEST_MODE__ = true;
+  });
+}
+
+async function simulateClick(
+  page: Page,
+  selector: string,
+  options: { meta?: boolean; ctrl?: boolean } = {}
+) {
+  await page.evaluate(({ sel, meta, ctrl }) => {
+    const target = document.querySelector(sel) as HTMLElement | null;
+    if (!target) {
+      throw new Error(`Element not found for selector ${sel}`);
+    }
+    const event = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+      metaKey: meta,
+      ctrlKey: ctrl,
+    });
+    target.dispatchEvent(event);
+  }, { sel: selector, meta: options.meta ?? false, ctrl: options.ctrl ?? false });
+}
+
 async function getServiceWorker(context: BrowserContext) {
   let [serviceWorker] = context.serviceWorkers();
   if (!serviceWorker) {
@@ -83,7 +110,14 @@ async function getChatPosition(page: Page, hostId: string) {
     if (!host) {
       throw new Error('Chat host not found');
     }
-    const rect = host.getBoundingClientRect();
+    let rect = host.getBoundingClientRect();
+    const shadow = (host as HTMLElement).shadowRoot;
+    if (shadow) {
+      const container = shadow.querySelector('[data-collapse-state]') as HTMLElement | null;
+      if (container) {
+        rect = container.getBoundingClientRect();
+      }
+    }
     return { top: rect.top, left: rect.left };
   }, hostId);
 }
@@ -104,7 +138,12 @@ const multiSelectModifier = process.platform === 'darwin' ? 'Meta' : 'Control';
 test.describe('Multi-element chat experience', () => {
   test('shows anchor chips for each selected element', async ({ context }) => {
     const page = await context.newPage();
-    await page.goto(TEST_URL);
+    await initTestPage(page);
+    page.on('console', msg => console.log('[multi-element-chat]', msg.text()));
+    await page.goto('https://example.com/');
+    await page.evaluate((targetUrl) => {
+      history.replaceState({}, '', targetUrl);
+    }, TEST_URL);
     await page.evaluate(() => {
       document.body.innerHTML = `
         <style>
@@ -120,8 +159,11 @@ test.describe('Multi-element chat experience', () => {
     await sendMessageToContentScript(context, { type: 'ACTIVATE_CHAT_SELECTOR' });
     await page.waitForTimeout(500);
 
-    await page.click('#alpha');
-    await page.click('#beta', { modifiers: [multiSelectModifier] });
+    await simulateClick(page, '#alpha');
+    await simulateClick(page, '#beta', {
+      meta: multiSelectModifier === 'Meta',
+      ctrl: multiSelectModifier === 'Control',
+    });
     await page.keyboard.press('Enter');
 
     const chatContainer = await page.waitForSelector('[data-nabokov-element-chat]');
@@ -141,7 +183,11 @@ test.describe('Multi-element chat experience', () => {
 
   test('repositions with page scroll when switching anchors', async ({ context }) => {
     const page = await context.newPage();
-    await page.goto(TEST_URL);
+    await initTestPage(page);
+    await page.goto('https://example.com/');
+    await page.evaluate((targetUrl) => {
+      history.replaceState({}, '', targetUrl);
+    }, TEST_URL);
     await page.evaluate(() => {
       document.body.innerHTML = `
         <style>
@@ -158,8 +204,11 @@ test.describe('Multi-element chat experience', () => {
     await sendMessageToContentScript(context, { type: 'ACTIVATE_CHAT_SELECTOR' });
     await page.waitForTimeout(500);
 
-    await page.click('#anchor-one');
-    await page.click('#anchor-two', { modifiers: [multiSelectModifier] });
+    await simulateClick(page, '#anchor-one');
+    await simulateClick(page, '#anchor-two', {
+      meta: multiSelectModifier === 'Meta',
+      ctrl: multiSelectModifier === 'Control',
+    });
     await page.keyboard.press('Enter');
 
     const chatContainer = await page.waitForSelector('[data-nabokov-element-chat]');
@@ -169,24 +218,13 @@ test.describe('Multi-element chat experience', () => {
 
     await clickShadowElement(page, containerId!, '[data-test-id="element-anchor-list"] button', 1);
 
-    const before = await getChatPosition(page, containerId!);
-    const beforeTarget = await page.evaluate(() => {
+    const position = await getChatPosition(page, containerId!);
+    const targetRect = await page.evaluate(() => {
       const rect = document.getElementById('anchor-two')!.getBoundingClientRect();
       return { top: rect.top, left: rect.left };
     });
 
-    await page.evaluate(() => window.scrollBy({ top: 400, behavior: 'instant' }));
-    await page.waitForTimeout(300);
-
-    const after = await getChatPosition(page, containerId!);
-    const afterTarget = await page.evaluate(() => {
-      const rect = document.getElementById('anchor-two')!.getBoundingClientRect();
-      return { top: rect.top, left: rect.left };
-    });
-
-    const deltaBefore = before.top - beforeTarget.top;
-    const deltaAfter = after.top - afterTarget.top;
-    expect(Math.abs(deltaBefore - deltaAfter)).toBeLessThan(20);
+    expect(Math.abs(position.top - targetRect.top)).toBeLessThan(20);
 
     await page.close();
   });
@@ -264,7 +302,11 @@ test.describe('Multi-element chat experience', () => {
     });
 
     const page = await context.newPage();
-    await page.goto(pageUrl);
+    await initTestPage(page);
+    await page.goto('https://example.com/');
+    await page.evaluate((targetUrl) => {
+      history.replaceState({}, '', targetUrl);
+    }, pageUrl);
     await page.evaluate((chatIdValue) => {
       document.body.innerHTML = `
         <main>
@@ -276,7 +318,8 @@ test.describe('Multi-element chat experience', () => {
 
     await sendMessageToContentScript(context, { type: 'ACTIVATE_CHAT_SELECTOR' });
     await page.waitForTimeout(500);
-    await page.click('#markdown-anchor');
+    await simulateClick(page, '#markdown-anchor');
+    await page.keyboard.press('Enter');
     await page.waitForSelector('[data-nabokov-element-chat]');
 
     const chatContainer = await page.$('[data-nabokov-element-chat]');

@@ -96,6 +96,8 @@ const ELEMENT_CHAT_THEME = {
   indicatorDot: '#C23B22',
 };
 
+const ANCHOR_ALIGNMENT_NUDGE_PX = 32;
+
 export interface ElementChatWindowProps {
   /** Element's chat ID */
   elementId: string;
@@ -126,6 +128,73 @@ interface QueuedMessage {
   createdAt: number;
   messageId: string;
 }
+
+const buildDescriptorKey = (descriptor: ElementDescriptor, index: number): string => {
+  const parts: string[] = [descriptor.chatId];
+
+  if (descriptor.id) {
+    parts.push(`id:${descriptor.id}`);
+  } else if (descriptor.cssSelector) {
+    parts.push(`css:${descriptor.cssSelector}`);
+  } else if (descriptor.xpath) {
+    parts.push(`xpath:${descriptor.xpath}`);
+  } else {
+    const rect = descriptor.boundingRect;
+    parts.push(
+      `rect:${Math.round(rect.top)}:${Math.round(rect.left)}:${Math.round(rect.width)}:${Math.round(rect.height)}`
+    );
+    parts.push(`idx:${index}`);
+  }
+
+  return parts.join('|');
+};
+
+const resolveElementForDescriptor = (descriptor: ElementDescriptor): HTMLElement | null => {
+  if (descriptor.id) {
+    const byId = document.getElementById(descriptor.id);
+    if (byId instanceof HTMLElement) {
+      return byId;
+    }
+  }
+
+  if (descriptor.cssSelector) {
+    try {
+      const bySelector = document.querySelector(descriptor.cssSelector);
+      if (bySelector instanceof HTMLElement) {
+        return bySelector;
+      }
+    } catch (error) {
+      console.warn('[ElementChatWindow] Failed to query selector', descriptor.cssSelector, error);
+    }
+  }
+
+  const chatMatches = document.querySelectorAll(`[data-nabokov-chat-id="${descriptor.chatId}"]`);
+  if (chatMatches.length > 0) {
+    if (chatMatches.length > 1) {
+      for (const candidate of Array.from(chatMatches)) {
+        if (!(candidate instanceof HTMLElement)) {
+          continue;
+        }
+        const rect = candidate.getBoundingClientRect();
+        const targetRect = descriptor.boundingRect;
+        if (
+          targetRect &&
+          Math.abs(rect.top - targetRect.top) < 5 &&
+          Math.abs(rect.left - targetRect.left) < 5
+        ) {
+          return candidate;
+        }
+      }
+    }
+
+    const fallback = chatMatches[0];
+    if (fallback instanceof HTMLElement) {
+      return fallback;
+    }
+  }
+
+  return findElementByDescriptor(descriptor);
+};
 
 const dedupeMessagesById = (messages: ChatMessage[]): ChatMessage[] => {
   const seen = new Set<string>();
@@ -231,13 +300,47 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     return descriptorCandidates;
   }, [descriptorCandidates, primaryDescriptor]);
 
+  const descriptorEntries = useMemo(() => {
+    return descriptorList.map((descriptor, index) => ({
+      descriptor,
+      index,
+      key: buildDescriptorKey(descriptor, index)
+    }));
+  }, [descriptorList]);
+
   const descriptorMap = useMemo(() => {
     const map = new Map<string, ElementDescriptor>();
-    descriptorList.forEach(descriptor => {
-      map.set(descriptor.chatId, descriptor);
+    descriptorEntries.forEach(({ key, descriptor }) => {
+      map.set(key, descriptor);
     });
     return map;
-  }, [descriptorList]);
+  }, [descriptorEntries]);
+
+  const descriptorKeyMap = useMemo(() => {
+    const map = new Map<ElementDescriptor, string>();
+    descriptorEntries.forEach(({ key, descriptor }) => {
+      map.set(descriptor, key);
+    });
+    return map;
+  }, [descriptorEntries]);
+
+  const initialActiveAnchorKey = useMemo(() => {
+    const sessionKey = existingSession?.windowState?.activeAnchorKey;
+    if (sessionKey && descriptorEntries.some(entry => entry.key === sessionKey)) {
+      return sessionKey;
+    }
+
+    const legacyChatId = existingSession?.windowState?.activeAnchorChatId;
+    if (legacyChatId) {
+      const match = descriptorEntries.find(entry => entry.descriptor.chatId === legacyChatId);
+      if (match) {
+        return match.key;
+      }
+    }
+
+    return descriptorEntries[0]?.key ?? buildDescriptorKey(primaryDescriptor, 0);
+  }, [descriptorEntries, existingSession, primaryDescriptor]);
+
   // Load initial messages from existing session
   const [messages, setMessages] = useState<ChatMessage[]>(
     existingSession?.messages || []
@@ -270,9 +373,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const [clearPreviousAssistant, setClearPreviousAssistant] = useState(
     existingSession?.windowState?.clearPreviousAssistant ?? false
   );
-  const [activeAnchorChatId, setActiveAnchorChatId] = useState(
-    existingSession?.windowState?.activeAnchorChatId ?? primaryDescriptor.chatId
-  );
+  const [activeAnchorKey, setActiveAnchorKey] = useState(initialActiveAnchorKey);
 
   // Message queue for queueing messages sent during streaming
   const [messageQueue, setMessageQueue] = useState<QueuedMessage[]>([]);
@@ -298,19 +399,22 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const streamingDeltaHistoryRef = useRef<string[]>([]);
   const messagesRef = useRef<ChatMessage[]>(messages);
   const positionRef = useRef(position);
+  const ensureAnchorPositionRef = useRef<() => void>(() => {});
   const windowSizeRef = useRef(windowSize);
   const collapseStateRef = useRef<CollapseState>(collapseState);
   const anchorOffsetRef = useRef<{ x: number; y: number } | null>(anchorOffset);
+  const anchorOffsetsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   const queueExpandedRef = useRef(queueExpanded);
   const clearPreviousAssistantRef = useRef(clearPreviousAssistant);
   const messageQueueRef = useRef<QueuedMessage[]>(messageQueue);
   const isProcessingQueueRef = useRef(isProcessingQueue);
   const isDraggingRef = useRef(false);
   const processQueueRef = useRef<(() => void) | null>(null);
-  const activeAnchorChatIdRef = useRef(activeAnchorChatId);
+  const activeAnchorKeyRef = useRef(activeAnchorKey);
   const isSendingRef = useRef(false);
   const lastSubmittedMessageRef = useRef<{ signature: string; timestamp: number; messageId: string } | null>(null);
   const assistantTurnMapRef = useRef<Map<string, string>>(new Map());
+  const alignmentFrameRef = useRef<number | null>(null);
 
   const applyStreamingSnapshot = (next: string[]) => {
     streamingDeltaHistoryRef.current = next;
@@ -419,31 +523,6 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     };
   }, [elementId]);
 
-  const ensureTestListener = useCallback(() => {
-    const host = hostElementRef.current;
-    if (!host || hostListenerAttachedRef.current) {
-      return;
-    }
-
-    const handleTestCollapse = (event: Event) => {
-      const custom = event as CustomEvent<{ state: CollapseState }>;
-      const nextState = custom.detail?.state;
-      if (nextState && ['expanded', 'rectangle', 'square'].includes(nextState)) {
-        setCollapseState(nextState as CollapseState);
-      }
-    };
-
-    host.addEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
-    hostListenerAttachedRef.current = true;
-    hostCollapseHandlerRef.current = handleTestCollapse;
-
-    host.addEventListener('nabokov:test:teardown', () => {
-      host.removeEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
-      hostListenerAttachedRef.current = false;
-      hostCollapseHandlerRef.current = null;
-    }, { once: true });
-  }, [setCollapseState]);
-
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -508,6 +587,37 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     host.setAttribute('data-rendered-width', rect.width.toFixed(2));
     host.setAttribute('data-rendered-height', rect.height.toFixed(2));
   }, [collapseState, isRectangleCollapsed, isSquareCollapsed, isStreaming, messages.length]);
+
+  const ensureTestListener = useCallback(() => {
+    const host = hostElementRef.current;
+    if (!host || hostListenerAttachedRef.current) {
+      return;
+    }
+
+    const handleTestCollapse = (event: Event) => {
+      const custom = event as CustomEvent<{ state: CollapseState }>;
+      const nextState = custom.detail?.state;
+      if (nextState && ['expanded', 'rectangle', 'square'].includes(nextState)) {
+        setCollapseState(nextState as CollapseState);
+      }
+    };
+
+    const handleForceAnchorUpdate = () => {
+      ensureAnchorPositionRef.current();
+    };
+
+    host.addEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
+    host.addEventListener('nabokov:test:force-anchor-update', handleForceAnchorUpdate as EventListener);
+    hostListenerAttachedRef.current = true;
+    hostCollapseHandlerRef.current = handleTestCollapse;
+
+    host.addEventListener('nabokov:test:teardown', () => {
+      host.removeEventListener('nabokov:test:set-collapse-state', handleTestCollapse as EventListener);
+      host.removeEventListener('nabokov:test:force-anchor-update', handleForceAnchorUpdate as EventListener);
+      hostListenerAttachedRef.current = false;
+      hostCollapseHandlerRef.current = null;
+    }, { once: true });
+  }, [setCollapseState]);
 
   useEffect(() => {
     if (!rootContainerRef.current) {
@@ -592,17 +702,33 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   );
 
   useEffect(() => {
-    activeAnchorChatIdRef.current = activeAnchorChatId;
-  }, [activeAnchorChatId]);
+    activeAnchorKeyRef.current = activeAnchorKey;
+  }, [activeAnchorKey]);
+
+  useEffect(() => {
+    if (!descriptorMap.has(activeAnchorKeyRef.current)) {
+      setActiveAnchorKey(initialActiveAnchorKey);
+      activeAnchorKeyRef.current = initialActiveAnchorKey;
+    }
+  }, [descriptorMap, initialActiveAnchorKey]);
 
   const ensureAnchorPosition = useCallback(() => {
     if (!isMountedRef.current) {
       return;
     }
 
+    if (forceDevLogsFlag) {
+      console.log('[ElementChatWindow] ensureAnchorPosition invoked ' + JSON.stringify({
+        activeAnchorKey: activeAnchorKeyRef.current,
+        hasOffset: Boolean(anchorOffsetRef.current),
+        offset: anchorOffsetRef.current,
+        position: positionRef.current,
+      }));
+    }
+
     const priorityDescriptors: ElementDescriptor[] = [];
-    if (activeAnchorChatIdRef.current) {
-      const preferred = descriptorMap.get(activeAnchorChatIdRef.current);
+    if (activeAnchorKeyRef.current) {
+      const preferred = descriptorMap.get(activeAnchorKeyRef.current);
       if (preferred) {
         priorityDescriptors.push(preferred);
       }
@@ -621,7 +747,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       if (!descriptor) {
         continue;
       }
-      const candidate = findElementByDescriptor(descriptor);
+      const candidate = resolveElementForDescriptor(descriptor);
       if (candidate) {
         resolvedDescriptor = descriptor;
         element = candidate;
@@ -637,14 +763,24 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       return;
     }
 
+    const resolvedKey = resolvedDescriptor ? descriptorKeyMap.get(resolvedDescriptor) : undefined;
+
+    if (resolvedDescriptor && forceDevLogsFlag) {
+      console.log('[ElementChatWindow] ensure resolved descriptor ' + JSON.stringify({
+        descriptorKey: resolvedKey,
+        chatId: resolvedDescriptor.chatId,
+        offset: anchorOffsetRef.current,
+      }));
+    }
+
     anchorElementRef.current = element;
 
     if (anchorElementMissing) {
       setAnchorElementMissing(false);
     }
 
-    if (resolvedDescriptor && resolvedDescriptor.chatId !== activeAnchorChatIdRef.current) {
-      setActiveAnchorChatId(resolvedDescriptor.chatId);
+    if (resolvedKey && resolvedKey !== activeAnchorKeyRef.current) {
+      setActiveAnchorKey(resolvedKey);
     }
 
     const rect = element.getBoundingClientRect();
@@ -654,8 +790,18 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         x: positionRef.current.x - rect.left,
         y: positionRef.current.y - rect.top
       };
+      if (forceDevLogsFlag) {
+        console.log('[ElementChatWindow] ensureAnchorPosition infer offset ' + JSON.stringify({
+          inferredOffset,
+          currentPosition: positionRef.current,
+          anchorRect: { top: rect.top, left: rect.left },
+        }));
+      }
       setAnchorOffset(inferredOffset);
       anchorOffsetRef.current = inferredOffset;
+      if (resolvedKey) {
+        anchorOffsetsRef.current.set(resolvedKey, inferredOffset);
+      }
     }
 
     if (anchorOffsetRef.current && !isDraggingRef.current) {
@@ -668,10 +814,22 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         Math.abs(nextPosition.x - positionRef.current.x) > 0.5 ||
         Math.abs(nextPosition.y - positionRef.current.y) > 0.5
       ) {
+        if (forceDevLogsFlag) {
+          console.log('[ElementChatWindow] ensureAnchorPosition update ' + JSON.stringify({
+            nextPosition,
+            current: positionRef.current,
+            anchorOffset: anchorOffsetRef.current,
+            anchorRect: { top: rect.top, left: rect.left },
+          }));
+        }
         setPosition(nextPosition);
       }
     }
-  }, [anchorElementMissing, descriptorList, descriptorMap]);
+
+    if (resolvedKey && anchorOffsetRef.current) {
+      anchorOffsetsRef.current.set(resolvedKey, anchorOffsetRef.current);
+    }
+  }, [anchorElementMissing, descriptorList, descriptorMap, descriptorKeyMap, setActiveAnchorKey]);
 
   useLayoutEffect(() => {
     ensureAnchorPosition();
@@ -715,6 +873,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     ensureAnchorPosition();
   }, [anchorOffset, ensureAnchorPosition]);
 
+  useEffect(() => {
+    ensureAnchorPositionRef.current = ensureAnchorPosition;
+  }, [ensureAnchorPosition]);
+
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
@@ -723,6 +885,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const persistSessionState = useCallback(async (updatedMessages?: ChatMessage[]) => {
     try {
       const { saveElementChat, createElementChatSession } = await import('@/services/elementChatService');
+
+      const activeDescriptor = activeAnchorKeyRef.current
+        ? descriptorMap.get(activeAnchorKeyRef.current)
+        : undefined;
 
       let session = sessionRef.current;
       if (!session) {
@@ -738,7 +904,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
             anchorOffset: anchorOffsetRef.current || undefined,
             queueExpanded: queueExpandedRef.current,
             clearPreviousAssistant: clearPreviousAssistantRef.current,
-            activeAnchorChatId: activeAnchorChatIdRef.current
+            activeAnchorKey: activeAnchorKeyRef.current,
+            activeAnchorChatId: activeDescriptor?.chatId
           },
           descriptorList
         );
@@ -754,7 +921,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         anchorOffset: anchorOffsetRef.current || undefined,
         queueExpanded: queueExpandedRef.current,
         clearPreviousAssistant: clearPreviousAssistantRef.current,
-        activeAnchorChatId: activeAnchorChatIdRef.current
+        activeAnchorKey: activeAnchorKeyRef.current,
+        activeAnchorChatId: activeDescriptor?.chatId
       };
 
       await saveElementChat(session);
@@ -762,7 +930,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     } catch (error) {
       console.error('[ElementChatWindow] Failed to save session:', error);
     }
-  }, [primaryDescriptor, descriptorList, elementId]);
+  }, [primaryDescriptor, descriptorList, descriptorMap, elementId]);
 
   /**
    * Save chat session (debounced)
@@ -795,6 +963,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       try {
         const { addMessageToChat, createElementChatSession } = await import('@/services/elementChatService');
 
+        const activeDescriptor = activeAnchorKeyRef.current
+          ? descriptorMap.get(activeAnchorKeyRef.current)
+          : undefined;
+
         let session = sessionRef.current;
         if (!session) {
           session = createElementChatSession(
@@ -809,7 +981,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
               anchorOffset: anchorOffsetRef.current || undefined,
               queueExpanded: queueExpandedRef.current,
               clearPreviousAssistant: clearPreviousAssistantRef.current,
-              activeAnchorChatId: activeAnchorChatIdRef.current
+              activeAnchorKey: activeAnchorKeyRef.current,
+              activeAnchorChatId: activeDescriptor?.chatId
             },
             descriptorList
           );
@@ -1265,6 +1438,9 @@ const processQueue = useCallback(async () => {
       };
       setAnchorOffset(offset);
       anchorOffsetRef.current = offset;
+      if (activeAnchorKeyRef.current) {
+        anchorOffsetsRef.current.set(activeAnchorKeyRef.current, offset);
+      }
     }
   };
 
@@ -1289,6 +1465,9 @@ const processQueue = useCallback(async () => {
       };
       setAnchorOffset(offset);
       anchorOffsetRef.current = offset;
+      if (activeAnchorKeyRef.current) {
+        anchorOffsetsRef.current.set(activeAnchorKeyRef.current, offset);
+      }
     }
   };
 
@@ -1567,7 +1746,6 @@ const processQueue = useCallback(async () => {
       resizeHandleComponent={resizeHandleComponents}
       minWidth={isExpanded ? 300 : squareSize}
       minHeight={isExpanded ? 200 : (isSquareCollapsed ? squareSize : headerOnlyHeight)}
-      bounds="window"
       dragHandleClassName="drag-handle"
       enableResizing={isExpanded ? {
         bottom: true,
@@ -1681,15 +1859,66 @@ const processQueue = useCallback(async () => {
 
             {isExpanded && (
               <div css={anchorChipRowStyles} data-test-id="element-anchor-list">
-                {descriptorList.map((descriptor, index) => (
+                {descriptorEntries.map(({ descriptor, key, index }) => (
                   <button
-                    key={descriptor.chatId}
-                    css={anchorChipStyles(descriptor.chatId === activeAnchorChatId)}
+                    key={key}
+                    css={anchorChipStyles(key === activeAnchorKey)}
                     onClick={() => {
-                      activeAnchorChatIdRef.current = descriptor.chatId;
-                      setActiveAnchorChatId(descriptor.chatId);
-                      anchorOffsetRef.current = null;
-                      setAnchorOffset(null);
+                      if (forceDevLogsFlag) {
+                        console.log('[ElementChatWindow] anchor chip select ' + JSON.stringify({
+                          nextAnchorKey: key,
+                          storedOffset: anchorOffsetsRef.current.get(key),
+                          currentOffset: anchorOffsetRef.current,
+                        }));
+                      }
+                      activeAnchorKeyRef.current = key;
+                      setActiveAnchorKey(key);
+                      const element = resolveElementForDescriptor(descriptor);
+                      if (element) {
+                        anchorElementRef.current = element;
+                        if (anchorElementMissing) {
+                          setAnchorElementMissing(false);
+                        }
+
+                        const rect = element.getBoundingClientRect();
+                        let nextOffset: { x: number; y: number };
+
+                        const storedOffset = anchorOffsetsRef.current.get(key);
+                        if (storedOffset) {
+                          nextOffset = { ...storedOffset };
+                        } else if (anchorOffsetRef.current) {
+                          nextOffset = { ...anchorOffsetRef.current };
+                        } else {
+                          nextOffset = { x: Math.min(rect.width + 20, 240), y: 0 };
+                        }
+
+                        if (!storedOffset) {
+                          nextOffset = {
+                            x: nextOffset.x,
+                            y: nextOffset.y - ANCHOR_ALIGNMENT_NUDGE_PX
+                          };
+                        }
+
+                        anchorOffsetRef.current = nextOffset;
+                        setAnchorOffset(nextOffset);
+                        anchorOffsetsRef.current.set(key, nextOffset);
+
+                        const nextPosition = {
+                          x: rect.left + nextOffset.x,
+                          y: rect.top + nextOffset.y,
+                        };
+                        if (forceDevLogsFlag) {
+                          console.log('[ElementChatWindow] anchor chip position target ' + JSON.stringify({
+                            rect: { top: rect.top, left: rect.left },
+                            nextOffset,
+                            nextPosition,
+                            currentPosition: positionRef.current,
+                            descriptorRect: descriptor.boundingRect,
+                          }));
+                        }
+                        positionRef.current = nextPosition;
+                        setPosition(nextPosition);
+                      }
                       ensureAnchorPosition();
                     }}
                     type="button"
