@@ -342,13 +342,23 @@ export function useCanvasState(): UseCanvasStateReturn {
    */
   const saveViewport = async (newViewport: Viewport) => {
     try {
-      // Load current canvas state
-      const result = await chrome.storage.local.get(STORAGE_KEY);
-      const canvasState: CanvasState = result[STORAGE_KEY] || { cards: [], viewportPosition: { x: 0, y: 0, zoom: 1 } };
+      // Load current canvas state and cards so we persist both
+      const [stateResult, cardsResult] = await Promise.all([
+        chrome.storage.local.get(STORAGE_KEY),
+        chrome.storage.local.get(CARDS_KEY),
+      ]);
 
-      // Update viewport position
+      const canvasState: CanvasState = stateResult[STORAGE_KEY] || {
+        cards: [],
+        viewportPosition: { x: 0, y: 0, zoom: 1 },
+      };
+
+      const storedCards: Card[] = cardsResult[CARDS_KEY] || [];
+
+      // Update viewport position and cards snapshot
       const updatedCanvasState: CanvasState = {
         ...canvasState,
+        cards: storedCards,
         viewportPosition: newViewport,
       };
 

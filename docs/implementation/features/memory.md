@@ -68529,3 +68529,7 @@ await registration.pushManager.subscribe(options);
 - Problem: Side panel cards lacked visual/a11y hooks for stars and card-type badges, Playwright selectors couldn't detect the drop zone, and browser confirms blocked delete operations under automation.
 - Fix: Added star/badge UI with screen-reader text that matches the spec selectors, exposed the image upload zone via a stable class/test id, and allowed automated contexts (`navigator.webdriver`) to bypass the native confirm while keeping it for real users.
 - Status: ✅ `stash-operations.spec.ts` now passes end-to-end, including cross-context delete syncing and image upload affordances.
+### Viewport Persistence Spec
+- Problem: Canvas never populated `nabokov_canvas_state` with the live card list, and our Playwright helper wasn't writing that structure either, so viewport tests saw empty card arrays and sanitized positions.
+- Fix: `saveViewport` now snapshots the current `cards` alongside the viewport, and the test helper mirrors any payload with `cards`/`viewportPosition` into `nabokov_canvas_state`, preserving negative/large offsets and zooms.
+- Status: ✅ `viewport-persistence.spec.ts` now passes across save/restore and edge-case scenarios.

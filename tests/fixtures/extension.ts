@@ -21,6 +21,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const CANVAS_STATE_KEY = 'nabokov_canvas_state';
 
 type ExtensionFixtures = {
   context: BrowserContext;
@@ -289,14 +290,36 @@ export async function setExtensionStorage(
   await page.goto(`chrome-extension://${extensionId}/src/canvas/index.html`);
 
   await page.evaluate(
-    async (data) => {
-      return new Promise<void>((resolve) => {
-        chrome.storage.local.set(data, () => {
+    async ({ data, canvasStateKey }: { data: Record<string, unknown>; canvasStateKey: string }) => {
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        throw new Error('setExtensionStorage: items payload must be a plain object.');
+      }
+
+      const payload = { ...data } as Record<string, unknown>;
+      const hasViewport = Object.prototype.hasOwnProperty.call(payload, 'viewportPosition');
+      const hasCards = Object.prototype.hasOwnProperty.call(payload, 'cards');
+
+      if ((hasViewport || hasCards) && !Object.prototype.hasOwnProperty.call(payload, canvasStateKey)) {
+        payload[canvasStateKey] = {
+          cards: hasCards ? payload.cards : [],
+          viewportPosition: hasViewport
+            ? payload.viewportPosition
+            : { x: 0, y: 0, zoom: 1 },
+        };
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        chrome.storage.local.set(payload, () => {
+          const error = chrome.runtime.lastError;
+          if (error) {
+            reject(new Error(error.message));
+            return;
+          }
           resolve();
         });
       });
     },
-    items
+    { data: items as Record<string, unknown>, canvasStateKey: CANVAS_STATE_KEY }
   );
 
   await page.close();
