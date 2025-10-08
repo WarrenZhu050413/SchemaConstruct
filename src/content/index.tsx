@@ -955,9 +955,9 @@ async function handleTextSelectionChatWithHighlight(): Promise<void> {
     // Create highlight session
     const session = textHighlightService.createTextSelectionSession(selection);
     if (!session) {
-      console.warn('[content] Failed to create highlight session');
-      // Fall back to regular text chat without highlighting
-      await openTextContextChat(selectedText, selection);
+      console.warn('[content] Failed to create highlight session (overlap or serialization error)');
+      // Don't fall back - overlapping highlights should be prevented
+      // If there's a legitimate error, user can try again
       return;
     }
 

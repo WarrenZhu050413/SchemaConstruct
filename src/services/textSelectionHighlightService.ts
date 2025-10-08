@@ -44,12 +44,28 @@ export function createTextSelectionSession(
   selection: Selection,
   options: { allowOverlap?: boolean } = {}
 ): TextSelectionSession | null {
-  if (!selection.rangeCount) return null;
+  console.log('[TextHighlight] Creating session, rangeCount:', selection.rangeCount);
+
+  if (!selection.rangeCount) {
+    console.warn('[TextHighlight] No ranges in selection');
+    return null;
+  }
 
   const range = selection.getRangeAt(0);
   const selectedText = range.toString().trim();
 
-  if (!selectedText) return null;
+  console.log('[TextHighlight] Selected text:', selectedText.substring(0, 50));
+  console.log('[TextHighlight] Range:', {
+    startContainer: range.startContainer.nodeName,
+    endContainer: range.endContainer.nodeName,
+    startOffset: range.startOffset,
+    endOffset: range.endOffset
+  });
+
+  if (!selectedText) {
+    console.warn('[TextHighlight] Empty selected text');
+    return null;
+  }
 
   // Check for overlaps
   if (!options.allowOverlap) {
@@ -61,8 +77,14 @@ export function createTextSelectionSession(
   }
 
   // Serialize range for persistence
+  console.log('[TextHighlight] Serializing range...');
   const serialized = serializeRange(range);
-  if (!serialized) return null;
+  if (!serialized) {
+    console.warn('[TextHighlight] Failed to serialize range');
+    return null;
+  }
+
+  console.log('[TextHighlight] Serialized range:', serialized);
 
   const session: TextSelectionSession = {
     id: generateId(),
@@ -73,6 +95,7 @@ export function createTextSelectionSession(
   };
 
   sessions.set(session.id, session);
+  console.log('[TextHighlight] Session created:', session.id);
   return session;
 }
 
@@ -394,6 +417,28 @@ function getTextOffset(
   node: Node,
   offset: number
 ): number | null {
+  // Handle case where node is an Element (not Text)
+  // This happens when selecting entire element contents
+  let targetNode: Node = node;
+  let targetOffset = offset;
+
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    // If it's an element node, find the actual text node
+    console.log('[TextHighlight] Node is Element, converting to text node');
+    const element = node as Element;
+    if (offset < element.childNodes.length) {
+      targetNode = element.childNodes[offset];
+      targetOffset = 0;
+    } else if (element.childNodes.length > 0) {
+      // Use last child
+      targetNode = element.childNodes[element.childNodes.length - 1];
+      targetOffset = targetNode.textContent?.length || 0;
+    } else if (element.firstChild) {
+      targetNode = element.firstChild;
+      targetOffset = offset;
+    }
+  }
+
   // Walk the tree and count text characters
   const walker = document.createTreeWalker(
     root,
@@ -403,14 +448,20 @@ function getTextOffset(
 
   let totalOffset = 0;
   let currentNode: Text | null;
+  let nodeCount = 0;
 
   while (currentNode = walker.nextNode() as Text | null) {
-    if (currentNode === node) {
-      return totalOffset + offset;
+    nodeCount++;
+    if (currentNode === targetNode) {
+      console.log('[TextHighlight] Found node at offset:', totalOffset + targetOffset, 'after', nodeCount, 'nodes');
+      return totalOffset + targetOffset;
     }
     totalOffset += currentNode.textContent?.length || 0;
   }
 
+  console.warn('[TextHighlight] Could not find node in tree walker. Checked', nodeCount, 'nodes');
+  console.warn('[TextHighlight] Looking for:', targetNode.nodeName, targetNode.nodeValue?.substring(0, 20));
+  console.warn('[TextHighlight] Original node:', node.nodeName, 'offset:', offset);
   return null;
 }
 
