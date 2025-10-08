@@ -22,6 +22,7 @@ export const FontSizeSelector: React.FC = () => {
   return (
     <div style={styles.container} data-testid="font-size-selector">
       <button
+        type="button"
         onClick={() => handleSizeChange('small')}
         style={{
           ...styles.button,
@@ -29,10 +30,13 @@ export const FontSizeSelector: React.FC = () => {
         }}
         title="Small text"
         data-testid="font-size-small"
+        aria-pressed={fontSize === 'small'}
+        data-active={fontSize === 'small' ? 'true' : 'false'}
       >
         A⁻
       </button>
       <button
+        type="button"
         onClick={() => handleSizeChange('medium')}
         style={{
           ...styles.button,
@@ -40,10 +44,13 @@ export const FontSizeSelector: React.FC = () => {
         }}
         title="Medium text (default)"
         data-testid="font-size-medium"
+        aria-pressed={fontSize === 'medium'}
+        data-active={fontSize === 'medium' ? 'true' : 'false'}
       >
         A
       </button>
       <button
+        type="button"
         onClick={() => handleSizeChange('large')}
         style={{
           ...styles.button,
@@ -51,6 +58,8 @@ export const FontSizeSelector: React.FC = () => {
         }}
         title="Large text"
         data-testid="font-size-large"
+        aria-pressed={fontSize === 'large'}
+        data-active={fontSize === 'large' ? 'true' : 'false'}
       >
         A⁺
       </button>

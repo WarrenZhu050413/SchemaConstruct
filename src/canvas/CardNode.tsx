@@ -1092,6 +1092,7 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     overflowY: 'auto',
     overflowX: 'hidden',
     padding: '12px',
+    fontSize: fontSizeValues.content,
     // Custom scrollbar styling
     scrollbarWidth: 'thin', // Firefox
     scrollbarColor: 'rgba(139, 0, 0, 0.3) transparent', // Firefox

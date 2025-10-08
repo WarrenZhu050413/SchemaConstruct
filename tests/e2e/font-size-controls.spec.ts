@@ -36,14 +36,7 @@ test.describe('Font Size Controls', () => {
 
       // Check that medium button has active state
       const mediumBtn = await page.locator('[data-testid="font-size-medium"]');
-      const hasActiveStyle = await mediumBtn.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        const bgColor = style.backgroundColor;
-        // Active state should have gold gradient background
-        return bgColor.includes('rgb') && !bgColor.includes('255, 255, 255');
-      });
-
-      expect(hasActiveStyle).toBe(true);
+      await expect(mediumBtn).toHaveAttribute('data-active', 'true');
 
       await page.close();
     });
@@ -62,22 +55,14 @@ test.describe('Font Size Controls', () => {
       await page.waitForTimeout(500); // Wait for state update
 
       // Verify small is active
-      const smallActive = await smallBtn.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        return !style.backgroundColor.includes('255, 255, 255');
-      });
-      expect(smallActive).toBe(true);
+      await expect(smallBtn).toHaveAttribute('data-active', 'true');
 
       // Click large
       await largeBtn.click();
       await page.waitForTimeout(500);
 
       // Verify large is active
-      const largeActive = await largeBtn.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        return !style.backgroundColor.includes('255, 255, 255');
-      });
-      expect(largeActive).toBe(true);
+      await expect(largeBtn).toHaveAttribute('data-active', 'true');
 
       await page.close();
     });
@@ -98,11 +83,7 @@ test.describe('Font Size Controls', () => {
 
       // Verify large is still selected
       const largeBtnAfterReload = await page.locator('[data-testid="font-size-large"]');
-      const largeActive = await largeBtnAfterReload.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        return !style.backgroundColor.includes('255, 255, 255');
-      });
-      expect(largeActive).toBe(true);
+      await expect(largeBtnAfterReload).toHaveAttribute('data-active', 'true');
 
       await page.close();
     });
@@ -139,11 +120,7 @@ test.describe('Font Size Controls', () => {
 
       // Verify small is selected in side panel
       const sidePanelSmallBtn = await sidePanelPage.locator('[data-testid="font-size-small"]');
-      const smallActive = await sidePanelSmallBtn.evaluate((el) => {
-        const style = window.getComputedStyle(el);
-        return !style.backgroundColor.includes('255, 255, 255');
-      });
-      expect(smallActive).toBe(true);
+      await expect(sidePanelSmallBtn).toHaveAttribute('data-active', 'true');
 
       await canvasPage.close();
       await sidePanelPage.close();

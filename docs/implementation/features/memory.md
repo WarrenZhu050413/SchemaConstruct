@@ -68521,3 +68521,7 @@ await registration.pushManager.subscribe(options);
 - Problem: Canvas returned early when there were zero cards, so the drag/drop handlers and React Flow surface never mounted. Playwright looked for the drop zone and React Flow container and couldn't find either, causing three image-upload assertions to fail.
 - Fix: Refactored `CanvasInner` to always render the droppable container (with new `data-testid` hooks) and overlay the empty-state UX instead of returning early; added deterministic data-test IDs and simplified the Playwright spec to exercise the real drag/drop overlay and placeholders.
 - Status: ✅ `image-upload.spec.ts` now observes the drop zone, empty placeholder, and React Flow canvas in the rebuilt extension.
+### Font Size Controls Spec
+- Problem: Font selector buttons lacked persistent state markers, so reload/sync tests read the pre-load default and saw stale styles; cards also kept container font size at the default, so measured text size never changed.
+- Fix: Added accessible state markers (`aria-pressed`, `data-active`) to `FontSizeSelector`, taught tests to wait on those attributes, and propagated the chosen font size to the card content container to reflect size changes immediately after selection.
+- Status: ✅ `font-size-controls.spec.ts` now passes with persisted selection and visible size adjustments.
