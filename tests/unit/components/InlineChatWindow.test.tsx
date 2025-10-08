@@ -15,8 +15,18 @@ import type { PageContext } from '../../../src/services/pageContextCapture';
 import * as imageUpload from '../../../src/utils/imageUpload';
 
 // Mock dependencies
+const chatWithPageMock = vi.fn<
+  (...args: any[]) => AsyncGenerator<string, void, unknown>
+>();
+const sendMessageMock = vi.fn();
+
 vi.mock('../../../src/utils/imageUpload');
-vi.mock('../../../src/services/claudeAPIService');
+vi.mock('../../../src/services/claudeAPIService', () => ({
+  chatWithPage: chatWithPageMock,
+  claudeAPIService: {
+    sendMessage: sendMessageMock,
+  },
+}));
 
 // Mock chrome runtime
 const mockRuntime = {
@@ -47,10 +57,82 @@ describe('InlineChatWindow - Image Drop Support', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    chatWithPageMock.mockReset();
+    sendMessageMock.mockReset();
+    Element.prototype.scrollIntoView = vi.fn();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  describe('Auto-scroll behavior', () => {
+    const mockStream = async function* () {
+      yield 'partial';
+      yield 'complete';
+    };
+
+    it('auto-scrolls when user remains anchored at bottom', async () => {
+      chatWithPageMock.mockImplementation(mockStream);
+
+      const scrollMock = Element.prototype.scrollIntoView as unknown as ReturnType<typeof vi.fn>;
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      scrollMock.mockClear();
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      fireEvent.change(input, { target: { value: 'Hello there' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await waitFor(() => expect(chatWithPageMock).toHaveBeenCalled());
+      await waitFor(() => expect(scrollMock.mock.calls.length).toBeGreaterThan(0));
+    });
+
+    it('does not auto-scroll when user has scrolled up', async () => {
+      chatWithPageMock.mockImplementation(mockStream);
+
+      const scrollMock = Element.prototype.scrollIntoView as unknown as ReturnType<typeof vi.fn>;
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const container = screen.getByTestId('inline-chat-messages');
+
+      Object.defineProperty(container, 'scrollHeight', {
+        configurable: true,
+        value: 400,
+      });
+      Object.defineProperty(container, 'clientHeight', {
+        configurable: true,
+        value: 200,
+      });
+      Object.defineProperty(container, 'scrollTop', {
+        configurable: true,
+        writable: true,
+        value: 0,
+      });
+
+      fireEvent.scroll(container);
+
+      scrollMock.mockClear();
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      fireEvent.change(input, { target: { value: 'New question' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await waitFor(() => expect(chatWithPageMock).toHaveBeenCalled());
+      await waitFor(() => expect(scrollMock).not.toHaveBeenCalled());
+    });
   });
 
   describe('Image Validation', () => {
@@ -128,7 +210,7 @@ describe('InlineChatWindow - Image Drop Support', () => {
       );
 
       // Should render the window
-      expect(screen.getByText(/chat with page/i)).toBeDefined();
+      expect(screen.getByText(/chat with (this )?page/i)).toBeDefined();
     });
 
     it('should show window controls', () => {

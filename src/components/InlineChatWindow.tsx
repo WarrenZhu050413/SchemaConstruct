@@ -79,6 +79,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const activeAnchorIndexRef = useRef(0);
   const isDraggingWindowRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
 
   // Determine context type
   const isElement = isElementContext(initialContext);
@@ -86,10 +88,33 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     ? `<${initialContext.element.tagName}>${initialContext.element.id ? `#${initialContext.element.id}` : ''}`
     : initialContext.title;
 
-  // Auto-scroll to bottom when messages change
+  const isContainerAtBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) {
+      return true;
+    }
+
+    const { scrollHeight, scrollTop, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    return distanceFromBottom <= 16;
+  }, []);
+
+  const handleMessagesScroll = useCallback(() => {
+    setIsUserAnchoredBottom(isContainerAtBottom());
+  }, [isContainerAtBottom]);
+
+  // Auto-scroll to bottom when messages change only if user is anchored
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingContent]);
+    if (!isUserAnchoredBottom) {
+      return;
+    }
+
+    const raf = requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [messages, streamingContent, isUserAnchoredBottom]);
 
   // Focus input on mount
   useEffect(() => {
@@ -596,7 +621,12 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                 </div>
               </div>
             )}
-            <div css={messagesContainerStyles}>
+            <div
+              css={messagesContainerStyles}
+              ref={messagesContainerRef}
+              onScroll={handleMessagesScroll}
+              data-testid="inline-chat-messages"
+            >
               {messages.length === 0 ? (
                 <div css={emptyStateStyles}>
                   <div css={emptyIconStyles}>{isElement ? '🎯' : '💬'}</div>
