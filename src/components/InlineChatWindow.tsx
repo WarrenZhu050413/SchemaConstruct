@@ -12,6 +12,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
 type MessageStatus = 'queued' | 'processing' | 'complete' | 'error';
+type CompletionState = 'idle' | 'success' | 'error';
 
 interface Message {
   id: string;
@@ -82,6 +83,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const [anchorOffset, setAnchorOffset] = useState<{ x: number; y: number } | null>(null);
   const [activeAnchorIndex, setActiveAnchorIndex] = useState(0);
   const [anchorElementMissing, setAnchorElementMissing] = useState(false);
+  const [completionState, setCompletionState] = useState<CompletionState>('idle');
+  const [recentlyCompleted, setRecentlyCompleted] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<Message[]>(messages);
@@ -96,6 +99,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const isProcessingQueueRef = useRef(false);
   const wasDraggingRef = useRef(false);
   const dragClickTimeoutRef = useRef<number | null>(null);
+  const completionTimeoutRef = useRef<number | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
 
@@ -133,6 +137,10 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   }, [messages]);
 
   const displayQueueCount = Math.max(queueSize - (isStreaming ? 1 : 0), 0);
+  const showProcessingIndicator = isStreaming;
+  const showQueueIndicator = displayQueueCount > 0;
+  const showCompletionIndicator = !isStreaming && displayQueueCount === 0 && recentlyCompleted;
+  const showStatusIndicator = showProcessingIndicator || showQueueIndicator || showCompletionIndicator;
 
   const isContainerAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -222,6 +230,19 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     [updateMessages]
   );
 
+  const markCompletion = useCallback((state: CompletionState) => {
+    if (completionTimeoutRef.current) {
+      window.clearTimeout(completionTimeoutRef.current);
+    }
+    setCompletionState(state);
+    setRecentlyCompleted(true);
+    completionTimeoutRef.current = window.setTimeout(() => {
+      setRecentlyCompleted(false);
+      setCompletionState('idle');
+      completionTimeoutRef.current = null;
+    }, 3000);
+  }, []);
+
   const processQueue = useCallback(async () => {
     if (isProcessingQueueRef.current) {
       return;
@@ -234,6 +255,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
     isProcessingQueueRef.current = true;
     setIsStreaming(true);
+    setCompletionState('idle');
+    setRecentlyCompleted(false);
 
     const snapshot = messagesRef.current;
     const messageIndex = snapshot.findIndex(msg => msg.id === nextMessage.id);
@@ -283,6 +306,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         };
 
         insertAssistantAfter(nextMessage.id, assistantMessage);
+        markCompletion('success');
       } else {
         const { chatWithPage } = await import('@/services/claudeAPIService');
 
@@ -310,6 +334,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         };
 
         insertAssistantAfter(nextMessage.id, assistantMessage);
+        markCompletion('success');
       }
     } catch (error) {
       console.error('[InlineChatWindow] Error sending message:', error);
@@ -324,6 +349,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       };
 
       insertAssistantAfter(nextMessage.id, errorAssistantMessage, 'error');
+      markCompletion('error');
     } finally {
       messageQueueRef.current = messageQueueRef.current.slice(1);
       setQueueSize(messageQueueRef.current.length);
@@ -405,6 +431,9 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   useEffect(() => () => {
     if (dragClickTimeoutRef.current) {
       window.clearTimeout(dragClickTimeoutRef.current);
+    }
+    if (completionTimeoutRef.current) {
+      window.clearTimeout(completionTimeoutRef.current);
     }
   }, []);
 
@@ -764,6 +793,29 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
             </div>
           </div>
           <div css={headerActionsStyles}>
+            {showStatusIndicator && (
+              <div css={headerStatusGroupStyles}>
+                {showProcessingIndicator && (
+                  <span css={statusPillStyles('processing')} data-testid="status-pill-processing">
+                    <span css={statusSpinnerStyles} />
+                    Processing
+                  </span>
+                )}
+                {showQueueIndicator && (
+                  <span css={statusPillStyles('queued')} data-testid="status-pill-queued">
+                    {displayQueueCount === 1 ? '1 queued' : `${displayQueueCount} queued`}
+                  </span>
+                )}
+                {showCompletionIndicator && (
+                  <span
+                    css={statusPillStyles(completionState === 'error' ? 'error' : 'complete')}
+                    data-testid={completionState === 'error' ? 'status-pill-error' : 'status-pill-complete'}
+                  >
+                    {completionState === 'error' ? 'Error' : 'Done'}
+                  </span>
+                )}
+              </div>
+            )}
             <button
               css={headerButtonStyles}
               onClick={handleRecapture}
@@ -1015,6 +1067,65 @@ const iconStyles = css`
 const headerActionsStyles = css`
   display: flex;
   gap: 8px;
+`;
+
+type StatusKind = 'processing' | 'queued' | 'complete' | 'error';
+
+const headerStatusGroupStyles = css`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+`;
+
+const statusPillStyles = (kind: StatusKind) => css`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: ${kind === 'error' ? '#8B0000' : '#fff6f4'};
+  background: ${
+    kind === 'processing'
+      ? 'rgba(255, 215, 0, 0.28)'
+      : kind === 'queued'
+        ? 'rgba(255, 255, 255, 0.14)'
+        : kind === 'complete'
+          ? 'rgba(0, 168, 107, 0.28)'
+          : 'rgba(255, 240, 240, 0.9)'
+  };
+  border: ${
+    kind === 'processing'
+      ? '1px solid rgba(255, 215, 0, 0.45)'
+      : kind === 'queued'
+        ? '1px solid rgba(255, 255, 255, 0.22)'
+        : kind === 'complete'
+          ? '1px solid rgba(0, 168, 107, 0.4)'
+          : '1px solid rgba(139, 0, 0, 0.45)'
+  };
+`;
+
+const statusSpinnerStyles = css`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffd700;
+  animation: statusPulse 1s ease-in-out infinite;
+
+  @keyframes statusPulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(0.85);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
 `;
 
 const headerButtonStyles = css`

@@ -26,6 +26,7 @@ type DuplicateTestConfig = {
 };
 
 type SquareState = 'processing' | 'queued' | 'idle' | 'empty';
+type CompletionState = 'idle' | 'success' | 'error';
 
 let forceDevLogsFlag = false;
 let duplicateTestConfig: DuplicateTestConfig | boolean | null = null;
@@ -382,6 +383,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [activeQueuedId, setActiveQueuedId] = useState<string | null>(null);
   const [anchorElementMissing, setAnchorElementMissing] = useState(false);
+  const [completionState, setCompletionState] = useState<CompletionState>('idle');
+  const [recentlyCompleted, setRecentlyCompleted] = useState(false);
 
   // Image upload support
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -417,6 +420,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const lastSubmittedMessageRef = useRef<{ signature: string; timestamp: number; messageId: string } | null>(null);
   const assistantTurnMapRef = useRef<Map<string, string>>(new Map());
   const alignmentFrameRef = useRef<number | null>(null);
+  const completionTimeoutRef = useRef<number | null>(null);
 
   const applyStreamingSnapshot = (next: string[]) => {
     streamingDeltaHistoryRef.current = next;
@@ -493,6 +497,9 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       isMountedRef.current = false;
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
+      }
+      if (completionTimeoutRef.current) {
+        window.clearTimeout(completionTimeoutRef.current);
       }
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -583,6 +590,11 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     }
   }, [squareState, queuedCount, messages.length]);
 
+  const showProcessingIndicator = isStreaming;
+  const showQueueIndicator = messageQueue.length > 0;
+  const showCompletionIndicator = !isStreaming && messageQueue.length === 0 && recentlyCompleted;
+  const showStatusIndicator = showProcessingIndicator || showQueueIndicator || showCompletionIndicator;
+
   const updateHostMetadata = useCallback(() => {
     const host = hostElementRef.current;
     const container = rootContainerRef.current;
@@ -642,6 +654,19 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
       hostCollapseHandlerRef.current = null;
     }, { once: true });
   }, [setCollapseState]);
+
+  const markCompletion = useCallback((state: CompletionState) => {
+    if (completionTimeoutRef.current) {
+      window.clearTimeout(completionTimeoutRef.current);
+    }
+    setCompletionState(state);
+    setRecentlyCompleted(true);
+    completionTimeoutRef.current = window.setTimeout(() => {
+      setRecentlyCompleted(false);
+      setCompletionState('idle');
+      completionTimeoutRef.current = null;
+    }, 3000);
+  }, []);
 
   useEffect(() => {
     if (!rootContainerRef.current) {
@@ -1039,6 +1064,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         session.messages = newMessages;
         upsertIndicatorsForSession(session);
         setIsStreaming(true);
+        setCompletionState('idle');
+        setRecentlyCompleted(false);
 
         const { chatWithPage } = await import('@/services/claudeAPIService');
 
@@ -1255,6 +1282,8 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           (window as any).__NABOKOV_DEBUG_LAST_MESSAGES__ = finalMessages;
         }
 
+        markCompletion('success');
+
         if (isDevLoggingEnabled()) {
           const assistantCount = finalMessages.filter(message => message.role === 'assistant').length;
           console.debug('[ElementChatWindow] Assistant messages after update', { elementId, assistantCount });
@@ -1277,6 +1306,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           messagesRef.current = next;
           return next;
         });
+        markCompletion('error');
       } finally {
         isSendingRef.current = false;
         if (!isMountedRef.current) {
@@ -1815,6 +1845,26 @@ const processQueue = useCallback(async () => {
                 {hasHistory && <span css={messageCountStyles}>{messages.length}</span>}
               </div>
               <div css={headerActionsStyles}>
+                {showStatusIndicator && (
+                  <div css={headerStatusGroupStyles}>
+                    {showProcessingIndicator && (
+                      <span css={headerStatusPillStyles('processing')}>
+                        <span css={headerStatusSpinnerStyles} />
+                        Processing
+                      </span>
+                    )}
+                    {showQueueIndicator && (
+                      <span css={headerStatusPillStyles('queued')}>
+                        {messageQueue.length === 1 ? '1 queued' : `${messageQueue.length} queued`}
+                      </span>
+                    )}
+                    {showCompletionIndicator && (
+                      <span css={headerStatusPillStyles(completionState === 'error' ? 'error' : 'complete')}>
+                        {completionState === 'error' ? 'Error' : 'Done'}
+                      </span>
+                    )}
+                  </div>
+                )}
                 {hasHistory && (
                   <>
                     <button
@@ -2381,7 +2431,67 @@ const iconStyles = css`
 
 const headerActionsStyles = css`
   display: flex;
+  gap: 6px;
+  align-items: center;
+`;
+
+type HeaderStatusKind = 'processing' | 'queued' | 'complete' | 'error';
+
+const headerStatusGroupStyles = css`
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 4px;
+`;
+
+const headerStatusPillStyles = (kind: HeaderStatusKind) => css`
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: ${kind === 'error' ? ELEMENT_CHAT_THEME.containerAccent : ELEMENT_CHAT_THEME.headerTextColor};
+  background: ${
+    kind === 'processing'
+      ? 'rgba(255, 215, 0, 0.28)'
+      : kind === 'queued'
+        ? 'rgba(255, 255, 255, 0.18)'
+        : kind === 'complete'
+          ? 'rgba(0, 168, 107, 0.28)'
+          : 'rgba(255, 240, 240, 0.92)'
+  };
+  border: ${
+    kind === 'processing'
+      ? '1px solid rgba(255, 215, 0, 0.45)'
+      : kind === 'queued'
+        ? '1px solid rgba(255, 255, 255, 0.22)'
+        : kind === 'complete'
+          ? '1px solid rgba(0, 168, 107, 0.42)'
+          : '1px solid rgba(139, 0, 0, 0.45)'
+  };
+`;
+
+const headerStatusSpinnerStyles = css`
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: ${ELEMENT_CHAT_THEME.iconColor};
+  animation: headerStatusPulse 1s ease-in-out infinite;
+
+  @keyframes headerStatusPulse {
+    0%, 100% {
+      opacity: 0.4;
+      transform: scale(0.85);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+  }
 `;
 
 const headerButtonStyles = css`

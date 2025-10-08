@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { InlineChatWindow } from '../../../src/components/InlineChatWindow';
 import type { PageContext } from '../../../src/services/pageContextCapture';
 import * as imageUpload from '../../../src/utils/imageUpload';
@@ -375,6 +375,40 @@ describe('InlineChatWindow - Image Drop Support', () => {
         vi.useRealTimers();
       }
     });
+  });
+
+  describe('Status indicators', () => {
+    it('shows a processing pill while streaming', async () => {
+      const resolvers: Array<() => void> = [];
+      chatWithPageMock.mockImplementation(async function* () {
+        yield 'chunk';
+        await new Promise<void>(resolve => {
+          resolvers.push(resolve);
+        });
+        yield 'done';
+      });
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      await act(async () => {
+        fireEvent.change(input, { target: { value: 'Status check' } });
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      });
+
+      await screen.findByText('Status check');
+      expect(screen.getByTestId('status-pill-processing')).toBeInTheDocument();
+
+      await act(async () => {
+        resolvers[0]?.();
+      });
+    });
+
   });
 
   describe('Image Validation', () => {
