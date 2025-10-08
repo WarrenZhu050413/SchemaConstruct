@@ -30,18 +30,44 @@ test.describe('Image Upload', () => {
 
     await canvasPage.waitForTimeout(1000);
 
-    // Check if canvas container exists (the one with drag handlers)
-    const canvasContainer = await canvasPage.evaluate(() => {
-      // Look for the main canvas div with event handlers
-      const elements = Array.from(document.querySelectorAll('div'));
-      return elements.some(el => {
-        const style = window.getComputedStyle(el);
-        return style.width === '100vw' && style.height === '100vh';
-      });
+    const dropZone = canvasPage.getByTestId('canvas-drop-zone');
+    await expect(dropZone).toBeVisible();
+
+    await canvasPage.evaluate(() => {
+      const element = document.querySelector('[data-testid="canvas-drop-zone"]');
+      if (!element) return;
+
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File([''], 'drag.png', { type: 'image/png' }));
+
+      element.dispatchEvent(
+        new DragEvent('dragover', {
+          dataTransfer,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
     });
 
-    expect(canvasContainer).toBe(true);
-    console.log('[Test] Canvas container found');
+    await canvasPage.waitForTimeout(100);
+    await expect(canvasPage.getByText('Drop images here')).toBeVisible();
+
+    await canvasPage.evaluate(() => {
+      const element = document.querySelector('[data-testid="canvas-drop-zone"]');
+      if (!element) return;
+
+      element.dispatchEvent(
+        new DragEvent('dragleave', {
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+    });
+
+    await canvasPage.waitForTimeout(100);
+    await expect(canvasPage.getByText('Drop images here')).toBeHidden();
+
+    console.log('[Test] Canvas drop zone responds to drag events');
 
     await canvasPage.close();
   });
@@ -59,18 +85,17 @@ test.describe('Image Upload', () => {
     await canvasPage.close();
   });
 
-  test('should verify imageUpload utility functions exist', async ({ context, extensionId }) => {
+  test('should expose empty canvas placeholder', async ({ context, extensionId }) => {
     const canvasPage = await openCanvas(context, extensionId);
 
-    // Check if the imageUpload utility is loaded by checking for the implementation
-    // We can't directly access ES modules, but we can verify the build includes it
-    const hasImageUpload = await canvasPage.evaluate(() => {
-      // Check if the canvas has drag handlers
-      return document.querySelector('[style*="100vw"]') !== null;
-    });
+    await canvasPage.waitForTimeout(1000);
 
-    expect(hasImageUpload).toBe(true);
-    console.log('[Test] Canvas container with drag support exists');
+    const emptyState = canvasPage.getByTestId('canvas-empty-state');
+    await expect(emptyState).toBeVisible();
+    await expect(emptyState).toContainText('Your canvas is empty');
+    await expect(emptyState).toContainText('Start clipping web content');
+
+    console.log('[Test] Empty canvas placeholder rendered');
 
     await canvasPage.close();
   });
@@ -107,13 +132,8 @@ test.describe('Image Upload', () => {
 
     await canvasPage.waitForTimeout(1000);
 
-    // Check if CardNode rendering logic handles image cards
-    // If the page loads without errors, the conditional rendering works
-    const hasCardNodes = await canvasPage.evaluate(() => {
-      return document.querySelectorAll('[class*="react-flow"]').length > 0;
-    });
-
-    expect(hasCardNodes).toBe(true);
+    const reactFlowCanvas = canvasPage.getByTestId('canvas-react-flow');
+    await expect(reactFlowCanvas).toBeVisible();
     console.log('[Test] React Flow canvas loaded successfully');
 
     await canvasPage.close();

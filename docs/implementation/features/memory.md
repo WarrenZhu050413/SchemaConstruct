@@ -68517,3 +68517,7 @@ await registration.pushManager.subscribe(options);
 - Problem: Playwright shortcut tests queried legacy container IDs (`nabokov-selector-container`, `nabokov-inline-chat-container`), so they could not detect the shadow DOM overlays that the current content script mounts under `nabokov-clipper-root` and `nabokov-inline-chat-root` after receiving ACTIVATE_SELECTOR / OPEN_INLINE_CHAT messages.
 - Fix: Updated the spec to assert against the live IDs used by the content script so the tests verify the real overlay without breaking other suites that rely on the existing IDs.
 - Status: ✅ Playwright `keyboard-shortcuts.spec.ts` now passes locally.
+### Image Upload Spec
+- Problem: Canvas returned early when there were zero cards, so the drag/drop handlers and React Flow surface never mounted. Playwright looked for the drop zone and React Flow container and couldn't find either, causing three image-upload assertions to fail.
+- Fix: Refactored `CanvasInner` to always render the droppable container (with new `data-testid` hooks) and overlay the empty-state UX instead of returning early; added deterministic data-test IDs and simplified the Playwright spec to exercise the real drag/drop overlay and placeholders.
+- Status: ✅ `image-upload.spec.ts` now observes the drop zone, empty placeholder, and React Flow canvas in the rebuilt extension.

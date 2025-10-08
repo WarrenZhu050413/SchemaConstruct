@@ -472,40 +472,7 @@ function CanvasInner() {
     );
   }
 
-  if (cards.length === 0) {
-    return (
-      <div style={styles.emptyContainer}>
-        <svg
-          width="120"
-          height="120"
-          viewBox="0 0 120 120"
-          fill="none"
-          style={styles.emptyIcon}
-        >
-          <rect
-            x="20"
-            y="30"
-            width="80"
-            height="60"
-            rx="8"
-            stroke="currentColor"
-            strokeWidth="3"
-            fill="none"
-          />
-          <path
-            d="M35 50H85M35 60H85M35 70H65"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-          />
-        </svg>
-        <div style={styles.emptyTitle}>Your canvas is empty</div>
-        <div style={styles.emptyText}>
-          Start clipping web content to see your cards appear here
-        </div>
-      </div>
-    );
-  }
+  const showEmptyState = cards.length === 0;
 
   // Show "no results" state when filters are active but no cards match
   const hasActiveFilters =
@@ -515,12 +482,15 @@ function CanvasInner() {
     filters.selectedTags.length > 0 ||
     filters.dateRange !== 'all';
 
+  const showFilteredEmptyState = !showEmptyState && hasActiveFilters && filteredCards.length === 0;
+
   return (
     <div
       style={styles.container}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
+      data-testid="canvas-drop-zone"
     >
       {/* Drag overlay */}
       {isDraggingOver && (
@@ -590,6 +560,7 @@ function CanvasInner() {
         minZoom={0.1}
         maxZoom={2}
         proOptions={{ hideAttribution: true }}
+        data-testid="canvas-react-flow"
       >
         {/* Chinese aesthetic background with paper texture */}
         <Background
@@ -635,8 +606,42 @@ function CanvasInner() {
           showInteractive={false}
         />
 
+        {/* Empty state when no cards are present */}
+        {showEmptyState && (
+          <div style={styles.emptyContainer} data-testid="canvas-empty-state">
+            <svg
+              width="120"
+              height="120"
+              viewBox="0 0 120 120"
+              fill="none"
+              style={styles.emptyIcon}
+            >
+              <rect
+                x="20"
+                y="30"
+                width="80"
+                height="60"
+                rx="8"
+                stroke="currentColor"
+                strokeWidth="3"
+                fill="none"
+              />
+              <path
+                d="M35 50H85M35 60H85M35 70H65"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+              />
+            </svg>
+            <div style={styles.emptyTitle}>Your canvas is empty</div>
+            <div style={styles.emptyText}>
+              Start clipping web content to see your cards appear here
+            </div>
+          </div>
+        )}
+
         {/* No results overlay when filters are active */}
-        {hasActiveFilters && filteredCards.length === 0 && (
+        {showFilteredEmptyState && (
           <div style={styles.noResultsOverlay}>
             <div style={styles.noResultsContent}>
               <svg
@@ -783,14 +788,20 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'all 0.2s',
   },
   emptyContainer: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     background: 'linear-gradient(135deg, #FAF7F2 0%, #F5F0E8 50%, #FAF7F2 100%)',
     color: '#5C4D42',
+    pointerEvents: 'none',
+    textAlign: 'center',
+    padding: '0 24px',
   },
   emptyIcon: {
     color: '#B89C82',
