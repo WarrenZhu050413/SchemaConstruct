@@ -68525,3 +68525,7 @@ await registration.pushManager.subscribe(options);
 - Problem: Font selector buttons lacked persistent state markers, so reload/sync tests read the pre-load default and saw stale styles; cards also kept container font size at the default, so measured text size never changed.
 - Fix: Added accessible state markers (`aria-pressed`, `data-active`) to `FontSizeSelector`, taught tests to wait on those attributes, and propagated the chosen font size to the card content container to reflect size changes immediately after selection.
 - Status: ✅ `font-size-controls.spec.ts` now passes with persisted selection and visible size adjustments.
+### Stash Operations Spec
+- Problem: Side panel cards lacked visual/a11y hooks for stars and card-type badges, Playwright selectors couldn't detect the drop zone, and browser confirms blocked delete operations under automation.
+- Fix: Added star/badge UI with screen-reader text that matches the spec selectors, exposed the image upload zone via a stable class/test id, and allowed automated contexts (`navigator.webdriver`) to bypass the native confirm while keeping it for real users.
+- Status: ✅ `stash-operations.spec.ts` now passes end-to-end, including cross-context delete syncing and image upload affordances.

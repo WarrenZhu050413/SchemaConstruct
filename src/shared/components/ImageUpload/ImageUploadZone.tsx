@@ -76,6 +76,8 @@ export const ImageUploadZone: React.FC<ImageUploadZoneProps> = ({
 
   return (
     <div
+      className="nabokov-image-upload-zone"
+      data-testid="image-upload-zone"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
