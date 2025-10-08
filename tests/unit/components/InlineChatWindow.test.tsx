@@ -191,6 +191,100 @@ describe('InlineChatWindow - Image Drop Support', () => {
     });
   });
 
+  describe('Send button and queue behaviour', () => {
+    it('keeps the send button enabled while messages stream and queues follow-up sends', async () => {
+      const resolvers: Array<() => void> = [];
+      chatWithPageMock.mockImplementation(async function* () {
+        yield 'first-chunk';
+        await new Promise<void>(resolve => {
+          resolvers.push(resolve);
+        });
+        yield 'first-done';
+      });
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      const sendButton = screen.getByTestId('inline-chat-send');
+
+      fireEvent.change(input, { target: { value: 'Hello queue' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await screen.findByText('Hello queue');
+      expect(sendButton).toBeDisabled();
+      expect(chatWithPageMock).toHaveBeenCalledTimes(1);
+
+      fireEvent.change(input, { target: { value: 'Second queued message' } });
+      await waitFor(() => expect(sendButton).not.toBeDisabled());
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      expect(chatWithPageMock).toHaveBeenCalledTimes(1);
+
+      resolvers[0]?.();
+      await waitFor(() => expect(chatWithPageMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(resolvers.length).toBeGreaterThanOrEqual(2));
+
+      resolvers[1]?.();
+      await waitFor(() => {
+        const texts = screen.getAllByTestId('inline-chat-message-text').map(node => node.textContent);
+        expect(texts.length).toBe(4);
+      });
+    });
+
+    it('processes queued messages sequentially and preserves ordering', async () => {
+      const resolvers: Array<() => void> = [];
+      let callIndex = 0;
+
+      chatWithPageMock.mockImplementation(async function* () {
+        const current = callIndex++;
+        const label = current === 0 ? 'first' : 'second';
+        yield `${label}-chunk`;
+        await new Promise<void>(resolve => {
+          resolvers[current] = resolve;
+        });
+        yield `${label}-done`;
+      });
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+
+      fireEvent.change(input, { target: { value: 'First question' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      await screen.findByText('First question');
+
+      fireEvent.change(input, { target: { value: 'Second question' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+
+      expect(chatWithPageMock).toHaveBeenCalledTimes(1);
+
+      resolvers[0]?.();
+      await waitFor(() => expect(chatWithPageMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(resolvers.length).toBeGreaterThanOrEqual(2));
+
+      resolvers[1]?.();
+      await waitFor(() => {
+        const texts = screen.getAllByTestId('inline-chat-message-text').map(node => node.textContent?.trim());
+        expect(texts).toEqual([
+          'First question',
+          'first-chunkfirst-done',
+          'Second question',
+          'second-chunksecond-done',
+        ]);
+      });
+    });
+  });
+
   describe('Image Validation', () => {
     it('should accept valid image files', async () => {
       const { container } = render(

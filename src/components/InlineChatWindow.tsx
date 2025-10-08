@@ -1,6 +1,6 @@
 /** @jsxImportSource @emotion/react */
 import { css } from '@emotion/react';
-import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useLayoutEffect, useMemo } from 'react';
 import { Rnd } from 'react-rnd';
 import type { DraggableData } from 'react-rnd';
 import type { PageContext } from '@/services/pageContextCapture';
@@ -11,7 +11,10 @@ import { fileToBase64, getImageDimensions, isImageFile } from '@/utils/imageUplo
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+type MessageStatus = 'queued' | 'processing' | 'complete' | 'error';
+
 interface Message {
+  id: string;
   role: 'user' | 'assistant';
   content: string;
   images?: Array<{
@@ -19,7 +22,15 @@ interface Message {
     width: number;        // Original dimensions
     height: number;
   }>;
+  status?: MessageStatus;
+  linkedTo?: string;
+  createdAt: number;
 }
+
+const generateMessageId = (prefix: 'user' | 'assistant'): string => {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${prefix}-${Date.now().toString(36)}-${rand}`;
+};
 
 export interface InlineChatWindowProps {
   onClose: () => void;
@@ -72,6 +83,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const [anchorElementMissing, setAnchorElementMissing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<Message[]>(messages);
   const positionRef = useRef(windowPosition);
   const anchorOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const anchorElementsRef = useRef<HTMLElement[]>(anchorElements);
@@ -79,6 +91,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const activeAnchorIndexRef = useRef(0);
   const isDraggingWindowRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  const messageQueueRef = useRef<Message[]>([]);
+  const isProcessingQueueRef = useRef(false);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
 
@@ -87,6 +101,14 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const contextTitle = isElement
     ? `<${initialContext.element.tagName}>${initialContext.element.id ? `#${initialContext.element.id}` : ''}`
     : initialContext.title;
+
+  const systemPrompt = useMemo(
+    () =>
+      isElement
+        ? formatElementContextAsPrompt(initialContext)
+        : formatPageContextAsPrompt(initialContext),
+    [isElement, initialContext]
+  );
 
   const isContainerAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -141,6 +163,154 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     inputRef.current?.focus();
     return true;
   }, [setInputValue]);
+
+  const updateMessages = useCallback((updater: (prev: Message[]) => Message[]) => {
+    setMessages(prev => {
+      const updated = updater(prev);
+      messagesRef.current = updated;
+      return updated;
+    });
+  }, []);
+
+  const insertAssistantAfter = useCallback(
+    (userId: string, assistant: Message, userStatus: MessageStatus = 'complete') => {
+      updateMessages(prev => {
+        const next: Message[] = [];
+        let inserted = false;
+
+        for (const msg of prev) {
+          if (msg.id === userId) {
+            next.push({ ...msg, status: userStatus });
+            next.push(assistant);
+            inserted = true;
+          } else {
+            next.push(msg);
+          }
+        }
+
+        if (!inserted) {
+          next.push(assistant);
+        }
+
+        return next;
+      });
+    },
+    [updateMessages]
+  );
+
+  const processQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current) {
+      return;
+    }
+
+    const nextMessage = messageQueueRef.current[0];
+    if (!nextMessage) {
+      return;
+    }
+
+    isProcessingQueueRef.current = true;
+    setIsStreaming(true);
+
+    const snapshot = messagesRef.current;
+    const messageIndex = snapshot.findIndex(msg => msg.id === nextMessage.id);
+    const conversationSlice = messageIndex >= 0 ? snapshot.slice(0, messageIndex + 1) : snapshot;
+
+    updateMessages(prev =>
+      prev.map(msg => (msg.id === nextMessage.id ? { ...msg, status: 'processing' } : msg))
+    );
+
+    try {
+      if (nextMessage.images && nextMessage.images.length > 0) {
+        const { claudeAPIService } = await import('@/services/claudeAPIService');
+
+        const claudeMessages = conversationSlice.map(m => ({
+          role: m.role,
+          content: m.images && m.images.length > 0
+            ? [
+                ...m.images.map(img => {
+                  const mediaType = img.dataURL.match(/data:([^;]+);/)?.[1] || 'image/png';
+                  const base64Data = img.dataURL.split(',')[1];
+                  return {
+                    type: 'image' as const,
+                    source: {
+                      type: 'base64' as const,
+                      media_type: mediaType,
+                      data: base64Data
+                    }
+                  };
+                }),
+                { type: 'text' as const, text: m.content }
+              ]
+            : m.content
+        }));
+
+        const response = await claudeAPIService.sendMessage(claudeMessages, {
+          system: systemPrompt,
+          maxTokens: 4096
+        });
+
+        const assistantMessage: Message = {
+          id: generateMessageId('assistant'),
+          role: 'assistant',
+          content: response,
+          createdAt: Date.now(),
+          linkedTo: nextMessage.id,
+          status: 'complete'
+        };
+
+        insertAssistantAfter(nextMessage.id, assistantMessage);
+      } else {
+        const { chatWithPage } = await import('@/services/claudeAPIService');
+
+        let assistantContent = '';
+        const stream = await chatWithPage(
+          systemPrompt,
+          conversationSlice.map(m => ({
+            role: m.role,
+            content: m.content
+          }))
+        );
+
+        for await (const chunk of stream) {
+          assistantContent += chunk;
+          setStreamingContent(assistantContent);
+        }
+
+        const assistantMessage: Message = {
+          id: generateMessageId('assistant'),
+          role: 'assistant',
+          content: assistantContent,
+          createdAt: Date.now(),
+          linkedTo: nextMessage.id,
+          status: 'complete'
+        };
+
+        insertAssistantAfter(nextMessage.id, assistantMessage);
+      }
+    } catch (error) {
+      console.error('[InlineChatWindow] Error sending message:', error);
+      const errorAssistantMessage: Message = {
+        id: generateMessageId('assistant'),
+        role: 'assistant',
+        content:
+          '❌ Error: Could not connect to API. Please check your backend is running or API key is configured.',
+        createdAt: Date.now(),
+        linkedTo: nextMessage.id,
+        status: 'error'
+      };
+
+      insertAssistantAfter(nextMessage.id, errorAssistantMessage, 'error');
+    } finally {
+      messageQueueRef.current = messageQueueRef.current.slice(1);
+      setStreamingContent('');
+      setIsStreaming(false);
+      isProcessingQueueRef.current = false;
+
+      if (messageQueueRef.current.length > 0) {
+        processQueue();
+      }
+    }
+  }, [insertAssistantAfter, systemPrompt, updateMessages]);
 
   // Auto-scroll to bottom when messages change only if user is anchored
   useEffect(() => {
@@ -202,6 +372,10 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       anchorElementRef.current = anchorElements[activeAnchorIndexRef.current] ?? anchorElements[0];
     }
   }, [anchorElements]);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   useEffect(() => {
     activeAnchorIndexRef.current = activeAnchorIndex;
@@ -406,99 +580,26 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     await handleImageDrop(imageFiles[0]);
   }, [handleImageDrop]);
 
-  const handleSendMessage = async () => {
-    if ((!inputValue.trim() && pendingImages.length === 0) || isStreaming) return;
+  const handleSendMessage = () => {
+    if (!inputValue.trim() && pendingImages.length === 0) {
+      return;
+    }
 
     const userMessage: Message = {
+      id: generateMessageId('user'),
       role: 'user',
       content: inputValue.trim() || '(Image attached)',
-      images: pendingImages.length > 0 ? [...pendingImages] : undefined
+      images: pendingImages.length > 0 ? [...pendingImages] : undefined,
+      status: 'queued',
+      createdAt: Date.now()
     };
 
     setInputValue('');
-    setPendingImages([]); // Clear pending images
+    setPendingImages([]);
 
-    // Add user message
-    const newMessages: Message[] = [...messages, userMessage];
-    setMessages(newMessages);
-    setIsStreaming(true);
-
-    try {
-      const hasImages = userMessage.images && userMessage.images.length > 0;
-
-      // Format context based on type
-      const systemPrompt = isElement
-        ? formatElementContextAsPrompt(initialContext)
-        : formatPageContextAsPrompt(initialContext);
-
-      if (hasImages) {
-        // Use vision API for messages with images (non-streaming)
-        const { claudeAPIService } = await import('@/services/claudeAPIService');
-
-        // Transform to Claude's multimodal format
-        const claudeMessages = newMessages.map(m => ({
-          role: m.role,
-          content: m.images && m.images.length > 0
-            ? [
-                // Images first
-                ...m.images.map(img => {
-                  const mediaType = img.dataURL.match(/data:([^;]+);/)?.[1] || 'image/png';
-                  const base64Data = img.dataURL.split(',')[1];
-                  return {
-                    type: 'image' as const,
-                    source: {
-                      type: 'base64' as const,
-                      media_type: mediaType,
-                      data: base64Data
-                    }
-                  };
-                }),
-                // Text last
-                { type: 'text' as const, text: m.content }
-              ]
-            : m.content // Text-only message
-        }));
-
-        console.log('[InlineChatWindow] Sending multimodal message with', userMessage.images?.length, 'images');
-        console.log('[InlineChatWindow] Message format:', JSON.stringify(claudeMessages, null, 2));
-
-        const response = await claudeAPIService.sendMessage(
-          claudeMessages,
-          { system: systemPrompt, maxTokens: 4096 }
-        );
-
-        setMessages([...newMessages, { role: 'assistant', content: response }]);
-      } else {
-        // Text-only - use streaming API (existing code)
-        const { chatWithPage } = await import('@/services/claudeAPIService');
-
-        let assistantContent = '';
-        const stream = await chatWithPage(
-          systemPrompt,
-          newMessages.map(m => ({
-            role: m.role,
-            content: m.content
-          }))
-        );
-
-        // Stream response
-        for await (const chunk of stream) {
-          assistantContent += chunk;
-          setStreamingContent(assistantContent);
-        }
-
-        setMessages([...newMessages, { role: 'assistant', content: assistantContent }]);
-        setStreamingContent('');
-      }
-    } catch (error) {
-      console.error('[InlineChatWindow] Error sending message:', error);
-      setMessages([
-        ...newMessages,
-        { role: 'assistant', content: '❌ Error: Could not connect to API. Please check your backend is running or API key is configured.' }
-      ]);
-    } finally {
-      setIsStreaming(false);
-    }
+    updateMessages(prev => [...prev, userMessage]);
+    messageQueueRef.current = [...messageQueueRef.current, userMessage];
+    processQueue();
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -705,8 +806,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                   )}
                 </div>
               ) : (
-                messages.map((message, index) => (
-                  <div key={index} css={messageStyles(message.role)}>
+                messages.map((message) => (
+                  <div key={message.id} css={messageStyles(message.role)}>
                     <div css={messageRoleStyles}>
                       {message.role === 'user' ? 'You' : 'Assistant'}
                     </div>
@@ -722,7 +823,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                         ))}
                       </div>
                     )}
-                    <div css={messageContentStyles}>
+                    <div css={messageContentStyles} data-testid="inline-chat-message-text">
                       {renderMarkdown(message.content)}
                     </div>
                   </div>
@@ -775,15 +876,15 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleInputKeyDown}
                 placeholder={isElement ? 'Ask about this element…' : 'Ask about this page…'}
-                disabled={isStreaming}
                 rows={2}
               />
               <button
                 css={sendButtonStyles}
                 onClick={handleSendMessage}
-                disabled={isStreaming || (!inputValue.trim() && pendingImages.length === 0)}
+                disabled={!inputValue.trim() && pendingImages.length === 0}
+                data-testid="inline-chat-send"
               >
-                {isStreaming ? '⏸' : '➤'}
+                ➤
               </button>
             </div>
           </div>
