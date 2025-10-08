@@ -94,6 +94,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const animationFrameRef = useRef<number | null>(null);
   const messageQueueRef = useRef<Message[]>([]);
   const isProcessingQueueRef = useRef(false);
+  const wasDraggingRef = useRef(false);
+  const dragClickTimeoutRef = useRef<number | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
 
@@ -400,6 +402,12 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     messagesRef.current = messages;
   }, [messages]);
 
+  useEffect(() => () => {
+    if (dragClickTimeoutRef.current) {
+      window.clearTimeout(dragClickTimeoutRef.current);
+    }
+  }, []);
+
   useEffect(() => {
     activeAnchorIndexRef.current = activeAnchorIndex;
   }, [activeAnchorIndex]);
@@ -652,6 +660,14 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
   const handleDragStop = (_event: unknown, data: DraggableData) => {
     isDraggingWindowRef.current = false;
+    wasDraggingRef.current = true;
+    if (dragClickTimeoutRef.current) {
+      window.clearTimeout(dragClickTimeoutRef.current);
+    }
+    dragClickTimeoutRef.current = window.setTimeout(() => {
+      wasDraggingRef.current = false;
+      dragClickTimeoutRef.current = null;
+    }, 0);
     setWindowPosition({ x: data.x, y: data.y });
 
     if (anchorElementRef.current) {
@@ -767,7 +783,12 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
             )}
             <button
               css={collapseToggleStyles(collapsed)}
-              onClick={() => setCollapsed(!collapsed)}
+              onClick={() => {
+                if (wasDraggingRef.current) {
+                  return;
+                }
+                setCollapsed(!collapsed);
+              }}
               title={collapsed ? 'Expand chat' : 'Collapse chat'}
               data-testid="inline-chat-collapse"
             >

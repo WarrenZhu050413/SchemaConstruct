@@ -337,6 +337,44 @@ describe('InlineChatWindow - Image Drop Support', () => {
         expect(collapseButton).toHaveTextContent(/Last: Assistant/i);
       });
     });
+
+    it('remains collapsed when dragged and released on the toggle', async () => {
+      vi.useFakeTimers();
+      try {
+        chatWithPageMock.mockImplementation(async function* () {
+          return;
+        });
+
+        render(
+          <InlineChatWindow
+            onClose={mockOnClose}
+            initialContext={mockPageContext}
+          />
+        );
+
+        const collapseButton = screen.getByTestId('inline-chat-collapse');
+
+        // Collapse first to simulate small chat state
+        fireEvent.click(collapseButton);
+        expect(collapseButton).toHaveTextContent(/Expand/i);
+
+        fireEvent.mouseDown(collapseButton, { clientX: 0, clientY: 0 });
+        fireEvent.mouseMove(document, { clientX: 10, clientY: 10 });
+        fireEvent.mouseUp(document, { clientX: 10, clientY: 10 });
+
+        // Click triggered immediately after drag should be ignored
+        fireEvent.click(collapseButton);
+        expect(collapseButton).toHaveTextContent(/Expand/i);
+
+        vi.runAllTimers();
+
+        // Now clicking should expand normally
+        fireEvent.click(collapseButton);
+        expect(collapseButton).toHaveTextContent(/Last:/i);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('Image Validation', () => {
