@@ -15,6 +15,12 @@ chrome.runtime.onInstalled.addListener(() => {
     title: '💬 Chat about this',
     contexts: ['all']
   });
+
+  chrome.contextMenus.create({
+    id: 'chat-with-selection',
+    title: 'Chat with selection',
+    contexts: ['selection']
+  });
 });
 
 // Handle keyboard commands
@@ -61,12 +67,14 @@ chrome.commands.onCommand.addListener((command) => {
     });
   } else if (command === 'toggle-inline-chat') {
     // Activate chat selector (element-attached chat mode)
+    // Auto-detect if text is selected for text-selection highlighting
     console.log('[background] Activating chat selector...');
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs[0]?.id) {
         console.log('[background] Sending ACTIVATE_CHAT_SELECTOR to tab:', tabs[0].id);
         chrome.tabs.sendMessage(tabs[0].id, {
-          type: 'ACTIVATE_CHAT_SELECTOR'
+          type: 'ACTIVATE_CHAT_SELECTOR',
+          mode: 'auto-detect' // Auto-detect text selection vs element chat
         }).catch(err => {
           console.error('[background] Failed to send ACTIVATE_CHAT_SELECTOR message:', err);
           console.error('[background] This usually means content script is not loaded. Try refreshing the page.');
@@ -105,6 +113,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
       }
     }).catch(err => {
       console.error('[background] Failed to send element chat message:', err);
+    });
+  } else if (info.menuItemId === 'chat-with-selection' && tab?.id) {
+    // Open text-selection chat with highlighting
+    console.log('[background] Opening text selection chat from context menu');
+    chrome.tabs.sendMessage(tab.id, {
+      type: 'OPEN_TEXT_SELECTION_CHAT',
+      mode: 'text-selection',
+      selectionText: info.selectionText
+    }).catch(err => {
+      console.error('[background] Failed to send text selection chat message:', err);
     });
   }
 });

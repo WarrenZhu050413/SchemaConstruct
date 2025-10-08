@@ -27,6 +27,7 @@ import { captureElementContext } from '../services/elementContextCapture';
 import { Card } from '../types';
 import { saveCard, generateId } from '../utils/storage';
 import type { ElementDescriptor } from '@/services/elementIdService';
+import * as textHighlightService from '@/services/textSelectionHighlightService';
 
 // ============================================================================
 // State Management
@@ -936,6 +937,128 @@ function closeElementChatWindow(elementId: string): void {
 }
 
 /**
+ * Handles text selection chat with persistent highlighting
+ */
+async function handleTextSelectionChatWithHighlight(): Promise<void> {
+  try {
+    // Get current selection
+    const selection = window.getSelection();
+    const selectedText = selection?.toString().trim() || '';
+
+    if (!selectedText || !selection) {
+      console.warn('[content] No text selected for highlighting chat');
+      return;
+    }
+
+    console.log('[content] Opening text selection chat with highlight:', selectedText.substring(0, 50) + '...');
+
+    // Create highlight session
+    const session = textHighlightService.createTextSelectionSession(selection);
+    if (!session) {
+      console.warn('[content] Failed to create highlight session');
+      // Fall back to regular text chat without highlighting
+      await openTextContextChat(selectedText, selection);
+      return;
+    }
+
+    // Apply highlight (loading state)
+    const highlighted = textHighlightService.applyHighlight(session.id, 'loading');
+    if (!highlighted) {
+      console.warn('[content] Failed to apply highlight');
+    }
+
+    // Import services
+    const { generateElementDescriptor } = await import('@/services/elementIdService');
+
+    // Get the anchor element for positioning
+    const anchorElement = selection.anchorNode?.parentElement || document.body;
+
+    // Use session ID as element ID
+    const elementId = session.id;
+
+    // Check if window already open
+    if (elementChatWindows.has(elementId)) {
+      console.log('[content] Chat window already open for this text selection');
+      textHighlightService.applyHighlight(session.id, 'active');
+      return;
+    }
+
+    // Create synthetic element descriptor
+    const elementDescriptor = generateElementDescriptor(anchorElement);
+    elementDescriptor.tagName = 'text-selection';
+    elementDescriptor.textPreview = selectedText;
+
+    // Create container for chat window
+    const container = document.createElement('div');
+    container.id = `nabokov-element-chat-${elementId}`;
+    container.setAttribute('data-nabokov-element-chat', elementId);
+    container.setAttribute('data-text-selection', 'true');
+    container.setAttribute('data-highlight-session', session.id);
+
+    container.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2147483645;
+      pointer-events: none;
+    `;
+
+    document.body.appendChild(container);
+
+    // Create shadow root
+    const { shadowRoot, styleCache } = createShadowRoot(container, {
+      injectBaseStyles: true,
+    });
+
+    // Calculate initial position near the selection
+    const range = selection.getRangeAt(0);
+    const selectionRect = range.getBoundingClientRect();
+    const initialPosition = {
+      x: Math.min(selectionRect.right + 20, window.innerWidth - 450),
+      y: Math.max(20, selectionRect.top)
+    };
+
+    // Handle close - remove highlight when chat closes
+    const handleClose = () => {
+      console.log('[content] Text selection chat closed, removing highlight:', elementId);
+      textHighlightService.removeHighlight(session.id);
+      closeElementChatWindow(elementId);
+    };
+
+    // Mount ElementChatWindow
+    const cleanup = mountReactInShadow(
+      shadowRoot,
+      <ElementChatWindow
+        elementId={elementId}
+        elementDescriptors={[elementDescriptor]}
+        existingSession={null}
+        onClose={handleClose}
+        initialPosition={initialPosition}
+        selectedText={selectedText}
+      />,
+      { styleCache }
+    );
+
+    // Track window
+    elementChatWindows.set(elementId, {
+      elementId,
+      containerElement: container,
+      cleanup
+    });
+
+    // Update highlight to active state
+    textHighlightService.applyHighlight(session.id, 'active');
+
+    console.log('[content] Text selection chat with highlight opened successfully:', elementId);
+
+  } catch (error) {
+    console.error('[content] Error opening text selection chat with highlight:', error);
+  }
+}
+
+/**
  * Opens a text-contextual chat window for selected text
  */
 async function openTextContextChat(selectedText: string, selection: Selection | null): Promise<void> {
@@ -1054,6 +1177,7 @@ type MessageType =
   | 'ACTIVATE_SELECTOR'
   | 'DEACTIVATE_SELECTOR'
   | 'ACTIVATE_CHAT_SELECTOR'
+  | 'OPEN_TEXT_SELECTION_CHAT'
   | 'GET_STATE'
   | 'PING'
   | 'OPEN_INLINE_CHAT'
@@ -1101,6 +1225,12 @@ function handleMessage(
       case 'ACTIVATE_CHAT_SELECTOR':
         console.log('[content] Activating chat selector');
         activateChatSelector();
+        sendResponse({ success: true });
+        break;
+
+      case 'OPEN_TEXT_SELECTION_CHAT':
+        console.log('[content] Opening text selection chat with highlighting');
+        handleTextSelectionChatWithHighlight();
         sendResponse({ success: true });
         break;
 
