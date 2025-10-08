@@ -11,7 +11,19 @@ interface IndicatorEntry {
 }
 
 const INDICATOR_ATTRIBUTE = 'data-nabokov-chat-indicator';
+const POST_CHAT_INDICATOR_ATTRIBUTE = 'data-nabokov-post-chat-indicator';
+const INDICATOR_SIZE = { width: 12, height: 12 };
+const POST_CHAT_INDICATOR_SIZE = { width: 30, height: 30 };
+
+const STATE_COLORS = {
+  loading: '#6c6c6c',
+  active: '#b1403c',
+  error: '#b22222',
+  collapsed: '#d4a259'
+};
+
 const indicators = new Map<string, IndicatorEntry>();
+const postChatIndicators = new Map<string, HTMLElement>();
 const hiddenChats = new Set<string>();
 let mutationObserver: MutationObserver | null = null;
 let rafHandle: number | null = null;
@@ -50,8 +62,8 @@ const createBadge = (chatId: string): HTMLSpanElement => {
   const badge = document.createElement('span');
   badge.setAttribute(INDICATOR_ATTRIBUTE, chatId);
   badge.style.position = 'absolute';
-  badge.style.width = '12px';
-  badge.style.height = '12px';
+  badge.style.width = `${INDICATOR_SIZE.width}px`;
+  badge.style.height = `${INDICATOR_SIZE.height}px`;
   badge.style.borderRadius = '50%';
   badge.style.background = '#C23B22';
   badge.style.boxShadow = '0 0 6px rgba(194, 59, 34, 0.45)';
@@ -66,6 +78,49 @@ const createBadge = (chatId: string): HTMLSpanElement => {
   badge.title = 'Saved element chat available';
   document.body.appendChild(badge);
   return badge;
+};
+
+const createPostChatIndicator = (
+  element: HTMLElement,
+  sessionId: string,
+  state: keyof typeof STATE_COLORS = 'active'
+): HTMLElement => {
+  const indicator = document.createElement('div');
+  indicator.setAttribute(POST_CHAT_INDICATOR_ATTRIBUTE, sessionId);
+  indicator.dataset.sessionId = sessionId;
+
+  Object.assign(indicator.style, {
+    position: 'absolute',
+    width: `${POST_CHAT_INDICATOR_SIZE.width}px`,
+    height: `${POST_CHAT_INDICATOR_SIZE.height}px`,
+    backgroundColor: STATE_COLORS[state],
+    borderRadius: '4px',
+    border: '2px solid #d4a259',
+    boxShadow: '0 2px 8px rgba(177, 64, 60, 0.3)',
+    cursor: 'pointer',
+    zIndex: '9999',
+    transition: 'all 0.2s ease',
+    pointerEvents: 'auto'
+  });
+
+  // Position at top-right of element
+  const rect = element.getBoundingClientRect();
+  const top = rect.top + window.scrollY + 4;
+  const left = rect.right + window.scrollX - 4;
+  indicator.style.left = `${left}px`;
+  indicator.style.top = `${top}px`;
+
+  // Hover effect
+  indicator.addEventListener('mouseenter', () => {
+    indicator.style.transform = 'scale(1.1)';
+  });
+
+  indicator.addEventListener('mouseleave', () => {
+    indicator.style.transform = 'scale(1)';
+  });
+
+  document.body.appendChild(indicator);
+  return indicator;
 };
 
 const getDescriptorKey = (chatId: string, descriptor: ElementDescriptor): string => {
@@ -269,5 +324,97 @@ export const teardownElementChatIndicators = (): void => {
   });
   indicators.clear();
 
+  postChatIndicators.forEach((indicator) => {
+    if (indicator.parentNode) {
+      indicator.parentNode.removeChild(indicator);
+    }
+  });
+  postChatIndicators.clear();
+
   initialized = false;
+};
+
+/**
+ * Show a post-chat indicator for a closed chat session
+ */
+export const showPostChatIndicator = (
+  element: HTMLElement,
+  sessionId: string,
+  state: keyof typeof STATE_COLORS = 'active',
+  onReopen?: (sessionId: string) => void
+): void => {
+  ensureInitialized();
+
+  // Remove existing indicator if present
+  const existing = postChatIndicators.get(sessionId);
+  if (existing && existing.parentNode) {
+    existing.parentNode.removeChild(existing);
+  }
+
+  // Create new indicator
+  const indicator = createPostChatIndicator(element, sessionId, state);
+
+  // Add click handler to reopen
+  if (onReopen) {
+    indicator.addEventListener('click', () => {
+      onReopen(sessionId);
+    });
+  }
+
+  postChatIndicators.set(sessionId, indicator);
+
+  // Update position on scroll/resize
+  const updatePosition = () => {
+    if (!document.contains(element)) {
+      removePostChatIndicator(sessionId);
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const top = rect.top + window.scrollY + 4;
+    const left = rect.right + window.scrollX - 4;
+    indicator.style.left = `${left}px`;
+    indicator.style.top = `${top}px`;
+  };
+
+  // Store update function on indicator for cleanup
+  (indicator as any).__updatePosition = updatePosition;
+
+  window.addEventListener('scroll', updatePosition, true);
+  window.addEventListener('resize', updatePosition);
+};
+
+/**
+ * Update post-chat indicator state (color)
+ */
+export const updatePostChatIndicatorState = (
+  sessionId: string,
+  state: keyof typeof STATE_COLORS
+): void => {
+  const indicator = postChatIndicators.get(sessionId);
+  if (indicator) {
+    indicator.style.backgroundColor = STATE_COLORS[state];
+  }
+};
+
+/**
+ * Remove a post-chat indicator
+ */
+export const removePostChatIndicator = (sessionId: string): void => {
+  const indicator = postChatIndicators.get(sessionId);
+  if (!indicator) {
+    return;
+  }
+
+  // Remove event listeners
+  const updatePosition = (indicator as any).__updatePosition;
+  if (updatePosition) {
+    window.removeEventListener('scroll', updatePosition, true);
+    window.removeEventListener('resize', updatePosition);
+  }
+
+  if (indicator.parentNode) {
+    indicator.parentNode.removeChild(indicator);
+  }
+
+  postChatIndicators.delete(sessionId);
 };

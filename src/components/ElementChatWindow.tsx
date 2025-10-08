@@ -15,7 +15,7 @@ import type { Card } from '@/types/card';
 import { ImageUploadZone } from '@/shared/components/ImageUpload/ImageUploadZone';
 import { fileToBase64, getImageDimensions, isImageFile } from '@/utils/imageUpload';
 import { findElementByDescriptor } from '@/services/elementIdService';
-import { upsertIndicatorsForSession, removeIndicatorsForChat, hideIndicatorsForChat, showIndicatorsForChat } from '@/services/elementChatIndicatorService';
+import { upsertIndicatorsForSession, removeIndicatorsForChat, hideIndicatorsForChat, showIndicatorsForChat, showPostChatIndicator, removePostChatIndicator } from '@/services/elementChatIndicatorService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -475,7 +475,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const isRectangleCollapsed = collapseState === 'rectangle';
   const isSquareCollapsed = collapseState === 'square';
 
-  const squareSize = 64;
+  const squareSize = 100;
 
   // Calculate header-only height (header padding + content + border)
   const headerOnlyHeight = 44; // 10px top + 10px bottom padding + ~20px content + 4px border
@@ -1317,9 +1317,21 @@ const processQueue = useCallback(async () => {
     }
 
     await persistSessionState();
-    showIndicatorsForChat(elementId);
+
+    // Show post-chat indicator for regular element chats (not text-selection chats)
+    if (!selectedText && anchorElementRef.current) {
+      showPostChatIndicator(
+        anchorElementRef.current,
+        elementId,
+        'active'
+      );
+    } else {
+      // For text-selection chats, show the regular small indicators
+      showIndicatorsForChat(elementId);
+    }
+
     onClose();
-  }, [elementId, onClose, persistSessionState]);
+  }, [elementId, onClose, persistSessionState, selectedText]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1570,11 +1582,12 @@ const processQueue = useCallback(async () => {
     >
       <div
         ref={rootContainerRef}
-        css={containerStyles(collapseState)}
+        css={containerStyles(collapseState, isStreaming)}
         data-collapse-state={collapseState}
         data-processing={isStreaming ? 'true' : 'false'}
         data-message-count={messages.length}
         className={isSquareCollapsed ? 'drag-handle' : undefined}
+        onKeyDown={(e) => e.stopPropagation()}
       >
         {isSquareCollapsed ? (
           <button
@@ -1659,6 +1672,12 @@ const processQueue = useCallback(async () => {
                 </button>
               </div>
             </div>
+
+            {isExpanded && isStreaming && (
+              <div css={streamingIndicatorStyles}>
+                ✨ Generating response...
+              </div>
+            )}
 
             {isExpanded && (
               <div css={anchorChipRowStyles} data-test-id="element-anchor-list">
@@ -1920,11 +1939,11 @@ const processQueue = useCallback(async () => {
               <button
                 css={sendButtonStyles}
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() && pendingImages.length === 0}
-                title={isStreaming ? "Queue message" : "Send message"}
+                disabled={isStreaming || (!inputValue.trim() && pendingImages.length === 0)}
+                title={isStreaming ? "Generating response..." : "Send message"}
                 data-test-id="send-button"
               >
-                {isStreaming ? '➕' : '➤'}
+                ➤
               </button>
                 </div>
               </>
@@ -1940,13 +1959,17 @@ const processQueue = useCallback(async () => {
 // Styles (red chat theme)
 // ============================================================================
 
-const containerStyles = (collapseState: CollapseState) => css`
+const containerStyles = (collapseState: CollapseState, isStreaming: boolean) => css`
   width: 100%;
   height: ${collapseState === 'expanded' ? '100%' : 'auto'};
-  background: ${ELEMENT_CHAT_THEME.containerBackgroundGradient};
-  border: 2px solid ${ELEMENT_CHAT_THEME.containerAccent};
+  background: ${isStreaming
+    ? 'linear-gradient(135deg, rgba(255, 250, 247, 1) 0%, rgba(255, 245, 240, 1) 100%)'
+    : ELEMENT_CHAT_THEME.containerBackgroundGradient};
+  border: 2px solid ${isStreaming ? 'rgba(177, 60, 60, 0.6)' : ELEMENT_CHAT_THEME.containerAccent};
   border-radius: 8px;
-  box-shadow: ${ELEMENT_CHAT_THEME.containerShadow};
+  box-shadow: ${isStreaming
+    ? '0 18px 38px rgba(177, 60, 60, 0.15), inset 0 0 0 1px rgba(177, 60, 60, 0.1)'
+    : ELEMENT_CHAT_THEME.containerShadow};
   display: flex;
   flex-direction: column;
   align-items: ${collapseState === 'square' ? 'center' : 'stretch'};
@@ -2367,6 +2390,20 @@ const reasoningContentStyles = css`
   ul,
   ol {
     margin: 0 0 6px 18px;
+  }
+`;
+
+const streamingIndicatorStyles = css`
+  color: #b83c1f;
+  font-weight: 500;
+  font-style: italic;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(177, 60, 60, 0.2);
+  animation: pulse 1.5s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
 `;
 
