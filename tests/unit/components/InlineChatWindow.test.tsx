@@ -375,6 +375,7 @@ describe('InlineChatWindow - Image Drop Support', () => {
         vi.useRealTimers();
       }
     });
+
   });
 
   describe('Status indicators', () => {

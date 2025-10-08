@@ -83,11 +83,15 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const [anchorOffset, setAnchorOffset] = useState<{ x: number; y: number } | null>(null);
   const [activeAnchorIndex, setActiveAnchorIndex] = useState(0);
   const [anchorElementMissing, setAnchorElementMissing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [completionState, setCompletionState] = useState<CompletionState>('idle');
   const [recentlyCompleted, setRecentlyCompleted] = useState(false);
+  const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<Message[]>(messages);
+  const collapsedRef = useRef(collapsed);
+  const anchoredBottomRef = useRef(true);
   const positionRef = useRef(windowPosition);
   const anchorOffsetRef = useRef<{ x: number; y: number } | null>(null);
   const anchorElementsRef = useRef<HTMLElement[]>(anchorElements);
@@ -101,7 +105,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const dragClickTimeoutRef = useRef<number | null>(null);
   const completionTimeoutRef = useRef<number | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
+  const assistantCountRef = useRef(0);
+  const seenAssistantCountRef = useRef(0);
 
   // Determine context type
   const isElement = isElementContext(initialContext);
@@ -141,6 +146,11 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const showQueueIndicator = displayQueueCount > 0;
   const showCompletionIndicator = !isStreaming && displayQueueCount === 0 && recentlyCompleted;
   const showStatusIndicator = showProcessingIndicator || showQueueIndicator || showCompletionIndicator;
+  const collapseInfoText = collapsed
+    ? (unreadCount > 0 ? (unreadCount === 1 ? '1 unread' : `${unreadCount} unread`) : 'Expand')
+    : unreadCount > 0
+      ? (unreadCount === 1 ? '1 unread' : `${unreadCount} unread`)
+      : `Last: ${lastMessageLabel}`;
 
   const isContainerAtBottom = useCallback(() => {
     const container = messagesContainerRef.current;
@@ -261,6 +271,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     const snapshot = messagesRef.current;
     const messageIndex = snapshot.findIndex(msg => msg.id === nextMessage.id);
     const conversationSlice = messageIndex >= 0 ? snapshot.slice(0, messageIndex + 1) : snapshot;
+    const shouldNotify = nextMessage.notifyOnComplete ?? (collapsedRef.current || !anchoredBottomRef.current);
 
     updateMessages(prev =>
       prev.map(msg => (msg.id === nextMessage.id ? { ...msg, status: 'processing' } : msg))
@@ -361,7 +372,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         processQueue();
       }
     }
-  }, [insertAssistantAfter, systemPrompt, updateMessages]);
+  }, [insertAssistantAfter, systemPrompt, updateMessages, markCompletion]);
 
   // Auto-scroll to bottom when messages change only if user is anchored
   useEffect(() => {
@@ -428,6 +439,14 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     messagesRef.current = messages;
   }, [messages]);
 
+  useEffect(() => {
+    collapsedRef.current = collapsed;
+  }, [collapsed]);
+
+  useEffect(() => {
+    anchoredBottomRef.current = isUserAnchoredBottom;
+  }, [isUserAnchoredBottom]);
+
   useEffect(() => () => {
     if (dragClickTimeoutRef.current) {
       window.clearTimeout(dragClickTimeoutRef.current);
@@ -436,6 +455,30 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       window.clearTimeout(completionTimeoutRef.current);
     }
   }, []);
+
+  useEffect(() => {
+    if (!collapsed && isUserAnchoredBottom && unreadCount > 0) {
+      setUnreadCount(0);
+    }
+  }, [collapsed, isUserAnchoredBottom, unreadCount]);
+
+  useEffect(() => {
+    const assistantCount = messages.filter(message => message.role === 'assistant').length;
+    assistantCountRef.current = assistantCount;
+
+    if (!collapsed && isUserAnchoredBottom) {
+      seenAssistantCountRef.current = assistantCount;
+      if (unreadCount !== 0) {
+        setUnreadCount(0);
+      }
+      return;
+    }
+
+    const unseen = Math.max(assistantCount - seenAssistantCountRef.current, 0);
+    if (unseen !== unreadCount) {
+      setUnreadCount(unseen);
+    }
+  }, [messages, collapsed, isUserAnchoredBottom, unreadCount]);
 
   useEffect(() => {
     activeAnchorIndexRef.current = activeAnchorIndex;
@@ -834,20 +877,29 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
               </button>
             )}
             <button
-              css={collapseToggleStyles(collapsed)}
+              css={collapseToggleStyles(collapsed, unreadCount > 0)}
               onClick={() => {
                 if (wasDraggingRef.current) {
                   return;
                 }
-                setCollapsed(!collapsed);
+                const nextCollapsed = !collapsed;
+                collapsedRef.current = nextCollapsed;
+                if (nextCollapsed) {
+                  anchoredBottomRef.current = false;
+                  setIsUserAnchoredBottom(false);
+                } else {
+                  setUnreadCount(0);
+                  seenAssistantCountRef.current = assistantCountRef.current;
+                  setIsUserAnchoredBottom(true);
+                }
+                setCollapsed(nextCollapsed);
               }}
               title={collapsed ? 'Expand chat' : 'Collapse chat'}
               data-testid="inline-chat-collapse"
+              data-unread-count={unreadCount}
             >
-              <span css={collapseIconStyles}>{collapsed ? '▢' : '▾'}</span>
-              <span css={collapseInfoStyles}>
-                {collapsed ? 'Expand' : `Last: ${lastMessageLabel}`}
-              </span>
+              <span css={collapseIconStyles(collapsed, unreadCount > 0)}>{collapsed ? '▢' : '▾'}</span>
+              <span css={collapseInfoStyles(unreadCount > 0)}>{collapseInfoText}</span>
               {displayQueueCount > 0 && (
                 <span css={collapseBadgeStyles}>{displayQueueCount}</span>
               )}
@@ -1149,16 +1201,16 @@ const headerButtonStyles = css`
   }
 `;
 
-const collapseToggleStyles = (collapsed: boolean) => css`
+const collapseToggleStyles = (collapsed: boolean, hasUnread: boolean) => css`
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 3px 8px;
   height: 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  color: #fff6f4;
+  background: ${hasUnread ? 'rgba(255, 215, 0, 0.22)' : 'rgba(255, 255, 255, 0.12)'};
+  border: 1px solid ${hasUnread ? 'rgba(255, 215, 0, 0.55)' : 'rgba(255, 255, 255, 0.28)'};
+  color: ${hasUnread ? '#8B0000' : '#fff6f4'};
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
@@ -1168,22 +1220,25 @@ const collapseToggleStyles = (collapsed: boolean) => css`
   overflow: hidden;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.4);
+    background: ${hasUnread ? 'rgba(255, 215, 0, 0.32)' : 'rgba(255, 255, 255, 0.2)'};
+    border-color: ${hasUnread ? 'rgba(255, 215, 0, 0.7)' : 'rgba(255, 255, 255, 0.4)'};
   }
 `;
 
-const collapseIconStyles = css`
+const collapseIconStyles = (collapsed: boolean, hasUnread: boolean) => css`
   font-size: 12px;
   line-height: 1;
+  color: ${hasUnread ? '#8B0000' : '#fff6f4'};
+  opacity: ${collapsed && hasUnread ? 1 : 0.95};
 `;
 
-const collapseInfoStyles = css`
+const collapseInfoStyles = (hasUnread: boolean) => css`
   font-size: 11px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 120px;
+  font-weight: ${hasUnread ? 700 : 500};
 `;
 
 const collapseBadgeStyles = css`
