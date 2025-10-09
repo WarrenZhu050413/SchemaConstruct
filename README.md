@@ -1,6 +1,6 @@
 # Nabokov's Web
 
-A Chrome extension that lets you chat with, save, and browse any HTML element on the web. Transform any webpage into an interactive workspace where you can have AI conversations about specific elements, clip them to a visual canvas, and organize your research.
+A Chrome extension that lets you save, browse, and chat with any HTML element on the web. Transform any webpage into an interactive workspace where you can clip elements to a visual canvas, organize your research, and have AI conversations about specific content.
 
 ## Features
 
