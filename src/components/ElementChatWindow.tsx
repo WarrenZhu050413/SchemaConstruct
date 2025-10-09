@@ -244,6 +244,15 @@ const formatStreamingChunk = (chunk: string, previous?: string): string => {
   return normalized;
 };
 
+const isContainerAtBottom = (container: HTMLElement | null): boolean => {
+  if (!container) {
+    return true;
+  }
+
+  const { scrollHeight, scrollTop, clientHeight } = container;
+  return scrollHeight - scrollTop - clientHeight <= 16;
+};
+
 const separateAssistantResponse = (
   fullContent: string,
   deltaHistory: string[]
@@ -418,6 +427,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const [anchorElementMissing, setAnchorElementMissing] = useState(false);
   const [completionState, setCompletionState] = useState<CompletionState>('idle');
   const [recentlyCompleted, setRecentlyCompleted] = useState(false);
+  const [isUserAnchoredBottom, setIsUserAnchoredBottom] = useState(true);
 
   // Image upload support
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
@@ -436,6 +446,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const streamingDeltasRef = useRef<HTMLDivElement | null>(null);
   const streamingDeltaHistoryRef = useRef<string[]>([]);
   const messagesRef = useRef<ChatMessage[]>(messages);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const positionRef = useRef(position);
   const ensureAnchorPositionRef = useRef<() => void>(() => {});
   const windowSizeRef = useRef(windowSize);
@@ -453,6 +464,7 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
   const lastSubmittedMessageRef = useRef<{ signature: string; timestamp: number; messageId: string } | null>(null);
   const assistantTurnMapRef = useRef<Map<string, string>>(new Map());
   const alignmentFrameRef = useRef<number | null>(null);
+  const anchoredBottomRef = useRef(true);
   const completionTimeoutRef = useRef<number | null>(null);
 
   const applyStreamingSnapshot = (next: string[]) => {
@@ -513,10 +525,25 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
     }
   };
 
-  // Auto-scroll to bottom when messages change
+  const handleMessagesScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    const anchored = isContainerAtBottom(container);
+    anchoredBottomRef.current = anchored;
+    setIsUserAnchoredBottom(anchored);
+  }, []);
+
+  // Auto-scroll to bottom when messages change only if user is anchored
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingDeltas]);
+    if (!isUserAnchoredBottom) {
+      return;
+    }
+
+    const raf = requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    });
+
+    return () => cancelAnimationFrame(raf);
+  }, [messages, streamingDeltas, isUserAnchoredBottom]);
 
   useEffect(() => {
     const container = streamingDeltasRef.current;
@@ -1099,6 +1126,10 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
         setIsStreaming(true);
         setCompletionState('idle');
         setRecentlyCompleted(false);
+        if (collapseStateRef.current === 'expanded') {
+          setIsUserAnchoredBottom(true);
+          anchoredBottomRef.current = true;
+        }
 
         const { chatWithPage } = await import('@/services/claudeAPIService');
 
@@ -2056,7 +2087,12 @@ const processQueue = useCallback(async () => {
 
             {/* Messages */}
             {isExpanded && (
-              <div css={messagesContainerStyles}>
+              <div
+                css={messagesContainerStyles}
+                ref={messagesContainerRef}
+                onScroll={handleMessagesScroll}
+                data-testid="element-chat-messages"
+              >
                 {messages.length === 0 && (
                   <div css={emptyStateStyles}>
                     <div css={emptyIconStyles}>{selectedText ? '📝' : '💬'}</div>
