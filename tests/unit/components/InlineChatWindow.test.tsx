@@ -376,6 +376,44 @@ describe('InlineChatWindow - Image Drop Support', () => {
       }
     });
 
+    it('shows unread count when a response completes while the chat is collapsed', async () => {
+      const resolvers: Array<() => void> = [];
+      chatWithPageMock.mockImplementation(async function* () {
+        yield 'chunk';
+        await new Promise<void>(resolve => resolvers.push(resolve));
+        yield 'done';
+      });
+
+      render(
+        <InlineChatWindow
+          onClose={mockOnClose}
+          initialContext={mockPageContext}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/ask about this page/i);
+      const collapseButton = screen.getByTestId('inline-chat-collapse');
+
+      await act(async () => {
+        fireEvent.change(input, { target: { value: 'Hello inline' } });
+        fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', charCode: 13 });
+      });
+
+      fireEvent.click(collapseButton);
+      expect(collapseButton.getAttribute('data-unread-count')).toBe('0');
+
+      await act(async () => {
+        resolvers.shift()?.();
+      });
+
+      await waitFor(() => {
+        expect(collapseButton.getAttribute('data-unread-count')).toBe('1');
+      });
+
+      fireEvent.click(collapseButton);
+      expect(collapseButton.getAttribute('data-unread-count')).toBe('0');
+    });
+
   });
 
   describe('Status indicators', () => {
