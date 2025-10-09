@@ -216,6 +216,34 @@ const dedupeMessagesById = (messages: ChatMessage[]): ChatMessage[] => {
 
 const normalizeNewlines = (value: string): string => value.replace(/\r\n/g, '\n');
 
+const shouldForceBlockBreak = (value: string): boolean => {
+  const trimmed = value.replace(/^\s+/, '');
+  return /^(\|\s|[-*]\s|\d+\.\s|#{1,6}\s|\*\*)/.test(trimmed);
+};
+
+const ensureInlineBlockBreaks = (value: string): string =>
+  value.replace(/([^\n])(?=\|(?:\s|$))/g, '$1\n');
+
+const formatStreamingChunk = (chunk: string, previous?: string): string => {
+  if (!chunk) {
+    return '';
+  }
+
+  let normalized = normalizeNewlines(chunk);
+  if (!normalized) {
+    return normalized;
+  }
+
+  normalized = ensureInlineBlockBreaks(normalized);
+
+  const prev = previous ?? '';
+  if (prev && !prev.endsWith('\n') && shouldForceBlockBreak(normalized)) {
+    normalized = `\n${normalized}`;
+  }
+
+  return normalized;
+};
+
 const separateAssistantResponse = (
   fullContent: string,
   deltaHistory: string[]
@@ -259,6 +287,11 @@ const separateAssistantResponse = (
   return {
     answer: normalizedFull.replace(/^\s+/, ''),
   };
+};
+
+export const __test__ = {
+  formatStreamingChunk,
+  ensureInlineBlockBreaks,
 };
 
 /**
@@ -1095,12 +1128,16 @@ export const ElementChatWindow: React.FC<ElementChatWindowProps> = ({
           if (isDevLoggingEnabled()) {
             console.debug('[ElementChatWindow] Streaming chunk received', { elementId, chunkLength: chunk.length });
           }
-          assistantContent += chunk;
+          const previousDelta = streamingDeltaHistoryRef.current.length > 0
+            ? streamingDeltaHistoryRef.current[streamingDeltaHistoryRef.current.length - 1]
+            : assistantContent;
+          const formattedChunk = formatStreamingChunk(chunk, previousDelta);
+          assistantContent += formattedChunk;
           if (!isMountedRef.current) {
             return;
           }
           setStreamingDeltas(prev => {
-            const next = [...prev, chunk];
+            const next = [...prev, formattedChunk];
             applyStreamingSnapshot(next);
             return next;
           });
