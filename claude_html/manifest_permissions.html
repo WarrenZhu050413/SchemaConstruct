@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nabokov Extension Permissions</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.25;
+    font-size: 14px;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 8px 10px;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding-bottom: 6px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 4px 0;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+.controls button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 10px;
+    font-size: 12px;
+    margin-left: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.controls button:hover {
+    background: var(--jade-green);
+}
+.important-always-visible {
+    margin: 6px 0 4px 0;
+    padding: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.7);
+}
+.important-always-visible h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--chinese-red);
+    margin-bottom: 6px;
+}
+.important-always-visible .dense-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px 10px;
+}
+.important-always-visible .dense-list li {
+    font-size: 13px;
+    color: var(--level-1);
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+}
+.collapsible {
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(255, 255, 255, 0.78);
+    transition: all 0.2s ease;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    background: rgba(205, 92, 92, 0.08);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-header span.arrow {
+    font-size: 12px;
+    color: var(--chinese-red);
+    transition: transform 0.2s ease;
+}
+.collapsible.open .collapsible-header span.arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 8px;
+}
+.collapsible.open .collapsible-content {
+    max-height: 400px;
+    padding: 6px 8px 8px 8px;
+}
+.permission-meta {
+    font-size: 12px;
+    color: var(--level-3);
+    margin-bottom: 4px;
+}
+.permission-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 8px;
+}
+.permission-details div {
+    font-size: 13px;
+    color: var(--level-2);
+}
+.permission-details strong {
+    color: var(--level-1);
+}
+.full-width {
+    grid-column: 1 / span 2;
+}
+.tag {
+    display: inline-block;
+    background: rgba(139, 0, 0, 0.12);
+    color: var(--chinese-red);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-right: 4px;
+}
+.code-ref {
+    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+    font-size: 12px;
+    color: var(--level-2);
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Extension Permissions Brief</h1>
+    <div class="controls">
+      <button id="expand-all">Expand All</button>
+      <button id="collapse-all">Collapse All</button>
+    </div>
+  </header>
+
+  <section class="important-always-visible">
+    <h2>🎯 Execution Summary</h2>
+    <ul class="dense-list">
+      <li><strong>activeTab</strong>: grants temporary page access when the user triggers clipping or chat.</li>
+      <li><strong>storage</strong>: persists user settings, saved cards, chat transcripts, and feature flags.</li>
+      <li><strong>contextMenus</strong>: builds the right-click "Clip to Canvas" and chat menu actions.</li>
+      <li><strong>scripting</strong>: injects/executes helper scripts (e.g., element selector shadow host).</li>
+      <li><strong>tabs</strong>: inspects & opens tabs when activating selectors or launching canvas.</li>
+      <li><strong>sidePanel</strong>: exposes the side panel UI as defined in `src/sidepanel/index.html`.</li>
+    </ul>
+  </section>
+
+  <div class="two-column-layout">
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>⚡ activeTab — page interaction on demand</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">Temporary host access</span> Enables the background script to call `chrome.tabs.executeScript` equivalents in MV3 via `scripting` when the user initiates clipping.</p>
+        <div class="permission-details">
+          <div><strong>User Trigger:</strong> Keyboard shortcut or context menu.</div>
+          <div><strong>Why Needed:</strong> Allows content script to read DOM, capture selections, and stream inline chat only after explicit user gesture.</div>
+          <div><strong>Key Files:</strong> <span class="code-ref">src/background/index.ts:32-87</span>, <span class="code-ref">src/content/index.tsx:206-348</span></div>
+          <div><strong>Without It:</strong> Extension cannot legally access the active page's DOM when summoned.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>📦 storage — persisted canvas + chat state</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">chrome.storage.sync/local</span> Required for saving cards, user preferences, and cached chat history.</p>
+        <div class="permission-details">
+          <div><strong>Data Stored:</strong> Captured cards, inline chat drafts, onboarding flags.</div>
+          <div><strong>Key Files:</strong> <span class="code-ref">src/shared/storage.ts</span>, <span class="code-ref">src/content/index.tsx:360-418</span></div>
+          <div><strong>Backend Tie-in:</strong> Keeps local state aligned with Claude backend auth (`backend/server.mjs`).</div>
+          <div><strong>Without It:</strong> User captures vanish after reload; preferences reset each session.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>📋 contextMenus — right-click capture entrypoints</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">chrome.contextMenus</span> Used to register custom menu items like "Clip to Canvas" and chat actions.</p>
+        <div class="permission-details">
+          <div><strong>Key Files:</strong> <span class="code-ref">src/background/index.ts:10-127</span></div>
+          <div><strong>Workflow:</strong> Menu click → `START_CLIPPING` / `OPEN_ELEMENT_CHAT` message → content script mounts selector.</div>
+          <div><strong>User Value:</strong> Enables selection-driven clipping without keyboard shortcuts.</div>
+          <div><strong>Without It:</strong> No contextual menu entries; UX limited to shortcuts/action button.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>🧩 scripting — shadow DOM mounts & helpers</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">chrome.scripting</span> MV3 replacement for `executeScript`; injects content helpers when needed.</p>
+        <div class="permission-details">
+          <div><strong>Usage:</strong> Background can ensure `src/content/index.tsx` is injected into target pages for selector/chat.</div>
+          <div><strong>Related Modules:</strong> <span class="code-ref">src/content/mount.tsx</span>, <span class="code-ref">scripts/build-extension.sh</span></div>
+          <div><strong>Without It:</strong> Cannot dynamically load/update content script on demand.</div>
+          <div><strong>Security Note:</strong> Works with `activeTab` to restrict to user-invoked pages.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>🗂️ tabs — manage canvas + selector targets</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">chrome.tabs</span> Allows querying current tab, opening the canvas tab, and relaying messages.</p>
+        <div class="permission-details">
+          <div><strong>Key Calls:</strong> `chrome.tabs.query`, `chrome.tabs.sendMessage`, `chrome.tabs.create`.</div>
+          <div><strong>Key Files:</strong> <span class="code-ref">src/background/index.ts:30-138</span></div>
+          <div><strong>Inline Chat Flow:</strong> Shortcut → background looks up active tab → sends `ACTIVATE_CHAT_SELECTOR`.</div>
+          <div><strong>Without It:</strong> Background cannot identify or control the target tab.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>📎 sidePanel — expose research companion UI</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p class="permission-meta"><span class="tag">chrome.sidePanel</span> Required for registering the side panel experience defined in the manifest.</p>
+        <div class="permission-details">
+          <div><strong>UI Entry:</strong> Side panel loads `src/sidepanel/index.html` as configured.</div>
+          <div><strong>Why Needed:</strong> Without explicit permission, MV3 extensions cannot use the side panel API.</div>
+          <div><strong>Feature Link:</strong> Provides persistent canvas overview alongside inline chat workflows.</div>
+          <div><strong>Without It:</strong> Side panel button is hidden; users lose the quick reference surface.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible full-width" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>📚 Dependency Map & References</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="permission-details">
+          <div><strong>Keyboard Shortcuts:</strong> <span class="code-ref">src/manifest.json:28-54</span></div>
+          <div><strong>Inline Chat Mount:</strong> <span class="code-ref">src/content/index.tsx:428-708</span></div>
+          <div><strong>Canvas Save Flow:</strong> <span class="code-ref">src/content/index.tsx:380-420</span></div>
+          <div><strong>Side Panel Entrypoint:</strong> <span class="code-ref">src/sidepanel/index.html</span></div>
+          <div><strong>Backend Auth:</strong> <span class="code-ref">backend/server.mjs</span></div>
+          <div><strong>Testing Coverage:</strong> <span class="code-ref">tests/e2e/keyboard-shortcuts.spec.ts</span></div>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

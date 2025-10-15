@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>src/content/index.tsx Responsibilities</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 8px;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", "PingFang SC", "Noto Sans", sans-serif;
+}
+
+.container {
+    width: 100%;
+}
+
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 4px 0;
+    color: var(--chinese-red);
+}
+
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 2px 0;
+    color: var(--level-1);
+}
+
+.dense-list {
+    list-style: none;
+    display: grid;
+    gap: 4px;
+}
+
+.dense-list li {
+    display: flex;
+    justify-content: space-between;
+    color: var(--level-2);
+}
+
+.dense-list li strong {
+    color: var(--level-1);
+    margin-right: 6px;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge.primary {
+    background: var(--chinese-red);
+    color: #fff;
+}
+
+.badge.secondary {
+    background: rgba(255, 215, 0, 0.15);
+    color: var(--chinese-gold);
+    border: 1px solid rgba(255, 215, 0, 0.6);
+}
+
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
+.collapsible {
+    border: 1px solid rgba(139, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    cursor: pointer;
+    background: rgba(139, 0, 0, 0.08);
+    color: var(--level-1);
+    font-weight: 600;
+}
+
+.collapsible-header .arrow {
+    font-size: 12px;
+    transform: rotate(0deg);
+    transition: transform 0.2s ease;
+    color: var(--chinese-gold);
+}
+
+.collapsible.open .collapsible-header .arrow {
+    transform: rotate(90deg);
+}
+
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 8px;
+    transition: max-height 0.25s ease;
+}
+
+.collapsible.open .collapsible-content {
+    padding: 6px 8px 8px 8px;
+    max-height: 600px;
+}
+
+.important-always-visible {
+    border-left: 4px solid var(--chinese-red);
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+.tag-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.tag-grid span {
+    background: rgba(139, 0, 0, 0.08);
+    border: 1px solid rgba(139, 0, 0, 0.35);
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 11px;
+    color: var(--level-2);
+}
+
+.keyline {
+    border-top: 1px dotted rgba(43, 43, 43, 0.3);
+    margin: 6px 0;
+}
+
+.control-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin: 6px 0;
+}
+
+.control-row button {
+    background: rgba(139, 0, 0, 0.1);
+    border: 1px solid rgba(139, 0, 0, 0.35);
+    color: var(--chinese-red);
+    padding: 3px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.control-row button:hover {
+    background: rgba(255, 215, 0, 0.15);
+    border-color: rgba(255, 215, 0, 0.6);
+    color: var(--chinese-gold);
+}
+
+pre, code {
+    font-family: "Fira Code", "Source Code Pro", monospace;
+    font-size: 12px;
+    line-height: 1.1;
+}
+
+pre.mermaid {
+    background: rgba(255, 255, 255, 0.65);
+    border: 1px solid rgba(139, 0, 0, 0.25);
+    border-radius: 6px;
+    padding: 6px;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>src/content/index.tsx</h1>
+        <div class="important-always-visible">
+            <h2>🎯 Critical Responsibilities</h2>
+            <ul class="dense-list">
+                <li><strong>Role</strong><span>Primary content-script orchestrator for Nabokov Web Clipper</span></li>
+                <li><strong>Scope</strong><span>Mounts selector UI, inline chat, element chats, indicator overlays</span></li>
+                <li><strong>Triggers</strong><span>Responds to background messages, keyboard shortcuts, context menu</span></li>
+                <li><strong>State</strong><span>Tracks selector/chat lifecycle, shadow DOM roots, cleanup routines</span></li>
+            </ul>
+            <div class="keyline"></div>
+            <div class="tag-grid">
+                <span class="badge primary">content-script</span>
+                <span>React + Shadow DOM</span>
+                <span>chrome.runtime messaging</span>
+                <span>Element chat indicators</span>
+                <span>Inline storage writes</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="control-row">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+
+    <main>
+        <div class="two-column-layout">
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>⚡ Activation Flow</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>Selector Lifecycle</h3>
+                    <ul class="dense-list">
+                        <li><strong>activateSelector</strong><span>Spawns container, Shadow DOM, mounts <code>ElementSelector</code></span></li>
+                        <li><strong>remountWithChat</strong><span>Prepares UI to reveal <code>FloatingChat</code> when capture finishes</span></li>
+                        <li><strong>deactivateSelector</strong><span>Unmounts React tree, removes container, resets state</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Entry Points</h3>
+                    <ul class="dense-list">
+                        <li><strong>DOMContentLoaded</strong><span>Auto-initializes when DOM ready</span></li>
+                        <li><strong>Keyboard</strong><span>Cmd/Ctrl+Shift+E toggles selector; ESC aborts fallback</span></li>
+                        <li><strong>Messages</strong><span><code>ACTIVATE_SELECTOR</code>, <code>DEACTIVATE_SELECTOR</code></span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>📍 UI Surfaces</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>Mounted React Apps</h3>
+                    <ul class="dense-list">
+                        <li><strong>ElementSelector</strong><span>Primary selection overlay within Shadow DOM</span></li>
+                        <li><strong>FloatingChat</strong><span>Appears post-capture sharing container with selector</span></li>
+                        <li><strong>InlineChatWindow</strong><span>Full-screen chat invoked via message or shortcut</span></li>
+                        <li><strong>ElementChatWindow</strong><span>Contextual chat anchored to elements/text selections</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Shadow DOM Strategy</h3>
+                    <ul class="dense-list">
+                        <li><strong>createShadowRoot</strong><span>Ensures style isolation and Emotion cache reuse</span></li>
+                        <li><strong>Mount Containers</strong><span>Each window gets fixed-position host with max z-index</span></li>
+                        <li><strong>Cleanup</strong><span>Unmount + remove host to avoid DOM leaks</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>💬 Chat Systems</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>Inline Chat</h3>
+                    <ul class="dense-list">
+                        <li><strong>openInlineChat</strong><span>Captures page context, mounts <code>InlineChatWindow</code></span></li>
+                        <li><strong>Save Flow</strong><span>Converts messages to HTML card, persists via <code>saveCard</code></span></li>
+                        <li><strong>Events</strong><span>Dispatches <code>nabokov:cards-updated</code> for canvas sync</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Element Chats</h3>
+                    <ul class="dense-list">
+                        <li><strong>openElementChat</strong><span>Uses last right-click target to spawn chat window</span></li>
+                        <li><strong>openElementChatWindow</strong><span>Loads stored sessions, sets descriptors, positions near element</span></li>
+                        <li><strong>handleTextSelectionChatWithHighlight</strong><span>Creates transient chat IDs for text selections with highlight support</span></li>
+                        <li><strong>elementChatWindows Map</strong><span>Prevents duplicates, manages cleanup</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>🗂 Storage & Indicators</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>Persistence</h3>
+                    <ul class="dense-list">
+                        <li><strong>saveCard</strong><span>Stores chat transcripts as canvas cards with metadata</span></li>
+                        <li><strong>generateId</strong><span>Generates unique IDs for cards and chat anchors</span></li>
+                        <li><strong>elementIdService</strong><span>Assigns stable IDs via dataset attributes</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Indicator Lifecycle</h3>
+                    <ul class="dense-list">
+                        <li><strong>initElementChatIndicators</strong><span>Bootstraps hover markers for existing element chats</span></li>
+                        <li><strong>syncIndicatorsForSessions</strong><span>Aligns indicators with stored sessions on init</span></li>
+                        <li><strong>teardownElementChatIndicators</strong><span>Removes markers during cleanup</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>🔔 Messaging & Shortcuts</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>chrome.runtime Messages</h3>
+                    <ul class="dense-list">
+                        <li><strong>handleMessage</strong><span>Dispatches selector/chat commands, replies with status</span></li>
+                        <li><strong>GET_STATE</strong><span>Returns UI status to background / side panel</span></li>
+                        <li><strong>PING</strong><span>Health check response with timestamp</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Keyboard & Context Hooks</h3>
+                    <ul class="dense-list">
+                        <li><strong>handleKeyboardShortcut</strong><span>Backup toggles for selector and ESC abort</span></li>
+                        <li><strong>handleContextMenu</strong><span>Records target + position for context menu flows</span></li>
+                        <li><strong>chrome.runtime.sendMessage</strong><span>Signals <code>CONTENT_SCRIPT_READY</code> after init</span></li>
+                    </ul>
+                </div>
+            </section>
+
+            <section class="collapsible" data-collapsible="closed">
+                <div class="collapsible-header"><span>♻️ Cleanup & Dev Hooks</span><span class="arrow">▶</span></div>
+                <div class="collapsible-content">
+                    <h3>Lifecycle Safety</h3>
+                    <ul class="dense-list">
+                        <li><strong>cleanup</strong><span>Runs on <code>beforeunload</code>; closes all UIs, removes listeners</span></li>
+                        <li><strong>closeAllElementChatWindows</strong><span>Ensures orphaned windows removed on navigation</span></li>
+                        <li><strong>window.__NABOKOV_EXTENSION_LOADED__</strong><span>Flag for debugging / health checks</span></li>
+                    </ul>
+                    <div class="keyline"></div>
+                    <h3>Development Helpers</h3>
+                    <ul class="dense-list">
+                        <li><strong>process.env.NODE_ENV === 'development'</strong><span>Exports selector controls via <code>window.__nabokobClipper__</code></span></li>
+                        <li><strong>console logging</strong><span>Structured logs for traceability across flows</span></li>
+                    </ul>
+                </div>
+            </section>
+        </div>
+
+        <section class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header"><span>🧭 Interaction Map</span><span class="arrow">▶</span></div>
+            <div class="collapsible-content">
+                <pre class="mermaid">flowchart LR
+    bg[Background Service Worker]
+    kb[Keyboard Shortcut]
+    ctx[Context Menu]
+    cs[Content Script index.tsx]
+    es[ElementSelector]
+    fc[FloatingChat]
+    icw[InlineChatWindow]
+    ecw[ElementChatWindow]
+    store[(Storage Services)]
+    indicator[Indicator Service]
+
+    bg -- messages --> cs
+    kb -- keydown --> cs
+    ctx -- right-click --> cs
+    cs -- activateSelector --> es
+    es -- capture --> cs
+    cs -- showFloatingChat --> fc
+    cs -- openInlineChat --> icw
+    cs -- openElementChat --> ecw
+    cs -- saveCard --> store
+    cs -- syncIndicators --> indicator
+    indicator -- updates --> cs
+</pre>
+            </div>
+        </section>
+
+        <section class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header"><span>📌 Key Imports & Dependencies</span><span class="arrow">▶</span></div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>React / mountReactInShadow</strong><span>Shadow DOM rendering with Emotion cache</span></li>
+                    <li><strong>Component Suite</strong><span><code>ElementSelector</code>, <code>FloatingChat</code>, <code>InlineChatWindow</code>, <code>ElementChatWindow</code></span></li>
+                    <li><strong>Services</strong><span>Element chat indicators, chat persistence, page/element capture utilities</span></li>
+                    <li><strong>Utilities</strong><span>Storage helpers (<code>saveCard</code>, <code>generateId</code>), text highlight service</span></li>
+                    <li><strong>chrome.* APIs</strong><span>Runtime messaging, context menu integration</span></li>
+                </ul>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

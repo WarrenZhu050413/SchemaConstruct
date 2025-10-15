@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOM Elements vs React Components</title>
+    <style>
+        /* Color palette with dark mode support */
+        :root {
+            --chinese-red: #8B0000;
+            --chinese-gold: #FFD700;
+            --jade-green: #00A86B;
+            --ink-black: #2B2B2B;
+            --paper-beige: #F5F5DC;
+            --light-cream: #FAFAF0;
+            --level-1: #000;
+            --level-2: #333;
+            --level-3: #666;
+            --level-4: #999;
+        }
+
+        [data-theme="dark"] {
+            --chinese-red: #DC143C;
+            --chinese-gold: #FFD700;
+            --jade-green: #10B981;
+            --ink-black: #E5E5DC;
+            --paper-beige: #1A1A1A;
+            --light-cream: #252525;
+            --level-1: #F5F5DC;
+            --level-2: #D4C4B0;
+            --level-3: #A89F91;
+            --level-4: #6B6B6B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+            color: var(--ink-black);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.3;
+            font-size: 14px;
+            width: 100vw;
+            max-width: 100%;
+            padding: 12px;
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 900;
+            margin: 8px 0;
+            padding: 8px 4px;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 10px 0 4px 0;
+            padding: 6px;
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.03);
+            color: var(--level-1);
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 6px 0 3px 8px;
+            color: var(--level-2);
+        }
+
+        h4 {
+            font-size: 13px;
+            font-weight: 500;
+            margin: 4px 0 2px 16px;
+            color: var(--level-3);
+        }
+
+        #theme-toggle {
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            z-index: 10000;
+            background: var(--chinese-gold);
+            color: var(--ink-black);
+            border: 2px solid var(--chinese-red);
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .important-always-visible {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.1), white);
+            border: 2px solid var(--chinese-gold);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 8px 0;
+        }
+
+        .collapsible {
+            margin: 6px 0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px 10px;
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+            border-left: 3px solid var(--chinese-gold);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+        }
+
+        .collapsible-header .arrow {
+            transition: transform 0.3s ease;
+            color: var(--chinese-red);
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .collapsible.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 10px;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 5000px;
+            padding: 10px;
+        }
+
+        .collapsible.critical .collapsible-header {
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.08);
+            font-weight: 700;
+        }
+
+        code {
+            background: rgba(139, 0, 0, 0.05);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--chinese-red);
+        }
+
+        pre {
+            background: var(--ink-black);
+            color: var(--light-cream);
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+            border-left: 3px solid var(--chinese-gold);
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        ul, ol {
+            margin: 6px 0 6px 24px;
+        }
+
+        li {
+            margin: 3px 0;
+            line-height: 1.4;
+        }
+
+        .comparison-box {
+            background: white;
+            border: 2px solid var(--jade-green);
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 4px;
+        }
+
+        .code-example {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 3px;
+        }
+
+        .highlight-box {
+            background: rgba(0, 168, 107, 0.1);
+            border-left: 3px solid var(--jade-green);
+            padding: 8px;
+            margin: 6px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid var(--chinese-gold);
+            padding: 6px;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(139, 0, 0, 0.08);
+            font-weight: 700;
+            color: var(--chinese-red);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(255, 215, 0, 0.03);
+        }
+
+        .mermaid {
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            border: 2px solid var(--chinese-gold);
+            margin: 10px 0;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <button id="theme-toggle">🌙 Dark Mode</button>
+
+    <h1>DOM Elements vs React Components</h1>
+
+    <div class="important-always-visible">
+        <h2>Key Concept</h2>
+        <p><strong>DOM elements</strong> are the actual HTML nodes in the browser's document tree. <strong>React components</strong> are JavaScript functions/classes that <em>describe</em> what DOM elements should be created and how they should behave.</p>
+        <p style="margin-top: 6px; color: var(--chinese-red); font-weight: 600;">React components are the blueprint; DOM elements are the building.</p>
+    </div>
+
+    <div class="mermaid">
+graph TD
+    A[React Component] -->|React.createElement| B[Virtual DOM Element]
+    B -->|ReactDOM.render| C[Real DOM Element]
+    C -->|Browser renders| D[Visible UI]
+
+    style A fill:#FFD700,stroke:#8B0000,stroke-width:2px
+    style B fill:#F5F5DC,stroke:#FFD700,stroke-width:2px
+    style C fill:#00A86B,stroke:#2B2B2B,stroke-width:2px
+    style D fill:#CD5C5C,stroke:#8B0000,stroke-width:2px
+    </div>
+
+    <h2>Part 1: What Are DOM Elements?</h2>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>DOM (Document Object Model) Fundamentals</span>
+        </div>
+        <div class="collapsible-content">
+            <p>The DOM is a tree-like representation of an HTML document that browsers create when loading a web page.</p>
+
+            <h4>Every HTML tag becomes a DOM element:</h4>
+            <div class="two-column-layout">
+                <div class="code-example">
+                    <strong>HTML:</strong>
+                    <pre><code>&lt;div id="container"&gt;
+  &lt;p&gt;Hello&lt;/p&gt;
+  &lt;button&gt;Click&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+                </div>
+                <div class="code-example">
+                    <strong>JavaScript Access:</strong>
+                    <pre><code>const div = document.getElementById('container');
+const p = div.querySelector('p');
+const btn = div.querySelector('button');
+
+// DOM elements have properties & methods
+p.textContent = 'New text';
+btn.addEventListener('click', () => {});</code></pre>
+                </div>
+            </div>
+
+            <h4>DOM Element Properties:</h4>
+            <ul>
+                <li><strong>Physical nodes</strong> in browser memory</li>
+                <li>Have properties: <code>innerHTML</code>, <code>className</code>, <code>style</code>, <code>children</code></li>
+                <li>Have methods: <code>addEventListener()</code>, <code>appendChild()</code>, <code>remove()</code></li>
+                <li>Can be directly manipulated via JavaScript</li>
+                <li>Expensive to create/destroy (browser reflows & repaints)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>DOM Tree Structure Example</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="mermaid">
+graph TD
+    A[Document] --> B[html]
+    B --> C[head]
+    B --> D[body]
+    D --> E[div#app]
+    E --> F[h1]
+    E --> G[div.content]
+    G --> H[p]
+    G --> I[button]
+
+    style A fill:#8B0000,stroke:#000,color:#fff
+    style B fill:#FFD700,stroke:#000
+    style E fill:#00A86B,stroke:#000,color:#fff
+    </div>
+        </div>
+    </div>
+
+    <h2>Part 2: What Are React Components?</h2>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>React Components as Templates</span>
+        </div>
+        <div class="collapsible-content">
+            <p>React components are <strong>JavaScript functions or classes</strong> that return a description of what UI should exist. They don't directly create DOM elements.</p>
+
+            <div class="highlight-box">
+                <strong>Key Insight:</strong> A React component is like a recipe. The DOM element is the actual cake.
+            </div>
+
+            <h4>Two Types of Components:</h4>
+            <div class="two-column-layout">
+                <div class="code-example">
+                    <strong>Function Component:</strong>
+                    <pre><code>function Greeting({ name }) {
+  return (
+    &lt;div className="greeting"&gt;
+      &lt;h1&gt;Hello {name}!&lt;/h1&gt;
+      &lt;button&gt;Click me&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+                </div>
+                <div class="code-example">
+                    <strong>Class Component:</strong>
+                    <pre><code>class Greeting extends React.Component {
+  render() {
+    return (
+      &lt;div className="greeting"&gt;
+        &lt;h1&gt;Hello {this.props.name}!&lt;/h1&gt;
+        &lt;button&gt;Click me&lt;/button&gt;
+      &lt;/div&gt;
+    );
+  }
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>JSX vs HTML: What's the Difference?</span>
+        </div>
+        <div class="collapsible-content">
+            <p>JSX (JavaScript XML) looks like HTML but is actually JavaScript:</p>
+
+            <div class="code-example">
+                <strong>JSX code you write:</strong>
+                <pre><code>&lt;div className="box"&gt;
+  &lt;p&gt;{message}&lt;/p&gt;
+&lt;/div&gt;</code></pre>
+            </div>
+
+            <div class="code-example">
+                <strong>What it compiles to:</strong>
+                <pre><code>React.createElement(
+  'div',
+  { className: 'box' },
+  React.createElement('p', null, message)
+)</code></pre>
+            </div>
+
+            <div class="highlight-box">
+                <strong>Important:</strong> JSX produces a <strong>React element</strong> (JavaScript object), not a DOM element. React elements are lightweight descriptions that React uses to create/update real DOM elements.
+            </div>
+        </div>
+    </div>
+
+    <h2>Part 3: The Relationship Between React Components and DOM Elements</h2>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>The React Rendering Pipeline</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="mermaid">
+sequenceDiagram
+    participant JSX as React Component (JSX)
+    participant VirtualDOM as Virtual DOM
+    participant Reconciler as React Reconciler
+    participant RealDOM as Real DOM
+    participant Browser as Browser Display
+
+    JSX->>VirtualDOM: 1. Component returns JSX
+    VirtualDOM->>VirtualDOM: 2. Convert to React elements
+    VirtualDOM->>Reconciler: 3. Diffing algorithm
+    Reconciler->>RealDOM: 4. Minimal DOM updates
+    RealDOM->>Browser: 5. Browser repaints
+
+    Note over JSX,VirtualDOM: Happens on every render
+    Note over Reconciler,RealDOM: Only changed elements updated
+    </div>
+
+            <h4>Step-by-Step Process:</h4>
+            <ol>
+                <li><strong>Component Execution:</strong> React calls your component function</li>
+                <li><strong>React Element Creation:</strong> JSX produces React elements (JS objects)</li>
+                <li><strong>Virtual DOM:</strong> React builds a lightweight tree of these objects</li>
+                <li><strong>Reconciliation:</strong> React compares new virtual DOM with previous version</li>
+                <li><strong>DOM Updates:</strong> React updates only the changed real DOM elements</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>Practical Example: Counter Component</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="code-example">
+                <strong>React Component Code:</strong>
+                <pre><code>function Counter() {
+  const [count, setCount] = useState(0);
+
+  return (
+    &lt;div className="counter"&gt;
+      &lt;p&gt;Count: {count}&lt;/p&gt;
+      &lt;button onClick={() => setCount(count + 1)}&gt;
+        Increment
+      &lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+            </div>
+
+            <h4>What Happens When Component Renders:</h4>
+            <div class="two-column-layout">
+                <div class="comparison-box">
+                    <strong>First Render:</strong>
+                    <ul>
+                        <li>React creates DOM elements: <code>&lt;div&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;button&gt;</code></li>
+                        <li>Attaches event listener to button</li>
+                        <li>Inserts into browser DOM</li>
+                    </ul>
+                </div>
+                <div class="comparison-box">
+                    <strong>After Click:</strong>
+                    <ul>
+                        <li>Component re-executes with new count</li>
+                        <li>React compares new vs old virtual DOM</li>
+                        <li>Updates <strong>only</strong> the <code>&lt;p&gt;</code> text content</li>
+                        <li>Doesn't recreate entire DOM tree</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h2>Part 4: Key Differences</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Aspect</th>
+                <th>React Component</th>
+                <th>DOM Element</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Nature</strong></td>
+                <td>JavaScript function/class</td>
+                <td>Browser object in memory</td>
+            </tr>
+            <tr>
+                <td><strong>Purpose</strong></td>
+                <td>Describes UI structure & behavior</td>
+                <td>Actual rendered element user sees</td>
+            </tr>
+            <tr>
+                <td><strong>Reusability</strong></td>
+                <td>Can be reused infinitely</td>
+                <td>Single instance in DOM tree</td>
+            </tr>
+            <tr>
+                <td><strong>State</strong></td>
+                <td>Can have state (useState, this.state)</td>
+                <td>No state, just properties</td>
+            </tr>
+            <tr>
+                <td><strong>Lifecycle</strong></td>
+                <td>Mount, update, unmount</td>
+                <td>Created, modified, removed</td>
+            </tr>
+            <tr>
+                <td><strong>Performance</strong></td>
+                <td>Cheap to re-execute</td>
+                <td>Expensive to create/destroy</td>
+            </tr>
+            <tr>
+                <td><strong>Access</strong></td>
+                <td>Via React tree & props</td>
+                <td>Via <code>document.querySelector()</code> or refs</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="collapsible open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>When React Components Create DOM Elements</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="code-example">
+                <strong>Component with Ref (accessing DOM element):</strong>
+                <pre><code>function InputFocus() {
+  const inputRef = useRef(null);
+
+  const handleClick = () => {
+    // Access actual DOM element via ref
+    inputRef.current.focus(); // .current is the real DOM element
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;input ref={inputRef} type="text" /&gt;
+      &lt;button onClick={handleClick}&gt;Focus Input&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+            </div>
+
+            <div class="highlight-box">
+                <strong>Refs provide direct access to the underlying DOM element</strong> that React created. This is the bridge between React's virtual world and the browser's real DOM.
+            </div>
+        </div>
+    </div>
+
+    <h2>Part 5: Practical Implications in Your Project</h2>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>Shadow DOM + React in Nabokov Web Clipper</span>
+        </div>
+        <div class="collapsible-content">
+            <p>Your project uses <strong>Shadow DOM</strong> for CSS isolation. Here's how it relates:</p>
+
+            <div class="code-example">
+                <strong>From your content script (src/content/index.tsx):</strong>
+                <pre><code>// Create Shadow DOM container (real DOM element)
+const shadowHost = document.createElement('div');
+document.body.appendChild(shadowHost);
+const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+// Mount React component INTO the Shadow DOM
+const root = ReactDOM.createRoot(shadowRoot);
+root.render(&lt;ContentApp /&gt;); // React component
+
+// ContentApp is a React component that describes UI
+// ReactDOM.createRoot creates real DOM elements inside shadowRoot</code></pre>
+            </div>
+
+            <h4>Breakdown:</h4>
+            <ul>
+                <li><code>shadowHost</code>: Real DOM element</li>
+                <li><code>shadowRoot</code>: Shadow DOM root (also a real DOM node)</li>
+                <li><code>&lt;ContentApp /&gt;</code>: React component (template)</li>
+                <li><code>ReactDOM.createRoot().render()</code>: Creates real DOM elements inside shadow root</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="collapsible critical open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>Element Selection: DOM vs React</span>
+        </div>
+        <div class="collapsible-content">
+            <p>Your ElementSelector service works with <strong>real DOM elements</strong> from the host page:</p>
+
+            <div class="code-example">
+                <strong>From ElementSelector.tsx:</strong>
+                <pre><code>const handleMouseOver = (e: MouseEvent) => {
+  const target = e.target as HTMLElement; // Real DOM element from page
+
+  // React component uses this DOM element to decide what to highlight
+  setHighlightedElement(target);
+};</code></pre>
+            </div>
+
+            <h4>Flow:</h4>
+            <ol>
+                <li>User hovers over <strong>real DOM element</strong> on page</li>
+                <li>React component (<code>ElementSelector</code>) receives event</li>
+                <li>Component updates state with DOM element reference</li>
+                <li>React re-renders and creates highlight overlay DOM elements</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="collapsible open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>Canvas Cards: React → Real DOM</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="code-example">
+                <strong>CardNode component (src/canvas/CardNode.tsx):</strong>
+                <pre><code>function CardNode({ data }: NodeProps&lt;CardNodeData&gt;) {
+  return (
+    &lt;div className="card-node"&gt;
+      &lt;img src={data.screenshotUrl} alt="Screenshot" /&gt;
+      &lt;p&gt;{data.element.tagName}&lt;/p&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+            </div>
+
+            <p><strong>What happens:</strong></p>
+            <ul>
+                <li>CardNode is a React component (blueprint)</li>
+                <li>When rendered, React creates real DOM: <code>&lt;div&gt;</code>, <code>&lt;img&gt;</code>, <code>&lt;p&gt;</code></li>
+                <li>User sees these actual DOM elements in browser</li>
+                <li>When <code>data</code> changes, React updates the existing DOM elements efficiently</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Part 6: Common Patterns & Anti-Patterns</h2>
+
+    <div class="collapsible open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>✅ Good Practices</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="two-column-layout">
+                <div class="code-example">
+                    <strong>Let React manage DOM:</strong>
+                    <pre><code>function Toggle() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    &lt;div&gt;
+      &lt;button onClick={() => setOpen(!open)}&gt;
+        Toggle
+      &lt;/button&gt;
+      {open && &lt;p&gt;Content&lt;/p&gt;}
+    &lt;/div&gt;
+  );
+}</code></pre>
+                </div>
+                <div class="code-example">
+                    <strong>Use refs for DOM access when needed:</strong>
+                    <pre><code>function Video() {
+  const videoRef = useRef(null);
+
+  const play = () => {
+    videoRef.current.play();
+  };
+
+  return (
+    &lt;div&gt;
+      &lt;video ref={videoRef} /&gt;
+      &lt;button onClick={play}&gt;Play&lt;/button&gt;
+    &lt;/div&gt;
+  );
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="collapsible open">
+        <div class="collapsible-header">
+            <span><span class="arrow">▶</span>❌ Anti-Patterns</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="code-example">
+                <strong>DON'T: Directly manipulate DOM in React:</strong>
+                <pre><code>// ❌ BAD: Bypasses React's virtual DOM
+function BadComponent() {
+  useEffect(() => {
+    document.getElementById('myDiv').innerHTML = 'Changed!';
+  }, []);
+
+  return &lt;div id="myDiv"&gt;Original&lt;/div&gt;;
+}</code></pre>
+            </div>
+
+            <div class="code-example">
+                <strong>DO: Use React state:</strong>
+                <pre><code>// ✅ GOOD: React manages the DOM
+function GoodComponent() {
+  const [text, setText] = useState('Original');
+
+  useEffect(() => {
+    setText('Changed!');
+  }, []);
+
+  return &lt;div&gt;{text}&lt;/div&gt;;
+}</code></pre>
+            </div>
+        </div>
+    </div>
+
+    <h2>Summary</h2>
+
+    <div class="important-always-visible">
+        <h3>The Mental Model</h3>
+        <ul>
+            <li><strong>HTML</strong>: Raw markup language → creates DOM elements</li>
+            <li><strong>DOM Elements</strong>: Browser's in-memory tree of actual nodes</li>
+            <li><strong>React Components</strong>: JavaScript functions that <em>describe</em> what DOM should look like</li>
+            <li><strong>JSX</strong>: Syntactic sugar that compiles to React.createElement() calls</li>
+            <li><strong>Virtual DOM</strong>: React's lightweight copy of the DOM for efficient diffing</li>
+            <li><strong>Reconciliation</strong>: React's process of syncing virtual DOM to real DOM</li>
+        </ul>
+
+        <div style="margin-top: 10px; padding: 8px; background: rgba(139, 0, 0, 0.05); border-radius: 3px;">
+            <strong style="color: var(--chinese-red);">Key Insight:</strong> React components are <strong>declarative descriptions</strong> of UI. You tell React <em>what</em> the UI should look like, and React figures out <em>how</em> to create/update the actual DOM elements efficiently.
+        </div>
+    </div>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        });
+
+        // Collapsible sections
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const collapsible = header.parentElement;
+                collapsible.classList.toggle('open');
+            });
+        });
+
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#FFD700',
+                primaryTextColor: '#2B2B2B',
+                primaryBorderColor: '#8B0000',
+                lineColor: '#8B0000',
+                secondaryColor: '#F5F5DC',
+                tertiaryColor: '#00A86B'
+            }
+        });
+    </script>
+</body>
+</html>

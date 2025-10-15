@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>ensureInitialized Scheduling Flow</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", "PingFang SC", "Noto Sans", Arial, sans-serif;
+}
+.container {
+    width: 100%;
+    padding: 8px 16px;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    margin-bottom: 4px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+header span {
+    font-size: 12px;
+    color: var(--level-3);
+}
+.important-always-visible {
+    background: rgba(255, 215, 0, 0.12);
+    border-left: 3px solid var(--chinese-gold);
+    padding: 6px 8px;
+    margin-bottom: 6px;
+}
+.important-always-visible h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--chinese-red);
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 6px;
+    width: 100%;
+}
+.dense-list {
+    list-style: none;
+    color: var(--level-2);
+}
+.dense-list li {
+    margin-bottom: 4px;
+}
+.dense-list strong {
+    color: var(--level-1);
+}
+.status-label {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 12px;
+}
+.status-critical { background: var(--chinese-red); color: #fff; }
+.status-important { background: var(--chinese-gold); color: #000; }
+.status-normal { background: rgba(0, 168, 107, 0.2); color: var(--jade-green); }
+.collapsible {
+    border: 1px solid rgba(0,0,0,0.1);
+    border-left: 3px solid transparent;
+    background: rgba(255,255,255,0.6);
+    transition: border-color 0.2s ease;
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    cursor: pointer;
+    background: rgba(139, 0, 0, 0.08);
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-content {
+    padding: 6px 8px;
+    display: none;
+    color: var(--level-2);
+}
+.collapsible.open {
+    border-left-color: var(--chinese-gold);
+}
+.collapsible.open .collapsible-content {
+    display: block;
+}
+.collapsible .arrow {
+    transition: transform 0.2s ease;
+    color: var(--level-3);
+}
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+button:hover {
+    background: var(--jade-green);
+    color: #fff;
+}
+.summary-callout {
+    background: rgba(0, 168, 107, 0.08);
+    border-left: 3px solid var(--jade-green);
+    padding: 6px 8px;
+    margin-top: 6px;
+    color: var(--level-2);
+}
+.code-block {
+    background: rgba(0,0,0,0.06);
+    padding: 6px 8px;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    border-radius: 4px;
+}
+.key-points {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 6px;
+}
+.key-card {
+    background: rgba(255,255,255,0.7);
+    border: 1px solid rgba(0,0,0,0.08);
+    padding: 6px 8px;
+}
+.key-card h3 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--level-1);
+    margin-bottom: 4px;
+}
+.key-card p {
+    font-size: 12px;
+    color: var(--level-2);
+}
+.mermaid {
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>ensureInitialized: Observer & Refresh Flow</h1>
+<span>Updated: October 9, 2025</span>
+</header>
+<div class="important-always-visible">
+<h2>🎯 Critical Understanding</h2>
+<div class="two-column-layout">
+<ul class="dense-list">
+<li><strong>Purpose:</strong> Set up one-time listeners that call <code>scheduleRefresh()</code> when the page changes.</li>
+<li><strong>Refresh Means:</strong> Trigger the extension/overlay update logic, <em>not</em> reload the entire document.</li>
+</ul>
+<ul class="dense-list">
+<li><strong>Status:</strong> <span class="status-normal">Stable listener setup</span></li>
+<li><strong>Key Actors:</strong> scroll + resize events, DOM mutations, <code>MutationObserver</code>.</li>
+</ul>
+</div>
+</div>
+<div style="margin: 6px 0; text-align: right;">
+<button id="expand-all">Expand All</button><button id="collapse-all">Collapse All</button>
+</div>
+<div class="two-column-layout">
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>📌 One-Time Initialization Guard</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<p>The <code>initialized</code> flag ensures the expensive listener wiring runs only once. On the first call, <code>initialized</code> flips to <code>true</code>; subsequent calls exit immediately, preventing duplicate observers and duplicated refresh work.</p>
+<div class="code-block">const ensureInitialized = () => {
+  if (initialized) return;
+  initialized = true;
+  // listeners + observer registered once
+};</div>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>🌬️ Scroll & Resize Events</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<ul class="dense-list">
+<li><strong><code>scroll</code> (capture phase):</strong> Fires when ancestors scroll, catching layout shifts early, before bubbling listeners run.</li>
+<li><strong><code>resize</code>:</strong> Triggers when the viewport changes size (desktop window resizing, zoom adjustments, mobile orientation changes).</li>
+<li><strong>Effect:</strong> Each event invokes <code>scheduleRefresh()</code>, letting your UI recalc measurements, reposition overlays, or re-evaluate what should be visible.</li>
+</ul>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>🧬 MutationObserver Mechanics</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="key-points">
+<div class="key-card">
+<h3>What It Watches</h3>
+<p><code>mutationObserver.observe(document.body, { childList: true, subtree: true, attributes: true })</code> listens for nodes added/removed anywhere under <code>&lt;body&gt;</code> and for attribute changes. That captures dynamic DOM edits from frameworks or user interactions.</p>
+</div>
+<div class="key-card">
+<h3>Callback</h3>
+<p>The observer calls <code>scheduleRefresh(mutations, observer)</code> whenever a mutation batch arrives. Typically <code>scheduleRefresh</code> debounces or batches actual rendering work, so rapid DOM churn doesn't cause thrashing.</p>
+</div>
+<div class="key-card">
+<h3>Why Needed</h3>
+<p>Scroll/resize cover viewport changes, but SPA-style content swaps or lazy-loaded elements happen without those events. The observer keeps the extension in sync with underlying DOM changes.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>💡 What “Refresh” Really Does</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<p>Within this codebase, “refresh” usually means “rerun the extension’s rendering logic”—for example, re-reading the page, updating cached selectors, or re-rendering overlays. It does <strong>not</strong> reload the page or force the browser to rebuild the entire DOM from scratch. Instead, <code>scheduleRefresh</code> likely schedules a debounced function (e.g., via <code>requestAnimationFrame</code> or <code>setTimeout</code>) that reconciles the overlay with current document state.</p>
+<div class="summary-callout">
+<strong>Inference:</strong> If you inspect the implementation of <code>scheduleRefresh</code>, expect it to coalesce multiple triggers and then call a focused redraw method (e.g., <code>renderOverlay()</code>), ensuring performance while keeping UI accurate.</div>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>🧭 Control Flow Overview</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="mermaid">
+<!-- Mermaid diagram placeholder -->
+<pre>graph TD
+    A[ensureInitialized()] -->|first call| B[Set initialized = true]
+    B --> C[Bind scroll listener]
+    B --> D[Bind resize listener]
+    B --> E[new MutationObserver(scheduleRefresh)]
+    E --> F[observe(document.body,...)]
+    C --> G[scheduleRefresh]
+    D --> G
+    F --> G
+    G --> H[Debounced refresh logic (e.g., redraw overlay)]</pre>
+</div>
+</div>
+</div>
+<div class="collapsible full-width" data-collapsible="closed">
+<div class="collapsible-header"><span>🛠️ Practical Tips</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<ul class="dense-list">
+<li><strong>Inspect <code>scheduleRefresh</code>:</strong> Confirm whether it batches via <code>requestIdleCallback</code>, <code>requestAnimationFrame</code>, or debouncing to understand responsiveness.</li>
+<li><strong>Uninitialize if needed:</strong> If the extension tears down, remember to <code>removeEventListener</code> and call <code>mutationObserver.disconnect()</code> to avoid leaks.</li>
+<li><strong>Debugging:</strong> Temporarily log mutations inside the observer callback to see what triggers refresh during development.</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

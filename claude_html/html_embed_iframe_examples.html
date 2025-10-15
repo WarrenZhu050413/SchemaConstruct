@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PDF Embed & IFrame Demos</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000000;
+    --level-2: #333333;
+    --level-3: #666666;
+    --level-4: #999999;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Source Han Sans", "Helvetica Neue", Arial, sans-serif;
+}
+.container {
+    width: 100%;
+    padding: 6px 10px;
+}
+header {
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    padding-bottom: 6px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 6px 0;
+    color: var(--chinese-red);
+}
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 4px 0;
+    color: var(--level-2);
+}
+p, li {
+    color: var(--level-2);
+}
+.controls {
+    text-align: right;
+    margin: 6px 0;
+}
+button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    margin-left: 6px;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+button:hover {
+    background: var(--chinese-gold);
+    color: var(--ink-black);
+}
+.important-always-visible {
+    background: rgba(255, 215, 0, 0.15);
+    border: 1px solid rgba(255, 215, 0, 0.45);
+    padding: 6px;
+    border-radius: 4px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 8px;
+    margin-top: 6px;
+}
+.dense-list {
+    list-style: none;
+}
+.dense-list li {
+    margin: 2px 0;
+    color: var(--level-1);
+}
+.dense-list li span {
+    color: var(--level-3);
+}
+.collapsible {
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.7);
+    overflow: hidden;
+    transition: all 0.2s ease-in-out;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(139,0,0,0.12);
+    padding: 6px 8px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--chinese-red);
+}
+.collapsible-header .arrow {
+    font-size: 12px;
+    transition: transform 0.2s;
+}
+.collapsible.open .collapsible-header {
+    background: rgba(139,0,0,0.18);
+}
+.collapsible.open .collapsible-header .arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    max-height: 0;
+    padding: 0 8px;
+    transition: max-height 0.2s ease, padding 0.2s ease;
+}
+.collapsible.open .collapsible-content {
+    max-height: 2000px;
+    padding: 6px 8px 8px 8px;
+}
+.badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    margin-left: 4px;
+    background: var(--jade-green);
+    color: #fff;
+}
+.demo-frame {
+    border: 1px solid rgba(0,0,0,0.2);
+    border-radius: 3px;
+    padding: 4px;
+    background: rgba(255,255,255,0.9);
+    margin: 4px 0;
+}
+.demo-frame iframe,
+.demo-frame embed {
+    width: 100%;
+    height: 260px;
+    border: none;
+}
+pre {
+    background: rgba(0,0,0,0.75);
+    color: #F5F5F5;
+    padding: 6px;
+    border-radius: 3px;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.2;
+}
+code {
+    font-family: "Fira Code", Menlo, Consolas, monospace;
+}
+.note {
+    font-size: 12px;
+    color: var(--level-3);
+    margin-top: 4px;
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+.tag {
+    color: var(--chinese-gold);
+}
+.section-meta {
+    font-size: 12px;
+    color: var(--level-3);
+    margin-top: 6px;
+}
+.inline-icon {
+    margin-right: 4px;
+}
+strong {
+    color: var(--level-1);
+}
+hr {
+    border: none;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    margin: 4px 0;
+}
+.mermaid {
+    background: rgba(255,255,255,0.8);
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 3px;
+    padding: 4px;
+    margin-top: 6px;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:"neutral"});</script>
+</head>
+<body>
+<div class="container">
+<header>
+    <h1>Embedded PDF &amp; IFrame Techniques</h1>
+    <p class="section-meta">Reference (October 8, 2025) • Author: Fucheng Warren Zhu</p>
+</header>
+<div class="controls"><button id="expand-all">Expand All</button><button id="collapse-all">Collapse All</button></div>
+<section class="important-always-visible">
+    <h2>🎯 Immediate Takeaways</h2>
+    <div class="two-column-layout">
+        <ul class="dense-list">
+            <li><strong>Use &lt;embed&gt; for fixed media</strong> <span>(PDF, SVG) when you need a dedicated viewer chrome.</span></li>
+            <li><strong>Set type="application/pdf"</strong> <span>to trigger the browser PDF plugin.</span></li>
+            <li><strong>Provide fallback</strong> <span>inside the tag for non-supporting browsers.</span></li>
+        </ul>
+        <ul class="dense-list">
+            <li><strong>Use &lt;iframe&gt;</strong> <span>for live documents, apps, or isolated HTML.</span></li>
+            <li><strong>Prefer srcdoc/sandbox</strong> <span>to control third-party content safely.</span></li>
+            <li><strong>Watch X-Frame-Options</strong> <span>— many sites block framing.</span></li>
+        </ul>
+    </div>
+</section>
+<div class="two-column-layout">
+    <section class="collapsible" data-collapsible="open">
+        <div class="collapsible-header"><span>📄 PDF Viewer with &lt;embed&gt; <span class="badge">Core Demo</span></span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <p><strong>Scenario:</strong> Display a static PDF directly within the page while giving users built-in navigation (search, zoom, download).</p>
+            <div class="demo-frame">
+                <embed src="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf" type="application/pdf" />
+            </div>
+            <pre><code>&lt;embed
+  src="https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+  type="application/pdf"
+  width="100%"
+  height="500"
+  title="Project Brief"&gt;
+  &lt;p&gt;Download the PDF if your browser cannot display it.&lt;/p&gt;
+&lt;/embed&gt;</code></pre>
+            <ul class="dense-list">
+                <li><strong>type attribute</strong>: Ensures PDF renderer instead of inline download.</li>
+                <li><strong>Accessibility</strong>: Pair with <code>title</code> and fallback content for screen readers.</li>
+                <li><strong>Sizing</strong>: Control aspect via <code>width</code>/<code>height</code> or CSS; browsers respect CSS first.</li>
+                <li><strong>Download option</strong>: Add a visible link near the embed to guarantee access.</li>
+            </ul>
+            <p class="note">Browsers that disable PDF plugins will show the fallback paragraph above.</p>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="closed">
+        <div class="collapsible-header"><span>🛠️ Implementation Checklist</span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <ul class="dense-list">
+                <li><strong>1. Host the PDF</strong>: Ensure HTTPS + correct <code>Content-Type: application/pdf</code>.</li>
+                <li><strong>2. Decide container</strong>: Dedicated block or within responsive grid.</li>
+                <li><strong>3. Test browsers</strong>: Chrome, Safari, Firefox handle PDFs; iOS Safari may fall back to full-screen view.</li>
+                <li><strong>4. Provide alternatives</strong>: Download link + HTML summary for accessibility.</li>
+                <li><strong>5. Consider <code>&lt;object&gt;</code></strong>: Offers similar behavior with more events but heavier markup.</li>
+            </ul>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="open">
+        <div class="collapsible-header"><span>🪟 IFrame Demo 1 — External Content</span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <p><strong>Goal:</strong> Embed a trusted external site that allows framing (here, <code>example.org</code>).</p>
+            <div class="demo-frame">
+                <iframe src="https://example.org" title="Example Domain"></iframe>
+            </div>
+            <pre><code>&lt;iframe
+  src="https://example.org"
+  title="Example Domain"
+  width="100%"
+  height="320"
+  loading="lazy"
+  referrerpolicy="strict-origin"&gt;
+&lt;/iframe&gt;</code></pre>
+            <ul class="dense-list">
+                <li><strong>Check headers</strong>: Target must omit <code>X-Frame-Options: DENY/SAMEORIGIN</code>.</li>
+                <li><strong>Performance</strong>: Use <code>loading="lazy"</code> for below-the-fold embeds.</li>
+                <li><strong>Privacy</strong>: Tighten <code>referrerpolicy</code> to limit referrer leakage.</li>
+            </ul>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="open">
+        <div class="collapsible-header"><span>🧪 IFrame Demo 2 — srcdoc Micro-App</span><span class="badge">Self-Contained</span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <p><strong>Goal:</strong> Package a tiny interactive widget without external requests using <code>srcdoc</code>.</p>
+            <div class="demo-frame">
+                <iframe title="Inline Widget" sandbox="allow-scripts" srcdoc='<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><style>body{margin:0;font-family:Arial;background:#fef9e7;color:#333;text-align:center;}h1{font-size:20px;margin:16px 0;}button{padding:8px 16px;border:0;border-radius:4px;background:#ff6f61;color:#fff;font-size:14px;}#count{font-weight:bold;color:#1b4f72;}div{padding:18px;}</style></head><body><div><h1>srcdoc Counter</h1><p>Clicks: <span id="count">0</span></p><button onclick="count.innerText=parseInt(count.innerText)+1">Increment</button></div></body></html>'></iframe>
+            </div>
+            <ul class="dense-list">
+                <li><strong>srcdoc HTML</strong>: Escape double quotes or wrap with single quotes as shown.</li>
+                <li><strong>Security</strong>: Use <code>sandbox</code> to restrict capabilities; add tokens (e.g., <code>allow-forms</code>) only as needed.</li>
+                <li><strong>Communication</strong>: For parent-child messaging, wire <code>postMessage</code>.</li>
+            </ul>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="open">
+        <div class="collapsible-header"><span>🗺️ IFrame Demo 3 — Map Embed</span><span class="arrow">▶</span></div>
+        <div class="collapsible-content">
+            <p><strong>Goal:</strong> Display a geographic view using OpenStreetMap's embeddable frame.</p>
+            <div class="demo-frame">
+                <iframe title="OpenStreetMap" src="https://www.openstreetmap.org/export/embed.html?bbox=-74.012%2C40.705%2C-73.99%2C40.72&amp;layer=mapnik"></iframe>
+            </div>
+            <ul class="dense-list">
+                <li><strong>Attribution</strong>: Add a visible credit line (OSM requires it) near the iframe.</li>
+                <li><strong>Responsive height</strong>: Wrap in aspect ratio box if you need auto height.</li>
+                <li><strong>Sandbox?</strong>: External services often need scripts; avoid sandbox unless documented.</li>
+            </ul>
+            <p class="note">Map tiles load from OSM; ensure user bandwidth budget covers remote assets.</p>
+        </div>
+    </section>
+</div>
+<section class="collapsible full-width" data-collapsible="closed">
+    <div class="collapsible-header"><span>📚 Decision Flow (Mermaid)</span><span class="arrow">▶</span></div>
+    <div class="collapsible-content">
+        <div class="mermaid">flowchart LR
+    A[Need to embed content?] -->|Static document| B[Use &lt;embed&gt;]
+    A -->|Interactive app| C[Use &lt;iframe&gt;]
+    B --> D{Browser PDF support?}
+    D -->|Yes| E[Show inline viewer]
+    D -->|No| F[Provide download fallback]
+    C --> G{3rd-party domain allows framing?}
+    G -->|Yes| H[Embed URL]
+    G -->|No| I[Use link or API]
+    C --> J{Need isolation?}
+    J -->|Yes| K[Apply sandbox/srcdoc]
+    J -->|No| L[Load with minimal attributes]
+</div>
+    </div>
+</section>
+<section class="collapsible full-width" data-collapsible="closed">
+    <div class="collapsible-header"><span>⚙️ Troubleshooting &amp; Best Practices</span><span class="arrow">▶</span></div>
+    <div class="collapsible-content">
+        <ul class="dense-list">
+            <li><strong>Cross-domain blocks</strong>: If the iframe stays blank, inspect headers for <code>X-Frame-Options</code> or <code>Content-Security-Policy</code>.</li>
+            <li><strong>Fallback UX</strong>: Offer explicit download buttons adjacent to embeds (<code>&lt;a download&gt;</code>).</li>
+            <li><strong>Accessibility</strong>: Use <code>title</code> for iframes; provide textual summaries of embedded data.</li>
+            <li><strong>Performance budgets</strong>: Lazy-load or defer off-screen iframes; heavy pages can be placed behind user action.</li>
+            <li><strong>Printing</strong>: PDFs inside <code>&lt;embed&gt;</code> honor their internal page size, not surrounding CSS.</li>
+            <li><strong>Mobile</strong>: On small screens, force full-width and consider toggling to full-screen viewers.</li>
+        </ul>
+    </div>
+</section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

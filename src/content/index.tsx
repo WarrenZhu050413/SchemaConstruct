@@ -131,10 +131,11 @@ function createContainer(): HTMLElement {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2147483647;
+    width: 0;
+    height: 0;
     pointer-events: none;
+    overflow: visible;
+    z-index: 2147483647;
   `;
 
   // Append to body
@@ -397,7 +398,7 @@ function openInlineChat(): void {
             url: pageContext.url,
             title: `Chat: ${pageContext.title}`,
             domain: new URL(pageContext.url).hostname,
-            clipDate: new Date().toISOString(),
+            timestamp: Date.now(),
             favicon: '',
           },
           starred: false,
@@ -581,7 +582,7 @@ function openElementChat(): void {
             url: elementContext.url,
             title: `Chat: <${elementContext.element.tagName}>`,
             domain: new URL(elementContext.url).hostname,
-            clipDate: new Date().toISOString(),
+            timestamp: Date.now(),
             favicon: '',
           },
           starred: false,
@@ -1182,7 +1183,18 @@ type MessageType =
   | 'PING'
   | 'OPEN_INLINE_CHAT'
   | 'CLOSE_INLINE_CHAT'
-  | 'OPEN_ELEMENT_CHAT';
+  | 'OPEN_ELEMENT_CHAT'
+  | 'SET_TEST_STREAM'
+  | 'ENABLE_INLINE_CHAT_TEST_MODE'
+  | 'INLINE_CHAT_TEST_SEND'
+  | 'INLINE_CHAT_TEST_COLLAPSE'
+  | 'INLINE_CHAT_TEST_EXPAND'
+  | 'INLINE_CHAT_TEST_SET_UNREAD'
+  | 'INLINE_CHAT_TEST_ADD_USER'
+  | 'INLINE_CHAT_TEST_ADD_ASSISTANT'
+  | 'INLINE_CHAT_TEST_SET_STREAMING'
+  | 'INLINE_CHAT_TEST_SET_QUEUE'
+  | 'INLINE_CHAT_TEST_GET_COUNTS';
 
 /**
  * Message structure
@@ -1240,6 +1252,14 @@ function handleMessage(
         sendResponse({ success: true });
         break;
 
+      case 'SET_TEST_STREAM':
+        console.log('[content] Received test stream configuration');
+        if (typeof window !== 'undefined') {
+          (window as any).__NABOKOV_TEST_STREAM__ = message.payload;
+        }
+        sendResponse({ success: true });
+        break;
+
       case 'CLOSE_INLINE_CHAT':
         console.log('[content] Closing inline chat');
         closeInlineChat();
@@ -1251,6 +1271,137 @@ function handleMessage(
         openElementChat();
         sendResponse({ success: true });
         break;
+
+      case 'ENABLE_INLINE_CHAT_TEST_MODE':
+        if (typeof window !== 'undefined') {
+          (window as any).__NABOKOV_INLINE_CHAT_TEST_MODE__ = true;
+        }
+        sendResponse({ success: true });
+        break;
+
+      case 'INLINE_CHAT_TEST_SEND': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.sendMessage === 'function') {
+          helpers.sendMessage(message.payload?.content ?? '', message.payload?.stream);
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_COLLAPSE': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.collapse === 'function') {
+          helpers.collapse();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_EXPAND': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.expand === 'function') {
+          helpers.expand();
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_SET_UNREAD': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.setUnread === 'function') {
+          helpers.setUnread(Number(message.payload?.count ?? 0));
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_ADD_USER': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.addUser === 'function') {
+          helpers.addUser(message.payload?.content ?? '');
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_ADD_ASSISTANT': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.addAssistant === 'function') {
+          helpers.addAssistant(message.payload?.content ?? '');
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_SET_STREAMING': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.setStreamingState === 'function') {
+          helpers.setStreamingState(Boolean(message.payload?.processing));
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_SET_QUEUE': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.setQueueCount === 'function') {
+          helpers.setQueueCount(Number(message.payload?.count ?? 0));
+          sendResponse({ success: true });
+        } else {
+          sendResponse({ success: false, error: 'Test helpers unavailable' });
+        }
+        break;
+      }
+
+      case 'INLINE_CHAT_TEST_GET_COUNTS': {
+        const helpers = typeof window !== 'undefined'
+          ? (window as any).__NABOKOV_INLINE_CHAT_TEST__
+          : undefined;
+        if (helpers && typeof helpers.getSnapshot === 'function') {
+          sendResponse({ success: true, ...helpers.getSnapshot() });
+        } else {
+          const host = document.getElementById('nabokov-inline-chat-root');
+          const shadow = host?.shadowRoot ?? null;
+          const assistantCount = shadow ? shadow.querySelectorAll('[data-message-role="assistant"]').length : 0;
+          const userCount = shadow ? shadow.querySelectorAll('[data-message-role="user"]').length : 0;
+          const unreadAttr = shadow
+            ?.querySelector('[data-testid="inline-chat-collapse"]')
+            ?.getAttribute('data-unread-count');
+          const collapsed = !shadow?.querySelector('[data-testid="inline-chat-messages"]');
+          sendResponse({ success: true, assistantCount, userCount, unreadCount: unreadAttr, collapsed });
+        }
+        break;
+      }
 
       case 'GET_STATE':
         sendResponse({

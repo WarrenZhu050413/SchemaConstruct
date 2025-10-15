@@ -33,6 +33,31 @@ const generateMessageId = (prefix: 'user' | 'assistant'): string => {
   return `${prefix}-${Date.now().toString(36)}-${rand}`;
 };
 
+const normalizeChunkNewlines = (value: string): string => value.replace(/\r\n/g, '\n');
+
+const shouldForceBlockBreak = (value: string): boolean => {
+  const trimmed = value.replace(/^\s+/, '');
+  return /^(\|\s|[-*]\s|\d+\.\s|#{1,6}\s|\*\*)/.test(trimmed);
+};
+
+const formatStreamingChunk = (chunk: string, previous?: string): string => {
+  if (!chunk) {
+    return '';
+  }
+
+  let normalized = normalizeChunkNewlines(chunk);
+  if (!normalized) {
+    return normalized;
+  }
+
+  const prev = previous ?? '';
+  if (prev && !prev.endsWith('\n') && shouldForceBlockBreak(normalized)) {
+    normalized = `\n${normalized}`;
+  }
+
+  return normalized;
+};
+
 export interface InlineChatWindowProps {
   onClose: () => void;
   initialContext: PageContext | ElementContext;
@@ -78,7 +103,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     height: number;
   }>>([]);
   const [queueSize, setQueueSize] = useState(0);
-  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isDraggingFileOverInput, setIsDraggingFileOverInput] = useState(false);
   const [windowPosition, setWindowPosition] = useState(defaultPosition);
   const [anchorOffset, setAnchorOffset] = useState<{ x: number; y: number } | null>(null);
   const [activeAnchorIndex, setActiveAnchorIndex] = useState(0);
@@ -105,8 +130,6 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   const dragClickTimeoutRef = useRef<number | null>(null);
   const completionTimeoutRef = useRef<number | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
-  const assistantCountRef = useRef(0);
-  const seenAssistantCountRef = useRef(0);
 
   // Determine context type
   const isElement = isElementContext(initialContext);
@@ -271,8 +294,6 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
     const snapshot = messagesRef.current;
     const messageIndex = snapshot.findIndex(msg => msg.id === nextMessage.id);
     const conversationSlice = messageIndex >= 0 ? snapshot.slice(0, messageIndex + 1) : snapshot;
-    const shouldNotify = nextMessage.notifyOnComplete ?? (collapsedRef.current || !anchoredBottomRef.current);
-
     updateMessages(prev =>
       prev.map(msg => (msg.id === nextMessage.id ? { ...msg, status: 'processing' } : msg))
     );
@@ -318,6 +339,9 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
         insertAssistantAfter(nextMessage.id, assistantMessage);
         markCompletion('success');
+        if (collapsedRef.current || !anchoredBottomRef.current) {
+          setUnreadCount(prev => prev + 1);
+        }
       } else {
         const { chatWithPage } = await import('@/services/claudeAPIService');
 
@@ -331,7 +355,8 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         );
 
         for await (const chunk of stream) {
-          assistantContent += chunk;
+          const formattedChunk = formatStreamingChunk(chunk, assistantContent);
+          assistantContent += formattedChunk;
           setStreamingContent(assistantContent);
         }
 
@@ -346,6 +371,9 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
         insertAssistantAfter(nextMessage.id, assistantMessage);
         markCompletion('success');
+        if (collapsedRef.current || !anchoredBottomRef.current) {
+          setUnreadCount(prev => prev + 1);
+        }
       }
     } catch (error) {
       console.error('[InlineChatWindow] Error sending message:', error);
@@ -361,6 +389,9 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
 
       insertAssistantAfter(nextMessage.id, errorAssistantMessage, 'error');
       markCompletion('error');
+      if (collapsedRef.current || !anchoredBottomRef.current) {
+        setUnreadCount(prev => prev + 1);
+      }
     } finally {
       messageQueueRef.current = messageQueueRef.current.slice(1);
       setQueueSize(messageQueueRef.current.length);
@@ -461,24 +492,6 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       setUnreadCount(0);
     }
   }, [collapsed, isUserAnchoredBottom, unreadCount]);
-
-  useEffect(() => {
-    const assistantCount = messages.filter(message => message.role === 'assistant').length;
-    assistantCountRef.current = assistantCount;
-
-    if (!collapsed && isUserAnchoredBottom) {
-      seenAssistantCountRef.current = assistantCount;
-      if (unreadCount !== 0) {
-        setUnreadCount(0);
-      }
-      return;
-    }
-
-    const unseen = Math.max(assistantCount - seenAssistantCountRef.current, 0);
-    if (unseen !== unreadCount) {
-      setUnreadCount(unseen);
-    }
-  }, [messages, collapsed, isUserAnchoredBottom, unreadCount]);
 
   useEffect(() => {
     activeAnchorIndexRef.current = activeAnchorIndex;
@@ -646,30 +659,42 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
   // Drag event handlers for file drop
   // Note: We don't use ImageUploadZone wrapper because react-rnd intercepts drag events.
   // Direct handlers on content area ensure preventDefault() executes before browser default.
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    // Only handle file drags
+  const handleContainerDragOver = useCallback((e: React.DragEvent) => {
     if (e.dataTransfer.types.includes('Files')) {
       e.preventDefault();
       e.stopPropagation();
       e.dataTransfer.dropEffect = 'copy';
-      setIsDraggingFile(true);
     }
   }, []);
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
+  const handleInputDragOver = useCallback((e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) {
+      return;
+    }
     e.preventDefault();
     e.stopPropagation();
-
-    // Only reset if leaving the content area entirely
-    if (e.currentTarget === e.target) {
-      setIsDraggingFile(false);
-    }
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDraggingFileOverInput(true);
   }, []);
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
+  const handleInputDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDraggingFile(false);
+
+    const related = e.relatedTarget as Node | null;
+    if (related && e.currentTarget.contains(related)) {
+      return;
+    }
+    setIsDraggingFileOverInput(false);
+  }, []);
+
+  const handleInputDrop = useCallback(async (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('Files')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingFileOverInput(false);
 
     const files = Array.from(e.dataTransfer.files);
     const imageFiles = files.filter(f => f.type.startsWith('image/'));
@@ -679,19 +704,19 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       return;
     }
 
-    // Process first image file
     await handleImageDrop(imageFiles[0]);
   }, [handleImageDrop]);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim() && pendingImages.length === 0) {
+  const handleSendMessage = (overrideContent?: string) => {
+    const effectiveInput = overrideContent ?? inputValue;
+    if (!effectiveInput.trim() && pendingImages.length === 0) {
       return;
     }
 
     const userMessage: Message = {
       id: generateMessageId('user'),
       role: 'user',
-      content: inputValue.trim() || '(Image attached)',
+      content: effectiveInput.trim() || '(Image attached)',
       images: pendingImages.length > 0 ? [...pendingImages] : undefined,
       status: 'queued',
       createdAt: Date.now()
@@ -784,6 +809,107 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
       anchorOffsetRef.current = offset;
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const isTestEnv = navigator.webdriver || Boolean((window as any).__NABOKOV_INLINE_CHAT_TEST_MODE__);
+    if (!isTestEnv) {
+      return;
+    }
+
+    const helpers = {
+      sendMessage: (content: string, stream?: { chunks: string[]; delay?: number; persist?: boolean }) => {
+        if (stream && Array.isArray(stream.chunks)) {
+          (window as any).__NABOKOV_TEST_STREAM__ = {
+            delay: 0,
+            persist: false,
+            ...stream,
+          };
+        }
+
+        handleSendMessage(content);
+      },
+      addUser: (content: string) => {
+        const userMessage: Message = {
+          id: generateMessageId('user'),
+          role: 'user',
+          content,
+          status: 'complete',
+          createdAt: Date.now(),
+        };
+
+        setMessages(prev => {
+          const next = [...prev, userMessage];
+          messagesRef.current = next;
+          return next;
+        });
+        messagesRef.current = [...messagesRef.current];
+      },
+      collapse: () => setCollapsed(true),
+      expand: () => setCollapsed(false),
+      setUnread: (count: number) => setUnreadCount(count),
+      addAssistant: (content: string) => {
+        const assistantMessage: Message = {
+          id: generateMessageId('assistant'),
+          role: 'assistant',
+          content,
+          status: 'complete',
+          createdAt: Date.now(),
+        };
+
+        setMessages(prev => {
+          const next = [...prev, assistantMessage];
+          messagesRef.current = next;
+          return next;
+        });
+
+        if (collapsedRef.current || !anchoredBottomRef.current) {
+          setUnreadCount(prev => prev + 1);
+        }
+
+        markCompletion('success');
+      },
+      setStreamingState: (processing: boolean) => {
+        if (processing) {
+          setIsStreaming(true);
+          setCompletionState('idle');
+          setRecentlyCompleted(false);
+        } else {
+          setIsStreaming(false);
+          markCompletion('success');
+        }
+      },
+      setQueueCount: (count: number) => {
+        const safeCount = Math.max(0, Math.floor(count));
+        messageQueueRef.current = Array.from({ length: safeCount }, (_, index) => ({
+          id: `queued-${index}`,
+          role: 'user' as const,
+          content: '(queued)',
+          status: 'queued' as const,
+          createdAt: Date.now(),
+        }));
+        setQueueSize(safeCount);
+      },
+      getSnapshot: () => ({
+        assistantCount: messagesRef.current.filter(message => message.role === 'assistant').length,
+        userCount: messagesRef.current.filter(message => message.role === 'user').length,
+        unreadCount,
+        collapsed: collapsedRef.current,
+      }),
+    } as const;
+
+    (window as any).__NABOKOV_INLINE_CHAT_TEST__ = helpers;
+    console.log('[InlineChatWindow] Test helpers registered');
+
+    return () => {
+      if ((window as any).__NABOKOV_INLINE_CHAT_TEST__) {
+        delete (window as any).__NABOKOV_INLINE_CHAT_TEST__;
+      }
+    };
+  }, [handleSendMessage]);
 
   const headerOnlyHeight = 52;
 
@@ -889,7 +1015,6 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                   setIsUserAnchoredBottom(false);
                 } else {
                   setUnreadCount(0);
-                  seenAssistantCountRef.current = assistantCountRef.current;
                   setIsUserAnchoredBottom(true);
                 }
                 setCollapsed(nextCollapsed);
@@ -915,22 +1040,13 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
         </div>
         {!collapsed && (
           <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={handleContainerDragOver}
+            onDrop={handleContainerDragOver}
             css={contentWrapperStyles}
           >
             {anchorElementMissing && (
               <div css={anchorWarningStyles}>
                 📍 Element moved off-screen. Drag the window to reposition.
-              </div>
-            )}
-            {isDraggingFile && (
-              <div css={dragOverlayStyles}>
-                <div css={dragOverlayContentStyles}>
-                  <div style={{ fontSize: 48 }}>📁</div>
-                  <div>Drop image to upload</div>
-                </div>
               </div>
             )}
             <div
@@ -963,7 +1079,11 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                 </div>
               ) : (
                 messages.map((message) => (
-                  <div key={message.id} css={messageStyles(message.role)}>
+                  <div
+                    key={message.id}
+                    css={messageStyles(message.role)}
+                    data-message-role={message.role}
+                  >
                     <div css={messageRoleStyles}>
                       {message.role === 'user' ? 'You' : 'Assistant'}
                     </div>
@@ -1024,7 +1144,20 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
                 ))}
               </div>
             )}
-            <div css={inputContainerStyles}>
+            <div
+              css={inputContainerStyles}
+              onDragOver={handleInputDragOver}
+              onDragLeave={handleInputDragLeave}
+              onDrop={handleInputDrop}
+            >
+              {isDraggingFileOverInput && (
+                <div css={inputDragOverlayStyles} data-testid="inline-input-drop-overlay">
+                  <div css={dragOverlayContentStyles}>
+                    <div style={{ fontSize: 32 }}>📁</div>
+                    <div>Drop image to upload</div>
+                  </div>
+                </div>
+              )}
               <textarea
                 ref={inputRef}
                 css={textareaStyles}
@@ -1036,7 +1169,7 @@ export const InlineChatWindow: React.FC<InlineChatWindowProps> = ({
               />
               <button
                 css={sendButtonStyles}
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 disabled={!inputValue.trim() && pendingImages.length === 0}
                 data-testid="inline-chat-send"
               >
@@ -1452,6 +1585,7 @@ const loadingDotsStyles = css`
 `;
 
 const inputContainerStyles = css`
+  position: relative;
   display: flex;
   gap: 10px;
   background: #f1f1f1;
@@ -1459,6 +1593,7 @@ const inputContainerStyles = css`
   border-radius: 10px;
   padding: 10px 12px;
   flex-shrink: 0;
+  overflow: hidden;
 `;
 
 const textareaStyles = css`
@@ -1612,7 +1747,7 @@ const messageImageStyles = css`
 // Drag Overlay Styles
 // ============================================================================
 
-const dragOverlayStyles = css`
+const inputDragOverlayStyles = css`
   position: absolute;
   inset: 0;
   background: rgba(177, 50, 50, 0.88);

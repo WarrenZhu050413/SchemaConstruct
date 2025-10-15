@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MutationObserver Type Surfaces</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Noto Sans SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+.container {
+    width: 100%;
+    padding: 6px 10px;
+}
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+.control-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+button {
+    background: var(--chinese-red);
+    border: 1px solid var(--chinese-gold);
+    color: #fff;
+    padding: 3px 8px;
+    font-size: 12px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s ease;
+}
+button:hover {
+    background: #a41515;
+}
+.important-always-visible {
+    background: rgba(255, 215, 0, 0.18);
+    border-left: 3px solid var(--chinese-red);
+    padding: 6px;
+    margin: 4px 0;
+}
+.important-always-visible h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--chinese-red);
+    margin-bottom: 4px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+}
+@media (max-width: 720px) {
+    .two-column-layout {
+        grid-template-columns: 1fr;
+    }
+}
+.collapsible {
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-left: 3px solid var(--chinese-gold);
+    background: rgba(255, 255, 255, 0.65);
+    transition: border-color 0.2s ease;
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-header span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    padding: 0 6px;
+    transition: max-height 0.25s ease, padding 0.25s ease;
+    color: var(--level-2);
+}
+.collapsible.open {
+    border-left-color: var(--chinese-red);
+}
+.collapsible.open .collapsible-content {
+    max-height: 2000px;
+    padding: 6px 6px 8px 6px;
+}
+.arrow {
+    transition: transform 0.2s ease;
+}
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+.dense-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.dense-list li {
+    color: var(--level-1);
+    font-weight: 500;
+    position: relative;
+    padding-left: 14px;
+}
+.dense-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--chinese-red);
+}
+.muted-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.muted-list li {
+    color: var(--level-3);
+    font-size: 12px;
+    position: relative;
+    padding-left: 12px;
+}
+.muted-list li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: var(--level-4);
+}
+p {
+    margin-bottom: 4px;
+}
+code {
+    background: rgba(0, 0, 0, 0.07);
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+pre {
+    background: rgba(0, 0, 0, 0.07);
+    padding: 6px;
+    overflow-x: auto;
+    margin: 4px 0;
+    font-size: 12px;
+    border-left: 2px solid var(--chinese-red);
+}
+.label {
+    font-weight: 600;
+    color: var(--level-1);
+}
+.critical {
+    color: var(--chinese-red);
+    font-weight: 700;
+}
+.important {
+    color: var(--jade-green);
+    font-weight: 600;
+}
+.muted {
+    color: var(--level-3);
+}
+blockquote {
+    margin: 4px 0;
+    padding-left: 8px;
+    border-left: 2px solid rgba(0, 0, 0, 0.2);
+    color: var(--level-3);
+    font-style: italic;
+}
+footer {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--level-4);
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+    <h1>MutationObserver Type Surfaces</h1>
+    <div class="control-row">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+</header>
+<main>
+    <div class="important-always-visible">
+        <h2>🎯 Critical Takeaways</h2>
+        <div class="two-column-layout">
+            <ul class="dense-list">
+                <li><strong>Separation of concerns:</strong> The <code>interface MutationObserver</code> describes the instance methods available on every observer object.</li>
+                <li><strong>Runtime constructor:</strong> <code>declare var MutationObserver</code> introduces the global variable pointing at the constructor function that exists at runtime.</li>
+            </ul>
+            <ul class="dense-list">
+                <li><strong>Callback wiring:</strong> The <code>new</code> signature requires a <code>MutationCallback</code>; it is stored and invoked internally, so the interface does not list it as a method.</li>
+                <li><strong>Type composition:</strong> When you call <code>new MutationObserver()</code>, TypeScript combines the constructor type with the interface to give the resulting object its instance shape.</li>
+            </ul>
+        </div>
+    </div>
+    <div class="two-column-layout">
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Instance-Side Interface</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p>The interface captures the shape of the observer instance—what properties and methods you can call once you have one.</p>
+                <ul class="dense-list">
+                    <li><span class="label">Only instance members:</span> Methods like <code>disconnect</code>, <code>observe</code>, and <code>takeRecords</code> live on the prototype and are exposed via the interface.</li>
+                    <li><span class="label">No constructor here:</span> Interfaces in TypeScript never describe how to create the value; they omit <code>constructor</code>/<code>new</code> signatures.</li>
+                    <li><span class="label">Structural typing:</span> Any object with matching methods could satisfy this interface, regardless of how it was created.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>🏛️ Constructor Declaration</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p>The <code>declare var</code> statement models the real global variable that browsers expose.</p>
+                <ul class="dense-list">
+                    <li><span class="label">Static side typing:</span> Properties like <code>prototype</code> live on the constructor function itself, so they appear here.</li>
+                    <li><span class="label">Call/new signatures:</span> The <code>new(callback: MutationCallback)</code> clause tells TypeScript that using <code>new MutationObserver</code> returns something matching the interface.</li>
+                    <li><span class="label">Ambient value:</span> Because the type definition file cannot create runtime values, <code>declare</code> simply tells the compiler “trust that a variable named <code>MutationObserver</code> exists when this code executes.”</li>
+                </ul>
+            </div>
+        </div>
+        <div class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>⚡ Type Linkage Walkthrough</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p>Creation and usage step through two complementary typings: the constructor signature and the interface it instantiates.</p>
+                <pre><code>const observer = new MutationObserver((records, obs) =&gt; {
+    // `records` is MutationRecord[] because the declaration links the callback
+    // `obs` is MutationObserver (instance side from the interface)
+    console.log(records.length);
+});
+
+observer.observe(document.body, { childList: true });
+observer.disconnect();</code></pre>
+                <ul class="dense-list">
+                    <li><span class="label">Callback parameters:</span> The <code>MutationCallback</code> type ensures <code>records</code> and <code>observer</code> are typed accurately when you construct the observer.</li>
+                    <li><span class="label">Returned instance:</span> <code>observer</code> automatically gets the interface members (<code>disconnect</code>, etc.) because the <code>new</code> signature’s return type is the interface.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📊 Why Two Declarations?</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p>TypeScript treats classes and constructor functions as having two “sides.” Declaration files mirror that split.</p>
+                <ul class="dense-list">
+                    <li><span class="label">Instance vs static:</span> The interface captures the prototype/instance methods; the variable declaration captures statics like <code>MutationObserver.prototype</code> and the <code>new</code> signature.</li>
+                    <li><span class="label">Analogy:</span> Writing <code>declare class MutationObserver</code> would bundle both sides, but the DOM lib uses interface + var for flexibility (e.g., multiple overloads, mixins).</li>
+                    <li><span class="label">Structural composition:</span> Consumers intersect the two pieces implicitly: <code>typeof MutationObserver</code> uses the <code>declare var</code> shape, while instance types use the interface.</li>
+                </ul>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>🏗️ Mental Model</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <blockquote>Think “value declaration describes how to obtain it; interface describes what you can do with it once you have it.”</blockquote>
+                <ul class="muted-list">
+                    <li>The runtime JS engine already knows how the callback is wired; TypeScript simply reflects the API surface.</li>
+                    <li>The interface is silent about construction because that concern belongs to the constructor function.</li>
+                    <li>If you mocked the global with <code>const MockObserver: typeof MutationObserver</code>, TypeScript would enforce providing both the constructor and the instance methods, thanks to these paired types.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</main>
+<footer>
+    Typed explanation prepared for Warren Zhu · Updated October 9, 2025</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

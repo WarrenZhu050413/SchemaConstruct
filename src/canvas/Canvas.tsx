@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -29,6 +29,7 @@ import {
 import type { WindowState } from '@/types/window';
 import type { Card } from '@/types/card';
 import { saveCard, generateId } from '@/utils/storage';
+import { deleteCardPermanently } from '@/shared/services/cardService';
 import { createImageCards } from '@/utils/imageUpload';
 import { FilePickerButton } from '@/shared/components/ImageUpload';
 
@@ -60,13 +61,16 @@ function CanvasInner() {
     shouldFitView,
   } = useCanvasState();
 
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, getNodes } = useReactFlow();
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+  const multiSelectionKeyCode = isMac ? 'Meta' : 'Control';
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAPISettings, setShowAPISettings] = useState(false);
   const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>([]);
   const toolbarRef = useRef<{ focusSearch: () => void; toggleFilters: () => void }>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const feedbackTimeoutRef = useRef<number | null>(null);
   const [windows, setWindows] = useState(windowManager.getWindows());
   const [connectionMode, setConnectionMode] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
@@ -106,6 +110,14 @@ function CanvasInner() {
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimeoutRef.current) {
+        window.clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
   }, []);
 
   // Initialize keyboard shortcuts
@@ -221,6 +233,12 @@ function CanvasInner() {
       toggleConnectionMode: () => {
         handleToggleConnectionMode();
       },
+      deleteSelection: () => {
+        void deleteSelectedCards();
+      },
+      deleteSelectionAlt: () => {
+        void deleteSelectedCards();
+      },
     };
 
     return handlers[id] || (() => console.log(`Unhandled shortcut: ${id}`));
@@ -242,10 +260,62 @@ function CanvasInner() {
     showFeedback(`${isSelected ? 'Removed' : 'Added'} filter: #${tag}`);
   };
 
-  const showFeedback = (message: string) => {
+  const showFeedback = useCallback((message: string) => {
     setFeedbackMessage(message);
-    setTimeout(() => setFeedbackMessage(null), 2000);
-  };
+    if (feedbackTimeoutRef.current) {
+      window.clearTimeout(feedbackTimeoutRef.current);
+    }
+    feedbackTimeoutRef.current = window.setTimeout(() => {
+      setFeedbackMessage(null);
+      feedbackTimeoutRef.current = null;
+    }, 2000);
+  }, []);
+
+  const deleteSelectedCards = useCallback(async () => {
+    const selectedNodes = getNodes().filter(node => node.selected);
+    if (selectedNodes.length === 0) {
+      return;
+    }
+
+    try {
+      for (const node of selectedNodes) {
+        await deleteCardPermanently(node.id);
+      }
+      window.dispatchEvent(new CustomEvent('nabokov:cards-updated'));
+      showFeedback(
+        selectedNodes.length === 1
+          ? 'Card deleted'
+          : `${selectedNodes.length} cards deleted`
+      );
+    } catch (error) {
+      console.error('[Canvas] Failed to delete cards:', error);
+      showFeedback('Failed to delete cards');
+    }
+  }, [getNodes, showFeedback]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const selectedNodes = getNodes().filter(node => node.selected);
+      if (selectedNodes.length === 0) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea' || target?.isContentEditable) {
+        return;
+      }
+
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        event.stopPropagation();
+        void deleteSelectedCards();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [deleteSelectedCards, getNodes]);
 
   const handleOpenSettings = () => {
     setShowSettings(true);
@@ -553,6 +623,12 @@ function CanvasInner() {
         onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         defaultViewport={viewport}
+        multiSelectionKeyCode={multiSelectionKeyCode}
+        onNodeDoubleClick={(event, node) => {
+          event.preventDefault();
+          event.stopPropagation();
+          window.dispatchEvent(new CustomEvent('nabokov:card-edit-request', { detail: { cardId: node.id } }));
+        }}
         onMove={(_event, viewport) => onViewportChange(viewport)}
         defaultEdgeOptions={{
           type: 'smoothstep',

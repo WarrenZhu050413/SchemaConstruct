@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Codex CLI Hooks Availability</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Noto Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 4px 8px;
+}
+.controls {
+    text-align: right;
+    margin: 4px 0;
+}
+.controls button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    margin-left: 4px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.controls button:hover {
+    background: var(--chinese-gold);
+    color: var(--ink-black);
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 8px 0 4px 0;
+    color: var(--level-1);
+}
+h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 4px 0;
+    color: var(--chinese-red);
+}
+.important-always-visible {
+    background: rgba(255, 255, 255, 0.6);
+    border-left: 3px solid var(--chinese-red);
+    padding: 6px 8px;
+    margin-bottom: 6px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 6px;
+}
+.collapsible {
+    border: 1px solid var(--level-3);
+    background: rgba(255,255,255,0.65);
+    margin-bottom: 4px;
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 6px;
+    background: rgba(139,0,0,0.15);
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-header span.arrow {
+    transition: transform 0.2s ease;
+}
+.collapsible.open .collapsible-header span.arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    display: none;
+    padding: 6px 8px;
+    color: var(--level-2);
+}
+.collapsible.open .collapsible-content {
+    display: block;
+}
+.dense-list {
+    list-style: none;
+    margin: 2px 0;
+}
+.dense-list li {
+    margin-bottom: 2px;
+}
+.tag {
+    display: inline-block;
+    padding: 1px 4px;
+    font-size: 11px;
+    border-radius: 3px;
+    margin-left: 4px;
+}
+.tag-critical {
+    background: var(--chinese-red);
+    color: #fff;
+}
+.tag-upcoming {
+    background: var(--chinese-gold);
+    color: var(--ink-black);
+}
+.tag-workaround {
+    background: var(--jade-green);
+    color: #fff;
+}
+.note {
+    color: var(--level-3);
+    font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="important-always-visible">
+        <h1>Codex CLI Hooks Availability — October 8, 2025</h1>
+        <div class="two-column-layout">
+            <ul class="dense-list">
+                <li><strong>Key Takeaway:</strong> Codex CLI does not yet expose a user-configurable hooks system comparable to Claude Code's lifecycle callbacks.citeturn0reddit14</li>
+                <li><strong>Status:</strong> Feature absent in current releases; roadmap discussion active but unshipped.citeturn1view0</li>
+            </ul>
+            <ul class="dense-list">
+                <li><strong>Alternatives:</strong> Use agent configs (`AGENTS.md`) and custom prompt directories for contextual tailoring.citeturn2view0turn0reddit13</li>
+                <li><strong>Next Step:</strong> Track the open RFC and changelog for hook support before planning migrations.citeturn1view0</li>
+            </ul>
+        </div>
+    </div>
+    <div class="controls">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+    <div class="two-column-layout">
+        <section class="collapsible" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>📊 Current Capabilities</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Agent Scaffolding:</strong> You can define reusable task scaffolds via `AGENTS.md` to provide stock instructions, but they run at invocation time without lifecycle hooks.citeturn2view0</li>
+                    <li><strong>Prompt Libraries:</strong> Placing prompt templates under `.codex/prompts/` enables quick command reuse, offering partial parity with Claude Code snippets.citeturn0reddit13</li>
+                    <li><strong>Task Flow:</strong> Execution relies on manual command sequencing; no automatic pre/post command triggers are supported today.citeturn0reddit14</li>
+                </ul>
+            </div>
+        </section>
+        <section class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📈 Roadmap Signals</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>RFC #2582:</strong> Proposes a `codex.yaml` with `before_command` / `after_command` hooks, presently marked as discussion with no merged PR.citeturn1view0</li>
+                    <li><strong>Community Demand:</strong> Users cite the absence of hooks as a top gap versus Claude Code, influencing prioritization.citeturn0reddit14</li>
+                    <li><strong>Release Cadence:</strong> Hook support is not committed to a specific release window; monitor official changelog for confirmation.citeturn1view0</li>
+                </ul>
+            </div>
+        </section>
+        <section class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>🎯 Practical Workarounds</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Shell Wrappers:</strong> Wrap `codex` invocations in your own scripts to emulate pre/post hooks for tasks like environment setup or cleanup.citeturn0reddit14</li>
+                    <li><strong>Task Templates:</strong> Encode recurring scaffolds inside agent definitions, pairing them with prompt templates for quicker setup.citeturn2view0turn0reddit13</li>
+                    <li><strong>External Automation:</strong> Combine Codex CLI with task runners (e.g., `just`, `make`) where hooks can orchestrate Codex commands alongside other steps.citeturn0reddit14</li>
+                </ul>
+            </div>
+        </section>
+        <section class="collapsible full-width" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>🛰️ Monitoring Checklist</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Changelog:</strong> Review Codex CLI release notes for lifecycle hook mentions before adopting new automation patterns.citeturn1view0</li>
+                    <li><strong>RFC Tracker:</strong> Subscribe to updates on issue #2582 to see when implementation milestones land.citeturn1view0</li>
+                    <li><strong>Community Channels:</strong> Watch community threads for early experiments or unofficial hook utilities.citeturn0reddit14</li>
+                </ul>
+                <p class="note">If hooks ship, reassess shell wrapper complexity and migrate to native lifecycle events for maintainability.</p>
+            </div>
+        </section>
+        <section class="collapsible full-width" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>📁 Delivery</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Saved File:</strong> `claude_html/codex_cli_hooks_status.html`</li>
+                    <li><strong>Action:</strong> File has been opened locally via `open` for immediate viewing.</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

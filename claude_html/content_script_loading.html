@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Content Script Loading Lifecycle</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000000;
+    --level-2: #333333;
+    --level-3: #666666;
+    --level-4: #999999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 8px 12px;
+    margin: 0;
+}
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 0;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 4px 0;
+    color: var(--chinese-red);
+}
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 2px 0;
+    color: var(--level-2);
+}
+p {
+    font-size: 13px;
+    color: var(--level-3);
+    margin: 2px 0;
+}
+.controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin: 4px 0;
+}
+.controls button {
+    background: var(--ink-black);
+    color: var(--light-cream);
+    border: 1px solid var(--chinese-gold);
+    font-size: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 2px;
+}
+.controls button:hover {
+    background: var(--chinese-red);
+}
+.important-always-visible {
+    background: rgba(255, 215, 0, 0.12);
+    border-left: 3px solid var(--chinese-gold);
+    padding: 6px;
+    margin-bottom: 6px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 6px;
+}
+.dense-list {
+    list-style: none;
+    border: 1px solid rgba(43, 43, 43, 0.08);
+    background: rgba(250, 250, 240, 0.8);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.dense-list li {
+    font-size: 13px;
+    color: var(--level-2);
+}
+.dense-list li strong {
+    color: var(--level-1);
+}
+.tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    background: rgba(0, 0, 0, 0.08);
+    color: var(--level-1);
+    margin-left: 4px;
+}
+.critical {
+    color: var(--chinese-red);
+    font-weight: 700;
+}
+.collapsible {
+    border: 1px solid rgba(43, 43, 43, 0.1);
+    margin-bottom: 6px;
+    background: rgba(245, 245, 220, 0.65);
+    transition: all 0.2s ease;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--level-2);
+}
+.collapsible-header span:first-child {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.collapsible .arrow {
+    transition: transform 0.2s ease;
+    color: var(--chinese-gold);
+}
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 6px;
+    color: var(--level-3);
+}
+.collapsible.open .collapsible-content {
+    max-height: 800px;
+    padding: 6px;
+}
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+.full-width {
+    grid-column: 1 / -1;
+}
+pre.mermaid {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(43, 43, 43, 0.1);
+    padding: 6px;
+    font-size: 12px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+table th, table td {
+    border: 1px solid rgba(43, 43, 43, 0.15);
+    padding: 4px;
+    text-align: left;
+}
+table th {
+    background: rgba(139, 0, 0, 0.1);
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+</script>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Content Script Loading Lifecycle</h1>
+<p>Precisely when Chrome extension content scripts attach to frames and how run_at, matches, and dynamic injection change the timeline.</p>
+</header>
+<div class="controls">
+<button id="expand-all">Expand All</button>
+<button id="collapse-all">Collapse All</button>
+</div>
+<div class="important-always-visible">
+<h2>🎯 Always-Visible Timeline Triggers</h2>
+<div class="two-column-layout">
+<ul class="dense-list">
+<li><strong>Primary Trigger:</strong> The browser injects the content script whenever a frame navigates to a URL that satisfies <code>matches</code>, <code>exclude_matches</code>, and optional globs.</li>
+<li><strong>Frame Coverage:</strong> By default only the top frame; include subframes when <code>all_frames: true</code> or when MV3 <code>match_origin_as_fallback</code> catches same-origin iframes.</li>
+<li><strong>Re-entry:</strong> Every navigation (reload, history push that creates a new document, prerender activation) re-injects; SPA mutations alone do not.</li>
+</ul>
+<ul class="dense-list">
+<li><strong>Injection Moment:</strong> Determined by <code>run_at</code> per frame:<span class="tag">document_start</span><span class="tag">document_end</span><span class="tag">document_idle (default)</span>.</li>
+<li><strong>Idle Semantics:</strong> Inject after DOMContentLoaded and once the page is “quiet” (no work queued) or at ~document_idle_fallback (~1s) if activity persists.</li>
+<li><strong>Dynamic Injection:</strong> Calls to <code>chrome.scripting.executeScript</code> (MV3) or <code>chrome.tabs.executeScript</code> (MV2) load scripts on demand regardless of manifest URL filters, subject to host permissions.</li>
+</ul>
+</div>
+</div>
+<div class="collapsible full-width" data-collapsible="open">
+<div class="collapsible-header"><span>📍 Lifecycle Diagram</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<pre class="mermaid">
+sequenceDiagram
+    participant U as User Navigation
+    participant B as Browser
+    participant F as Frame
+    participant CS as Content Script
+    U->>B: Enter URL (or reload)
+    B->>F: Create document (about:blank)
+    alt URL matches manifest filters
+        B->>CS: Inject at document_start
+    end
+    F->>B: DOMContentLoaded
+    alt run_at = document_end
+        B->>CS: Inject after DOM ready
+    end
+    F->>B: Load complete (network idle)
+    alt run_at = document_idle
+        B->>CS: Inject when idle (or after 1s timeout)
+    end
+    alt Dynamic call
+        B->>CS: chrome.scripting.executeScript(tabId)
+    end
+    note over CS: Executes with page permissions and isolated world
+</pre>
+</div>
+</div>
+<div class="two-column-layout">
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>⚡ Manifest Keys That Gate Injection</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<table>
+<thead>
+<tr><th>Key</th><th>Effect on Load</th></tr>
+</thead>
+<tbody>
+<tr><td><code>matches</code></td><td>Positive URL patterns (schemes, hosts, paths) that must all match before any injection.</td></tr>
+<tr><td><code>exclude_matches</code> / <code>exclude_globs</code></td><td>Prevent injection when any exclusion triggers, even if matches succeed.</td></tr>
+<tr><td><code>match_about_blank</code></td><td>Allows injection into about:blank or about:srcdoc frames inheriting an allowed origin.</td></tr>
+<tr><td><code>all_frames</code></td><td>Extends injections to every frame that matches; otherwise only top frame receives the script.</td></tr>
+<tr><td><code>run_at</code></td><td>Controls injection timing relative to document lifecycle (start/end/idle).</td></tr>
+<tr><td><code>world</code> (MV3)</td><td>Choose execution world (<code>ISOLATED</code> default, <code>MAIN</code> when you must interact directly with page JS).</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>📊 On-Demand & Persistent Behaviors</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<ul class="dense-list">
+<li><strong>Programmatic Injection:</strong> Use <code>chrome.scripting.executeScript</code> with <code>target: {tabId, allFrames}</code>; respects host permissions at call time.</li>
+<li><strong>Service Worker Coordination:</strong> MV3 background service worker typically listens for <code>chrome.tabs.onUpdated</code> to trigger injections when patterns are dynamic.</li>
+<li><strong>Persisted Scripts:</strong> Content scripts do not persist across navigations; background or storage must maintain state.</li>
+<li><strong>Declarative Content:</strong> Rules register conditions that programmatically inject when (and only when) declared conditions are met.</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="collapsible full-width" data-collapsible="closed">
+<div class="collapsible-header"><span>🏛️ Practical Notes & Diagnostics</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<ul class="dense-list">
+<li><strong>Isolated World:</strong> Scripts run in an isolated JS world; use <code>window.postMessage</code> or DOM injection for direct page interaction.</li>
+<li><strong>Subframe Performance:</strong> Avoid expensive work in <code>all_frames</code> contexts; throttle or gate by origin to reduce redundant executions.</li>
+<li><strong>Debugging:</strong> Open DevTools for the target frame and inspect the Sources → Content scripts panel to confirm load timing.</li>
+<li><strong>Security:</strong> host permissions determine whether the script can inject; MV3 grants must include scheme + host, or use <code>activeTab</code> for temporary access.</li>
+</ul>
+</div>
+</div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

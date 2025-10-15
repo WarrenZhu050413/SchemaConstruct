@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Element Chat Indicators</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", "PingFang SC", "Noto Sans", sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+main {
+    width: 100%;
+}
+.container {
+    width: 100%;
+    padding: 8px;
+}
+header.important-always-visible {
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding: 6px 4px 8px 4px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 4px 0;
+    color: var(--chinese-red);
+}
+h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 4px 0;
+    color: var(--level-2);
+}
+p {
+    margin: 2px 0;
+    color: var(--level-2);
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+}
+.two-column-layout .column {
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 4px;
+    padding: 6px 8px;
+    min-height: 60px;
+}
+.dense-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.dense-list li {
+    color: var(--level-2);
+    display: flex;
+    justify-content: space-between;
+}
+.dense-list li strong {
+    color: var(--level-1);
+}
+.badge {
+    font-weight: 600;
+    color: var(--chinese-red);
+}
+.status-critical {
+    color: var(--chinese-red);
+    font-weight: 700;
+}
+.status-important {
+    color: var(--jade-green);
+    font-weight: 600;
+}
+.status-muted {
+    color: var(--level-3);
+}
+#control-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin: 6px 0;
+}
+#control-bar button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+#control-bar button:hover {
+    background: #A00000;
+}
+.collapsible {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.9);
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    background: rgba(139,0,0,0.08);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-header span.arrow {
+    transform: rotate(90deg);
+    transition: transform 0.2s ease;
+    color: var(--chinese-gold);
+}
+.collapsible .collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+    padding: 0 8px;
+}
+.collapsible.open .collapsible-content {
+    max-height: 800px;
+    padding: 8px;
+}
+.collapsible.open .collapsible-header span.arrow {
+    transform: rotate(0deg);
+}
+section[data-collapsible] {
+    margin-bottom: 6px;
+}
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+.detail-card {
+    border: 1px dashed rgba(139,0,0,0.3);
+    border-radius: 4px;
+    padding: 6px;
+    background: rgba(255,255,255,0.95);
+}
+.detail-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--chinese-red);
+    margin-bottom: 4px;
+}
+.detail-card ul {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    color: var(--level-2);
+}
+.tag-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.tag {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 11px;
+    background: rgba(255,215,0,0.2);
+    color: var(--level-1);
+    border: 1px solid rgba(255,215,0,0.4);
+}
+pre.code {
+    background: #f8f6f0;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 12px;
+    overflow-x: auto;
+}
+pre.mermaid {
+    background: rgba(250,250,240,0.9);
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 12px;
+    line-height: 1.2;
+}
+.inline-kv {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--level-2);
+    margin-bottom: 2px;
+}
+small {
+    color: var(--level-4);
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+if (window.mermaid) {
+    window.mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+}
+</script>
+</head>
+<body>
+<main class="container">
+    <header class="important-always-visible">
+        <h1>Element Chat Indicators</h1>
+        <div class="two-column-layout">
+            <div class="column">
+                <h2>🎯 Critical Purpose</h2>
+                <ul class="dense-list">
+                    <li><strong>Role</strong><span class="status-critical">Surface saved element chats in-page</span></li>
+                    <li><strong>Primary UI</strong><span class="badge">12px circular badge @ anchor</span></li>
+                    <li><strong>Entry Point</strong><span>src/content/index.tsx → initElementChatIndicators()</span></li>
+                    <li><strong>Service</strong><span>src/services/elementChatIndicatorService.ts</span></li>
+                </ul>
+            </div>
+            <div class="column">
+                <h2>⚙️ Key Behaviors</h2>
+                <ul class="dense-list">
+                    <li><strong>Listeners</strong><span>scroll · resize · DOM mutations</span></li>
+                    <li><strong>State</strong><span>Maps per chat + hidden chat set</span></li>
+                    <li><strong>Rendering</strong><span>Absolute-position badges & post-chat tiles</span></li>
+                    <li><strong>Refresh cadence</strong><span>requestAnimationFrame batching</span></li>
+                </ul>
+            </div>
+        </div>
+    </header>
+    <div id="control-bar">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+    <section class="collapsible" data-collapsible="open">
+        <div class="collapsible-header">
+            <span>📍 Indicator Inventory & Visuals</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="detail-grid">
+                <article class="detail-card">
+                    <h4>Circular Anchor Badge (active chat)</h4>
+                    <ul>
+                        <li>Created via <code>createBadge()</code> when sessions sync</li>
+                        <li>12×12px crimson circle, white border, z-index 2147483646</li>
+                        <li>Attached attribute <code>data-nabokov-chat-indicator</code> for querying</li>
+                        <li>Title tooltip: “Saved element chat available”</li>
+                        <li>Opacity toggled for hidden chats, display none when anchor missing</li>
+                    </ul>
+                </article>
+                <article class="detail-card">
+                    <h4>Post-Chat Tile (closed session)</h4>
+                    <ul>
+                        <li>Built in <code>createPostChatIndicator()</code> as 30×30px square</li>
+                        <li>Uses <code>data-nabokov-post-chat-indicator</code> + <code>dataset.sessionId</code></li>
+                        <li>Color-coded by state (<code>loading</code>, <code>active</code>, <code>error</code>, <code>collapsed</code>)</li>
+                        <li>Hover scaling for feedback, click handler reopens chat</li>
+                        <li>Scroll/resize listeners keep placement pinned to anchor rect</li>
+                    </ul>
+                </article>
+            </div>
+            <div class="tag-group" style="margin-top:6px;">
+                <span class="tag">Absolute positioning</span>
+                <span class="tag">Anchor top-right offset +4/-4px</span>
+                <span class="tag">Pointer-events disabled for badges</span>
+                <span class="tag">requestAnimationFrame layout batching</span>
+            </div>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>⚡ Initialization Flow (initElementChatIndicators)</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <pre class="mermaid">flowchart LR
+A[Content script mounts] --> B(initElementChatIndicators)
+B --> C{initialized?}
+C -- no --> D(ensureInitialized)
+D --> E[Attach scroll/resize listeners]
+D --> F[Observe document mutations]
+D --> G[Mark initialized]
+C -- yes --> H
+E & F --> H(scheduleRefresh)
+H --> I(requestAnimationFrame)
+I --> J(refreshIndicators)
+J --> K[positionBadge for each entry]
+            </pre>
+            <div class="detail-grid" style="margin-top:6px;">
+                <article class="detail-card">
+                    <h4>Why init matters</h4>
+                    <ul>
+                        <li>Guards against duplicate listeners with <code>initialized</code> flag</li>
+                        <li>Ensures indicator DOM follows live layout & mutations</li>
+                        <li>Triggers first <code>scheduleRefresh()</code> so badges render immediately</li>
+                    </ul>
+                </article>
+                <article class="detail-card">
+                    <h4>Upstream call sites</h4>
+                    <ul>
+                        <li><code>src/content/index.tsx: initElementChatIndicators()</code> on script bootstrap</li>
+                        <li><code>syncIndicatorsForSessions()</code> reconciles persisted sessions post-load</li>
+                        <li><code>upsertIndicatorsForSession()</code> responds to live session edits</li>
+                    </ul>
+                </article>
+            </div>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>🏛️ Internal State & Data Structures</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="detail-grid">
+                <article class="detail-card">
+                    <h4>IndicatorEntry map</h4>
+                    <ul>
+                        <li>Key: <code>${chatId}::${descriptor.chatId}</code> — stable across reloads</li>
+                        <li>Stores DOM badge reference + last known element handle</li>
+                        <li>Reuses entries when descriptors update to avoid churn</li>
+                    </ul>
+                </article>
+                <article class="detail-card">
+                    <h4>Hidden & Post-chat registries</h4>
+                    <ul>
+                        <li><code>hiddenChats</code>: suppress badges until explicitly shown</li>
+                        <li><code>postChatIndicators</code>: sessionId → indicator node</li>
+                        <li>Cleanup via <code>removeIndicatorByKey</code> & <code>removePostChatIndicator</code></li>
+                    </ul>
+                </article>
+            </div>
+            <pre class="code">// src/services/elementChatIndicatorService.ts (selected constants)
+const INDICATOR_SIZE = { width: 12, height: 12 };
+const STATE_COLORS = {
+  loading: '#6c6c6c',
+  active: '#b1403c',
+  error: '#b22222',
+  collapsed: '#d4a259'
+};
+            </pre>
+            <div class="inline-kv"><span>Mutation handling</span><span>MutationObserver on <code>document.body</code></span></div>
+            <div class="inline-kv"><span>Reflow strategy</span><span>requestAnimationFrame debounced refresh</span></div>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>📊 Lifecycle Touchpoints</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <ul class="dense-list">
+                <li><strong>Bootstrap</strong><span>Content script import (src/content/index.tsx)</span></li>
+                <li><strong>Persistence</strong><span>Chrome storage sessions → syncIndicatorsForSessions()</span></li>
+                <li><strong>Live Updates</strong><span>upsertIndicatorsForSession() after writes</span></li>
+                <li><strong>Visibility</strong><span>hideIndicatorsForChat() / showIndicatorsForChat()</span></li>
+                <li><strong>Cleanup</strong><span>teardownElementChatIndicators() removes DOM + listeners</span></li>
+            </ul>
+            <p class="status-muted" style="margin-top:6px;">Re-running <code>initElementChatIndicators()</code> is idempotent; it simply schedules another refresh.</p>
+        </div>
+    </section>
+    <section class="collapsible" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>🛠️ Integration Notes & Gotchas</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <ul class="dense-list">
+                <li><strong>Anchor discovery</strong><span>findElementByDescriptor() resolves stored descriptors</span></li>
+                <li><strong>Zero-size elements</strong><span>Badges stay hidden until rect has dimensions</span></li>
+                <li><strong>Z-index discipline</strong><span>2147483646 keeps badge above page but below overlays that cap at max int</span></li>
+                <li><strong>Pointer safety</strong><span>Badges use <code>pointer-events: none</code> to avoid interfering with user interaction</span></li>
+                <li><strong>Post-chat removal</strong><span>Removing DOM element auto-cleans indicator via scroll listener guard</span></li>
+            </ul>
+            <small>Refer to tests/e2e/element-attached-chat.spec.ts for end-to-end assertions around indicator rendering and cleanup.</small>
+        </div>
+    </section>
+</main>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible').forEach(function(collapsible) {
+        if (!collapsible.classList.contains('collapsible')) {
+            collapsible.classList.add('collapsible');
+        }
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

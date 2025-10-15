@@ -15,9 +15,8 @@ import type { PageContext } from '../../../src/services/pageContextCapture';
 import * as imageUpload from '../../../src/utils/imageUpload';
 
 // Mock dependencies
-const chatWithPageMock = vi.fn<
-  (...args: any[]) => AsyncGenerator<string, void, unknown>
->();
+type StreamingGenerator = AsyncGenerator<string, void, unknown>;
+const chatWithPageMock = vi.fn<any[], StreamingGenerator>();
 const sendMessageMock = vi.fn();
 
 vi.mock('../../../src/utils/imageUpload');

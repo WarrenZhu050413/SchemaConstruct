@@ -218,4 +218,89 @@ test.describe('Element Chat Streaming Deltas', () => {
 
     await page.close();
   });
+
+  test('preserves blockquote markdown on separate lines during streaming', async ({ context }) => {
+    const page = await context.newPage();
+
+    await context.route('http://localhost:3100/api/stream', async route => {
+      const request = route.request();
+      if (request.method() === 'OPTIONS') {
+        await route.fulfill({
+          status: 204,
+          headers: {
+            'access-control-allow-origin': '*',
+            'access-control-allow-methods': 'POST, OPTIONS',
+            'access-control-allow-headers': 'Content-Type',
+          },
+          body: '',
+        });
+        return;
+      }
+
+      const sseBody = [
+        'data: {"delta":{"text":"Preparing response"}}',
+        '',
+        'data: {"delta":{"text":"| **Tabs Permission**"}}',
+        '',
+        'data: {"delta":{"text":"| - Grants access to chrome.tabs.* APIs"}}',
+        '',
+        'data: [DONE]',
+        '',
+      ].join('\n');
+
+      await route.fulfill({
+        status: 200,
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Access-Control-Allow-Origin': '*',
+          Connection: 'keep-alive',
+        },
+        body: sseBody,
+      });
+    });
+
+    await page.goto(TEST_URL);
+    await page.waitForLoadState('domcontentloaded');
+
+    await sendMessageToContentScript(context, page, { type: 'ACTIVATE_CHAT_SELECTOR' });
+    await page.waitForTimeout(1000);
+    await waitForShadowRoot(page, 'nabokov-clipper-root');
+
+    const heading = await page.$('h1');
+    expect(heading).not.toBeNull();
+    await heading!.click();
+    await page.waitForTimeout(1500);
+
+    await page.waitForFunction(() => document.querySelector('[data-nabokov-element-chat]') !== null);
+    const chatContainer = await page.$('[data-nabokov-element-chat]');
+    expect(chatContainer).not.toBeNull();
+
+    const containerId = await chatContainer!.getAttribute('id');
+    expect(containerId).toBeTruthy();
+    const hostId = containerId as string;
+
+    await waitForShadowRoot(page, hostId);
+    await typeShadowTextarea(page, hostId, 'textarea', 'Explain permissions');
+    await clickShadowElement(page, hostId, 'button[title="Send message"]');
+
+    await page.waitForFunction((id) => {
+      const host = document.getElementById(id);
+      const shadow = host?.shadowRoot;
+      const assistant = shadow?.querySelector('[data-message-role="assistant"]:last-of-type');
+      return Boolean(assistant && assistant.textContent && assistant.textContent.includes('Tabs Permission'));
+    }, hostId, { timeout: 5000 });
+
+    const assistantText = await page.evaluate((id) => {
+      const host = document.getElementById(id);
+      const shadow = host?.shadowRoot;
+      const assistant = shadow?.querySelector('[data-message-role="assistant"]:last-of-type');
+      return assistant?.textContent ?? '';
+    }, hostId);
+
+    expect(assistantText).toContain('\n| **Tabs Permission**');
+    expect(assistantText).toContain('\n| - Grants access to chrome.tabs.* APIs');
+
+    await page.close();
+  });
 });

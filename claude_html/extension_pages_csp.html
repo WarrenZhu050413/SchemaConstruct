@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Extension Pages CSP Breakdown</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+* {margin:0;padding:0;box-sizing:border-box;}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 6px;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+}
+.container {width:100%;}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 8px 0 4px 0;
+    color: var(--chinese-red);
+}
+h3 {font-size: 15px;font-weight:700;color:var(--level-2);margin:6px 0 2px 0;}
+p {margin:2px 0;color:var(--level-2);}
+strong {color:var(--level-1);}
+.important-always-visible {
+    border-left: 3px solid var(--chinese-red);
+    padding: 6px;
+    background: rgba(255,215,0,0.08);
+    margin-bottom: 6px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 4px;
+}
+.collapsible {
+    border: 1px solid rgba(0,0,0,0.15);
+    border-left: 3px solid var(--chinese-gold);
+    background: rgba(255,255,255,0.6);
+    margin: 3px 0;
+    transition: all 0.2s ease;
+}
+.collapsible.full-width {grid-column: 1 / -1;}
+.collapsible-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:4px 6px;
+    cursor:pointer;
+    font-weight:700;
+    color:var(--level-1);
+}
+.collapsible-header:hover {background:rgba(255,215,0,0.12);}
+.collapsible .arrow {transition:transform 0.2s ease;color:var(--chinese-gold);}
+.collapsible .collapsible-content {
+    display:none;
+    padding:4px 6px;
+    color:var(--level-2);
+}
+.collapsible.open .collapsible-content {display:block;}
+.collapsible.open .arrow {transform:rotate(90deg);}
+ul.dense-list {list-style:none;margin:0;padding:0;color:var(--level-2);}
+ul.dense-list li {margin:2px 0;display:flex;gap:4px;}
+ul.dense-list li::before {content:"▸";color:var(--chinese-red);font-weight:bold;}
+table {width:100%;border-collapse:collapse;font-size:13px;}
+th, td {border:1px solid rgba(0,0,0,0.2);padding:3px;text-align:left;}
+th {background:rgba(139,0,0,0.15);color:var(--level-1);}
+.tag {display:inline-block;padding:1px 4px;margin-left:4px;font-size:11px;border-radius:3px;background:rgba(139,0,0,0.18);color:var(--level-1);}
+.badge {display:inline-block;padding:1px 4px;font-size:11px;border-radius:3px;background:rgba(0,168,107,0.2);color:var(--jade-green);margin-left:4px;}
+.warning {color:var(--chinese-red);font-weight:700;}
+.note {color:var(--level-3);font-size:12px;}
+.button-row {margin:6px 0;text-align:right;}
+.button-row button {
+    background:var(--chinese-red);
+    color:#fff;
+    border:none;
+    padding:3px 6px;
+    font-size:12px;
+    cursor:pointer;
+}
+.button-row button + button {margin-left:4px;background:var(--chinese-gold);color:var(--ink-black);}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>Extension Pages CSP Breakdown</h1>
+    <div class="important-always-visible">
+        <div class="two-column-layout">
+            <ul class="dense-list">
+                <li><strong>Scope:</strong> Chrome extension pages Content Security Policy</li>
+                <li><strong>Risk Level:</strong> <span class="warning">Medium—inline styles + wasm eval runtime</span></li>
+            </ul>
+            <ul class="dense-list">
+                <li><strong>Primary Effect:</strong> Limits script, object, and style sources to extension origin</li>
+                <li><strong>Key Exceptions:</strong> `'wasm-unsafe-eval'`, `'unsafe-inline'`</li>
+            </ul>
+        </div>
+    </div>
+    <div class="button-row">
+        <button id="expand-all">Expand All</button>
+        <button id="collapse-all">Collapse All</button>
+    </div>
+    <div class="two-column-layout">
+        <div class="collapsible" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>⚡ Directive Overview</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <thead>
+                        <tr><th>Directive</th><th>Allowed Sources</th><th>Practical Outcome</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>script-src</code></td>
+                            <td><code>'self'</code>, <code>'wasm-unsafe-eval'</code></td>
+                            <td>Only JavaScript packaged with the extension may run; WebAssembly modules can use <code>WebAssembly.compile</code> / <code>eval()</code>-like functionality.</td>
+                        </tr>
+                        <tr>
+                            <td><code>object-src</code></td>
+                            <td><code>'self'</code></td>
+                            <td>Legacy plugin embeds (<code>&lt;object&gt;</code>, <code>&lt;embed&gt;</code>) must come from the extension bundle itself.</td>
+                        </tr>
+                        <tr>
+                            <td><code>style-src</code></td>
+                            <td><code>'self'</code>, <code>'unsafe-inline'</code></td>
+                            <td>Stylesheets must be packaged with the extension, but inline styles and <code>&lt;style&gt;</code> tags are permitted.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 `'wasm-unsafe-eval'` Implications</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p><strong>Purpose:</strong> Enables dynamic WebAssembly compilation, which Chrome otherwise blocks inside extensions.</p>
+                <p><strong>Security Trade-off:</strong> Allows the runtime to generate executable code, increasing the attack surface if malicious inputs can influence module compilation.</p>
+                <p class="note">Mitigate by validating any external data before compiling WebAssembly modules.</p>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 `'unsafe-inline'` Styles</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <p><strong>Purpose:</strong> Keeps compatibility with inline style attributes and dynamically injected style tags.</p>
+                <p><strong>Security Trade-off:</strong> Inline styles can be abused for minor data exfiltration via CSS tricks; impact is low but best limited to trusted markup paths.</p>
+                <p class="note">Consider migrating to hashed inline styles (`'sha256-...'`) if you want to tighten CSP without refactoring markup.</p>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📊 Operational Guidance</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <ul class="dense-list">
+                    <li><strong>Script Hygiene:</strong> Keep reusable logic in packaged files; avoid string-based <code>eval</code>.</li>
+                    <li><strong>Object Usage:</strong> Prefer modern APIs over <code>&lt;object&gt;</code> unless essential.</li>
+                    <li><strong>Style Control:</strong> Whitelist only trusted DOM paths for inline styles.</li>
+                    <li><strong>Testing:</strong> Use Chrome's `chrome://extensions` inspection to confirm CSP enforcement.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.add('open'); });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.remove('open'); });
+        });
+    }
+});
+</script>
+</body>
+</html>

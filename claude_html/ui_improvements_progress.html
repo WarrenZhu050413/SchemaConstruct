@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UI Improvements Progress</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 8px;
+}
+header {
+    padding: 4px 0 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    margin-bottom: 6px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.4px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 6px 0 4px 0;
+    color: var(--chinese-red);
+}
+h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 4px 0 2px 0;
+    color: var(--level-2);
+}
+p {
+    margin: 2px 0;
+    color: var(--level-2);
+}
+ul {
+    list-style: none;
+}
+.dense-list li {
+    position: relative;
+    padding-left: 12px;
+    margin: 2px 0;
+    color: var(--level-2);
+}
+.dense-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--chinese-red);
+    font-size: 10px;
+    top: 2px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 6px;
+    align-items: start;
+}
+.collapsible {
+    border: 1px solid rgba(139, 0, 0, 0.35);
+    background: rgba(250, 250, 240, 0.94);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: var(--level-1);
+    cursor: pointer;
+    background: rgba(139, 0, 0, 0.08);
+}
+.collapsible-header:hover {
+    background: rgba(139, 0, 0, 0.15);
+}
+.collapsible .arrow {
+    transition: transform 0.25s ease;
+}
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    display: none;
+    padding: 6px 8px;
+}
+.collapsible.open .collapsible-content {
+    display: block;
+}
+.controls {
+    display: flex;
+    gap: 6px;
+}
+.controls button {
+    border: 1px solid rgba(139, 0, 0, 0.35);
+    background: rgba(255, 231, 209, 0.85);
+    color: var(--chinese-red);
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.controls button:hover {
+    background: rgba(255, 213, 170, 0.95);
+}
+.important-always-visible {
+    border: 1px solid rgba(0, 168, 107, 0.45);
+    background: rgba(230, 255, 245, 0.95);
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+}
+.important-always-visible h2 {
+    color: var(--jade-green);
+    margin-bottom: 4px;
+}
+.status-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 168, 107, 0.12);
+    border: 1px solid rgba(0, 168, 107, 0.35);
+    color: var(--jade-green);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+.meta {
+    font-size: 11px;
+    color: var(--level-3);
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>UI Improvements Progress</h1>
+    <div class="controls">
+      <button id="expand-all">Expand All</button>
+      <button id="collapse-all">Collapse All</button>
+    </div>
+  </header>
+  <div class="meta">
+    <span>Saved: claude_html/ui_improvements_progress.html (opened)</span>
+    <span>Date: October 9, 2025</span>
+  </div>
+  <div class="important-always-visible">
+    <h2>Highlights</h2>
+    <div class="two-column-layout">
+      <ul class="dense-list">
+        <li><strong>Status:</strong> <span class="status-tag">3 features completed</span></li>
+        <li><strong>Commits:</strong> <code>test: cover collapsed inline unread badge</code></li>
+      </ul>
+      <ul class="dense-list">
+        <li><strong>Commits:</strong> <code>fix: preserve blockquotes in element streaming</code>; <code>fix: guard element chat autoscroll</code></li>
+        <li><strong>Scope:</strong> Inline &amp; Element chat UI polish with targeted unit coverage</li>
+      </ul>
+    </div>
+  </div>
+  <div class="two-column-layout">
+    <div class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>📌 Completed Work</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <article>
+          <h3>Collapsed Inline Chat Badge</h3>
+          <ul class="dense-list">
+            <li>Clarified expected behaviour: badge increments only when an in-flight response finishes while collapsed.</li>
+            <li>Adjusted unit coverage to the realistic scenario (collapse mid-stream) in <code>tests/unit/components/InlineChatWindow.test.tsx</code>.</li>
+            <li>Verified queue logic already satisfied requirement (no runtime code change needed).</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Streaming Delta Formatting</h3>
+          <ul class="dense-list">
+            <li>Added <code>ensureInlineBlockBreaks()</code> &amp; <code>formatStreamingChunk()</code> helpers in <code>src/components/ElementChatWindow.tsx</code>.</li>
+            <li>Preserves blockquote markers and injected newlines before Markdown blocks so headings like <em>Tabs Permission</em> render on their own line.</li>
+            <li>Added direct unit coverage for formatter edge-cases in <code>tests/unit/components/ElementChatWindow.test.tsx</code>.</li>
+          </ul>
+        </article>
+        <article>
+          <h3>Autoscroll Guard</h3>
+          <ul class="dense-list">
+            <li>Tracked anchored state via <code>isUserAnchoredBottom</code> &amp; scroll listener tied to <code>data-testid=&quot;element-chat-messages&quot;</code>.</li>
+            <li>Auto-scroll now runs only when the viewer remains pinned to bottom; no jump when completion occurs mid-review.</li>
+            <li>Introduced unit tests simulating anchored vs. scrolled-up flows, mocking <code>scrollIntoView</code>.</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+    <div class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🧪 Tests Executed</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <ul class="dense-list">
+          <li><code>npm run test -- InlineChatWindow</code> (unread badge scenario)</li>
+          <li><code>npm run test -- ElementChatWindow</code> (formatter &amp; autoscroll guard)</li>
+          <li>Mocks cover <code>chatWithPage</code>, element indicator services, and <code>ImageUploadZone</code> for deterministic behaviour.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="collapsible full-width" data-collapsible="closed">
+    <div class="collapsible-header">
+      <span>🔜 Suggested Follow-Ups</span>
+      <span class="arrow">▶</span>
+    </div>
+    <div class="collapsible-content">
+      <ul class="dense-list">
+        <li>Run <code>npm run test</code> (full suite) &amp; smoke the extension in Chrome to confirm collapsed badge UX visually.</li>
+        <li>Consider Playwright coverage once inline &amp; element chat suites stabilise (per project testing guidelines).</li>
+        <li>Share updated UX clips/screens with design stakeholders if required.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+    const isOpen = section.getAttribute('data-collapsible') === 'open';
+    section.classList.add('collapsible');
+    if (isOpen) section.classList.add('open');
+  });
+  document.querySelectorAll('.collapsible-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      const collapsible = this.closest('.collapsible');
+      collapsible.classList.toggle('open');
+    });
+  });
+  const expandAllBtn = document.getElementById('expand-all');
+  const collapseAllBtn = document.getElementById('collapse-all');
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.collapsible').forEach(function(c) {
+        c.classList.add('open');
+      });
+    });
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('.collapsible').forEach(function(c) {
+        c.classList.remove('open');
+      });
+    });
+  }
+});
+</script>
+</body>
+</html>

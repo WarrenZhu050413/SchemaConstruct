@@ -6,9 +6,8 @@ import type { ElementDescriptor } from '../../../src/services/elementIdService';
 
 const { formatStreamingChunk } = __test__;
 
-const chatWithPageMock = vi.fn<
-  (...args: any[]) => AsyncGenerator<string, void, unknown>
->();
+type StreamingGenerator = AsyncGenerator<string, void, unknown>;
+const chatWithPageMock = vi.fn<any[], StreamingGenerator>();
 
 vi.mock('../../../src/services/claudeAPIService', () => ({
   chatWithPage: chatWithPageMock,

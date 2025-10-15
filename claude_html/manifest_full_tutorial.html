@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manifest.json Deep Dive</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.25;
+    font-size: 14px;
+    font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 10px 12px;
+}
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 6px;
+}
+h1 {
+    font-size: 26px;
+    font-weight: 900;
+    margin: 2px 0;
+    padding: 4px 0;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.4px;
+}
+.controls button {
+    background: var(--chinese-red);
+    color: #fff;
+    border: none;
+    padding: 4px 12px;
+    font-size: 12px;
+    margin-left: 6px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.controls button:hover {
+    background: var(--jade-green);
+}
+.important-always-visible {
+    margin: 8px 0 6px 0;
+    padding: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.16);
+    background: rgba(255, 255, 255, 0.75);
+}
+.important-always-visible h2 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--chinese-red);
+    margin-bottom: 6px;
+}
+.important-always-visible .dense-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px 12px;
+}
+.important-always-visible .dense-list li {
+    font-size: 13px;
+    color: var(--level-1);
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+.collapsible {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.82);
+    transition: all 0.2s ease;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 9px;
+    background: rgba(205, 92, 92, 0.08);
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--level-1);
+}
+.collapsible-header span.arrow {
+    font-size: 12px;
+    color: var(--chinese-red);
+    transition: transform 0.2s ease;
+}
+.collapsible.open .collapsible-header span.arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    padding: 0 9px;
+}
+.collapsible.open .collapsible-content {
+    max-height: 600px;
+    padding: 7px 9px 10px 9px;
+}
+.section-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+}
+.section-grid div {
+    font-size: 13px;
+    color: var(--level-2);
+}
+.section-grid strong {
+    color: var(--level-1);
+}
+.full-width {
+    grid-column: 1 / span 2;
+}
+.tag {
+    display: inline-block;
+    background: rgba(139, 0, 0, 0.12);
+    color: var(--chinese-red);
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 11px;
+    margin-right: 5px;
+}
+.subnote {
+    font-size: 12px;
+    color: var(--level-3);
+    margin-top: 4px;
+}
+.code-ref {
+    font-family: "JetBrains Mono", "SFMono-Regular", monospace;
+    font-size: 12px;
+    color: var(--level-2);
+}
+.highlight-box {
+    background: rgba(255, 215, 0, 0.12);
+    border-left: 3px solid var(--chinese-gold);
+    padding: 6px 8px;
+    margin-top: 6px;
+}
+.faq-list {
+    display: grid;
+    gap: 6px;
+}
+.faq-item {
+    background: rgba(139, 0, 0, 0.06);
+    border: 1px solid rgba(139, 0, 0, 0.15);
+    padding: 6px 8px;
+}
+.faq-item strong {
+    color: var(--chinese-red);
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Manifest.json Deep Dive</h1>
+    <div class="controls">
+      <button id="expand-all">Expand All</button>
+      <button id="collapse-all">Collapse All</button>
+    </div>
+  </header>
+
+  <section class="important-always-visible">
+    <h2>🎯 Core Takeaways</h2>
+    <ul class="dense-list">
+      <li><strong>MV3 shell:</strong> Background runs as a service worker with ES modules; UI lives in canvas + side panel.</li>
+      <li><strong>Global reach:</strong> `<all_urls>` host permission + `document_idle` content script let the overlay load on every page.</li>
+      <li><strong>Shortcut orchestration:</strong> Manifest `commands` map to background message flows triggering selectors and chats.</li>
+      <li><strong>Published assets:</strong> `web_accessible_resources` expose canvas/side panel bundles to regular tabs.</li>
+      <li><strong>CSP:</strong> Locks down extension pages to local scripts/styles, while allowing inline CSS + Wasm helpers needed by the build.</li>
+      <li><strong>Permissions discipline:</strong> Each API (`tabs`, `scripting`, `contextMenus`, `sidePanel`, etc.) corresponds to explicit code paths in `src/background/` and `src/content/`.</li>
+    </ul>
+  </section>
+
+  <div class="two-column-layout">
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>📂 Metadata & Lifecycle</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="section-grid">
+          <div><strong>manifest_version:</strong> 3 (service-worker background, declarative permissions).</div>
+          <div><strong>name/version/description:</strong> User-facing labels; bump `version` every Chrome update.</div>
+          <div><strong>background:</strong> `src/background/index.ts` runs as module service worker; listens for commands, menu clicks, runtime messages.</div>
+          <div><strong>action:</strong> Toolbar icon with tooltip “Open Nabokov Canvas”; click handled in background to open canvas tab.</div>
+          <div><strong>side_panel:</strong> Registers `src/sidepanel/index.html` with Chrome’s side panel API.</div>
+          <div><strong>icons:</strong> 16/48/128px art used in toolbar, Chrome Web Store, context menu.</div>
+        </div>
+        <div class="highlight-box">
+          <strong>Lifecycle:</strong> Background wakes on events (keyboard shortcuts, context menus) and uses `tabs + runtime` messaging to talk to the always-present content script. Canvas or side panel entry points launch via `chrome.runtime.getURL` pointing at web-accessible files.
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🔑 Permissions Block</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="section-grid">
+          <div><strong>activeTab:</strong> Temporarily grants DOM/script access to the tab the user just interacted with; essential for clipping on demand.</div>
+          <div><strong>storage:</strong> Enables `chrome.storage.sync/local` for saved cards, chat transcripts, prefs.</div>
+          <div><strong>contextMenus:</strong> Allows registering right-click entries (“Clip to Canvas”, “Chat about this”).</div>
+          <div><strong>scripting:</strong> MV3 API for injecting content scripts dynamically; complements `activeTab` for user-triggered access.</div>
+          <div><strong>tabs:</strong> Lets the background query active tabs, send messages, create/activate canvas tabs.</div>
+          <div><strong>sidePanel:</strong> Required to display the research side panel UI registered above.</div>
+        </div>
+        <p class="subnote">Every permission is exercised explicitly in <span class="code-ref">src/background/index.ts</span> and <span class="code-ref">src/content/index.tsx</span>; Chrome surfaces this list during install so keep it minimal.</p>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🌐 Host Permissions Explained</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p><span class="tag">host_permissions</span> `<all_urls>` grants the extension *automatic* access to every URL (http, https, file, ftp). Combined with the content script match, Chrome injects `src/content/index.tsx` into every navigated page without additional prompts.</p>
+        <div class="section-grid">
+          <div><strong>What it enables:</strong> Immediate availability of the element selector + inline chat overlay on any site.</div>
+          <div><strong>Scope:</strong> Applies to all frames matching the pattern; cross-origin iframes remain restricted unless they match `<all_urls>` too.</div>
+          <div><strong>Alternatives:</strong> Replace with patterns (e.g., `"https://*.notion.so/*"`) to narrow auto-injection. Pair with `activeTab + chrome.scripting.executeScript` to support opt-in expansion.</div>
+          <div><strong>User trust:</strong> Because the script injects everywhere, ensure no data is exfiltrated until the user takes an explicit action (current design already waits for shortcuts/menus).</div>
+        </div>
+        <div class="highlight-box">
+          <strong>Developer tip:</strong> For enterprise or privacy-sensitive deployments, consider dynamic host permissions (request via `chrome.permissions.request`). MV3 supports prompting users when they hit an unsupported domain instead of pre-declaring `<all_urls>`.
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🧠 Content Scripts & Timing</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p><span class="tag">content_scripts</span> injects `src/content/index.tsx` on every URL at `document_idle`.</p>
+        <div class="section-grid">
+          <div><strong>matches:</strong> `<all_urls>` so the overlay is always injected (consistent with host permissions).</div>
+          <div><strong>js array:</strong> Points to the bundled React/TypeScript entrypoint. Build pipeline rewrites paths during packaging.</div>
+          <div><strong>run_at "document_idle":</strong> Chrome waits for DOMContentLoaded and network quiet before injecting. Ensures the selector sees the fully rendered DOM, reduces race conditions with heavy SPA frameworks.</div>
+          <div><strong>Other options:</strong> `document_start` (before DOM build) or `document_end` (right after DOM ready). Choose earlier timing only if you need to observe mutations immediately.</div>
+        </div>
+        <p class="subnote">Because the script runs everywhere, guard heavy work behind listeners (e.g., keyboard shortcuts) to minimize idle overhead.</p>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🗂️ Web Accessible Resources</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p><span class="tag">web_accessible_resources</span> publishes canvas + side panel bundles so normal tabs and iframes can load them.</p>
+        <div class="section-grid">
+          <div><strong>Entry HTML:</strong> `src/canvas/index.html`, `src/sidepanel/index.html` — opened via `chrome.runtime.getURL` in the background and manifest.</div>
+          <div><strong>Support assets:</strong> `src/canvas/*.js|*.css`, `src/sidepanel/*.js|*.css` use wildcards to capture hashed build outputs.</div>
+          <div><strong>matches:</strong> `<all_urls>` permits any page (including chrome-extension pages and standard tabs) to request these resources.</div>
+          <div><strong>Failure mode:</strong> Without these entries, users would see an ERR_BLOCKED_BY_CLIENT page when the background tries to open the canvas.</div>
+        </div>
+        <div class="highlight-box">
+          <strong>Packaging note:</strong> Ensure the build emits files under matching paths. CRX plugins often copy compiled assets into `dist/src/canvas/...`; keep patterns aligned or Chrome won’t resolve them.</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="open">
+      <div class="collapsible-header">
+        <span>🛡️ Content Security Policy (CSP)</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <p><span class="tag">content_security_policy.extension_pages</span> governs `chrome-extension://` pages (canvas, side panel).</p>
+        <div class="section-grid">
+          <div><strong>script-src 'self' 'wasm-unsafe-eval':</strong> Only load scripts bundled with the extension; allow WebAssembly/eval required by compiled output.</div>
+          <div><strong>object-src 'self':</strong> Restricts `<object>`/`<embed>` to internal resources—blocks remote plugins.</div>
+          <div><strong>style-src 'self' 'unsafe-inline':</strong> Permit packaged stylesheets plus inline CSS, which React Shadow DOM mounts rely on.</div>
+          <div><strong>Security impact:</strong> Prevents third-party scripts from running on extension pages; inline styles remain allowed so treat them carefully.</div>
+        </div>
+        <div class="highlight-box">
+          <strong>Hardening ideas:</strong> If you can remove inline styles (e.g., by using CSS modules) you can drop `'unsafe-inline'`. Likewise, if the build stops emitting Wasm/eval helpers, consider removing `'wasm-unsafe-eval'` for stricter locking.
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>⌨️ Keyboard Commands & Messaging</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="section-grid">
+          <div><strong>Commands:</strong> `activate-selector`, `activate-selector-stash`, `toggle-inline-chat` with platform-specific defaults.</div>
+          <div><strong>Flow:</strong> Shortcut → background (`chrome.commands.onCommand`) → `chrome.tabs.sendMessage` to content script → React selector/chat UI.</div>
+          <div><strong>Customization:</strong> Users can remap in `chrome://extensions/shortcuts`; keep IDs stable.</div>
+          <div><strong>Related tests:</strong> <span class="code-ref">tests/e2e/keyboard-shortcuts.spec.ts</span> verifies inline chat window opens.</div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>📎 Reference Map</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="section-grid">
+          <div><strong>Background logic:</strong> <span class="code-ref">src/background/index.ts</span></div>
+          <div><strong>Content script:</strong> <span class="code-ref">src/content/index.tsx</span></div>
+          <div><strong>Element selector:</strong> <span class="code-ref">src/components/ElementSelector.tsx</span></div>
+          <div><strong>Inline chat:</strong> <span class="code-ref">src/components/InlineChatWindow.tsx</span></div>
+          <div><strong>Canvas save flow:</strong> <span class="code-ref">src/content/index.tsx:380-420</span></div>
+          <div><strong>Side panel UI:</strong> <span class="code-ref">src/sidepanel/index.html</span></div>
+          <div><strong>Claude API helper:</strong> <span class="code-ref">src/services/claudeAPIService.ts</span></div>
+          <div><strong>Tests:</strong> <span class="code-ref">tests/e2e/inline-chat-images.spec.ts</span></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="collapsible full-width" data-collapsible="closed">
+      <div class="collapsible-header">
+        <span>❓ FAQ / Quick Answers</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content">
+        <div class="faq-list">
+          <div class="faq-item"><strong>Does `<all_urls>` mean the extension runs everywhere by default?</strong> Yes. Chrome injects the content script automatically on all navigations. Nothing is executed beyond initialization until you listen for user gestures, but the script code is present. Use narrower patterns or dynamic host permissions if you want to limit this.</div>
+          <div class="faq-item"><strong>What changes if `run_at` is `document_start`?</strong> The script runs before DOM construction, allowing early instrumentation but risking conflicts with page scripts and forcing you to wait for DOM elements manually.</div>
+          <div class="faq-item"><strong>Why are canvas/side panel bundles web-accessible?</strong> Because the background opens them in standard tabs/iframes. Chrome blocks access to internal assets unless you declare them.</div>
+          <div class="faq-item"><strong>Can we tighten the CSP?</strong> Only if build outputs no longer require inline styles or Wasm/eval. Otherwise the extension pages would fail to load or render correctly.</div>
+        </div>
+      </div>
+    </article>
+  </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+      expandAllBtn.addEventListener('click', function() {
+          document.querySelectorAll('.collapsible').forEach(function(c) {
+              c.classList.add('open');
+          });
+      });
+    }
+    if (collapseAllBtn) {
+      collapseAllBtn.addEventListener('click', function() {
+          document.querySelectorAll('.collapsible').forEach(function(c) {
+              c.classList.remove('open');
+          });
+      });
+    }
+});
+</script>
+</body>
+</html>

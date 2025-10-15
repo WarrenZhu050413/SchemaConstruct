@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mitmproxy Complete Usage Guide</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #2a5298;
+            font-size: 1.8em;
+            margin: 30px 0 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #667eea;
+            font-size: 1.3em;
+            margin: 20px 0 10px 0;
+        }
+
+        .tool-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card h3 {
+            color: #1e3c72;
+            margin-top: 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #e83e8c;
+        }
+
+        pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        pre code {
+            background: none;
+            color: #68d391;
+            padding: 0;
+            font-size: 0.95em;
+        }
+
+        .command-section {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .keyboard-key {
+            display: inline-block;
+            background: #ffffff;
+            border: 2px solid #cbd5e0;
+            border-radius: 6px;
+            padding: 4px 12px;
+            font-family: monospace;
+            font-weight: bold;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin: 0 4px;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e9ecef;
+        }
+
+        ol, ul {
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .platform-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .platform-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+
+        .platform-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+
+        .platform-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        footer {
+            background: #2d3748;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        footer a {
+            color: #68d391;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .step-number {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🕵️ Mitmproxy Complete Usage Guide</h1>
+            <p class="subtitle">An Interactive TLS-Capable Intercepting HTTP Proxy</p>
+        </header>
+
+        <div class="content">
+            <!-- Introduction -->
+            <section>
+                <h2>📖 What is Mitmproxy?</h2>
+                <p>Mitmproxy is a lightweight, powerful, open-source tool designed to intercept and modify HTTP/HTTPS traffic between a client and a server. It's widely used for:</p>
+                <ul>
+                    <li><strong>Penetration Testing</strong> - Security analysis and vulnerability assessment</li>
+                    <li><strong>API Debugging</strong> - Inspect and modify API requests/responses</li>
+                    <li><strong>Web Development</strong> - Debug network issues and test edge cases</li>
+                    <li><strong>Traffic Analysis</strong> - Monitor and analyze application network behavior</li>
+                </ul>
+
+                <div class="info">
+                    <strong>💡 Key Features:</strong> Interactive console, Web UI interface, Scriptable automation, HTTP/1, HTTP/2, and WebSockets support, TLS/SSL interception
+                </div>
+            </section>
+
+            <!-- Three Tools -->
+            <section>
+                <h2>🛠️ Three Flavors of Mitmproxy</h2>
+                <div class="tool-cards">
+                    <div class="card">
+                        <h3>mitmproxy</h3>
+                        <p><strong>Interactive Console</strong></p>
+                        <p>Terminal-based UI for exploring traffic interception in detail. Uses vim-style navigation and provides real-time traffic inspection.</p>
+                        <pre><code>$ mitmproxy</code></pre>
+                    </div>
+
+                    <div class="card">
+                        <h3>mitmweb</h3>
+                        <p><strong>Web Interface</strong></p>
+                        <p>Easy-to-use web interface that looks and feels like Chrome's DevTools. Perfect for visual inspection and analysis.</p>
+                        <pre><code>$ mitmweb</code></pre>
+                    </div>
+
+                    <div class="card">
+                        <h3>mitmdump</h3>
+                        <p><strong>Command-Line Tool</strong></p>
+                        <p>Works like tcpdump for HTTP/HTTPS. Ideal for scripting, automation, and programmatic traffic analysis.</p>
+                        <pre><code>$ mitmdump</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Installation -->
+            <section>
+                <h2>📦 Installation</h2>
+
+                <div class="platform-section">
+                    <div class="platform-card">
+                        <div class="platform-icon">🍎</div>
+                        <h3>macOS</h3>
+                        <p>Using Homebrew (recommended):</p>
+                        <pre><code>brew install mitmproxy</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <div class="platform-icon">🪟</div>
+                        <h3>Windows</h3>
+                        <p>Download installer from:</p>
+                        <pre><code>mitmproxy.org</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <div class="platform-icon">🐧</div>
+                        <h3>Linux</h3>
+                        <p>Download standalone binaries:</p>
+                        <pre><code>mitmproxy.org</code></pre>
+                        <p>Or use package manager:</p>
+                        <pre><code>sudo apt install mitmproxy</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <div class="platform-icon">🐳</div>
+                        <h3>Docker</h3>
+                        <p>Run in container:</p>
+                        <pre><code>docker pull mitmproxy/mitmproxy
+docker run -it -p 8080:8080 \
+  mitmproxy/mitmproxy</code></pre>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Quick Start -->
+            <section>
+                <h2>🚀 Quick Start Guide</h2>
+
+                <div class="command-section">
+                    <h3><span class="step-number">1</span>Start Mitmproxy</h3>
+                    <p>By default, mitmproxy starts an HTTP proxy listening on <code>http://localhost:8080</code></p>
+                    <pre><code>$ mitmproxy</code></pre>
+                </div>
+
+                <div class="command-section">
+                    <h3><span class="step-number">2</span>Configure Browser/App Proxy</h3>
+                    <p>Set your browser or application to use the proxy:</p>
+                    <ul>
+                        <li><strong>Host:</strong> localhost (or 127.0.0.1)</li>
+                        <li><strong>Port:</strong> 8080</li>
+                        <li><strong>Protocol:</strong> HTTP</li>
+                    </ul>
+                </div>
+
+                <div class="command-section">
+                    <h3><span class="step-number">3</span>Test Connection</h3>
+                    <p>Browse to <code>http://mitm.it</code> - you should see the certificate download page.</p>
+                    <div class="success">
+                        <strong>✅ Success!</strong> If you see the certificate page, your proxy is working correctly.
+                    </div>
+                </div>
+            </section>
+
+            <!-- Certificate Setup -->
+            <section>
+                <h2>🔒 HTTPS Certificate Setup</h2>
+
+                <div class="warning">
+                    <strong>⚠️ Important:</strong> HTTPS traffic is encrypted. To intercept HTTPS, you must install mitmproxy's CA certificate on your device.
+                </div>
+
+                <h3>Certificate Location</h3>
+                <p>After first run, the CA certificate is generated at:</p>
+                <pre><code>~/.mitmproxy/mitmproxy-ca-cert.pem</code></pre>
+
+                <h3>Installation by Platform</h3>
+
+                <div class="platform-section">
+                    <div class="platform-card">
+                        <h4>🍎 macOS</h4>
+                        <ol>
+                            <li>Browse to <code>http://mitm.it</code></li>
+                            <li>Click "Apple" icon to download cert</li>
+                            <li>Open the downloaded file</li>
+                            <li>Add to "System" keychain</li>
+                            <li>Double-click the cert and set to "Always Trust"</li>
+                        </ol>
+                        <p><strong>Command line:</strong></p>
+                        <pre><code>sudo security add-trusted-cert -d \
+  -p ssl -p basic \
+  -k /Library/Keychains/System.keychain \
+  ~/.mitmproxy/mitmproxy-ca-cert.pem</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <h4>🪟 Windows</h4>
+                        <ol>
+                            <li>Browse to <code>http://mitm.it</code></li>
+                            <li>Click "Windows" icon</li>
+                            <li>Run the downloaded file</li>
+                            <li>Install to "Trusted Root Certification Authorities"</li>
+                        </ol>
+                        <p><strong>Command line:</strong></p>
+                        <pre><code>certutil -addstore root \
+  C:\Users\YourUser\.mitmproxy\mitmproxy-ca-cert.pem</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <h4>🐧 Linux (Ubuntu/Debian)</h4>
+                        <pre><code># Copy certificate
+sudo cp ~/.mitmproxy/mitmproxy-ca-cert.pem \
+  /usr/local/share/ca-certificates/mitmproxy.crt
+
+# Update CA certificates
+sudo update-ca-certificates</code></pre>
+                    </div>
+
+                    <div class="platform-card">
+                        <h4>🌐 Chrome/Chromium</h4>
+                        <ol>
+                            <li>Open <code>chrome://settings/certificates</code></li>
+                            <li>Go to "Authorities" tab</li>
+                            <li>Click "Import"</li>
+                            <li>Select <code>mitmproxy-ca-cert.pem</code></li>
+                            <li>Check "Trust this certificate for identifying websites"</li>
+                        </ol>
+                    </div>
+
+                    <div class="platform-card">
+                        <h4>📱 iOS</h4>
+                        <ol>
+                            <li>Browse to <code>http://mitm.it</code> on device</li>
+                            <li>Tap "Apple" icon</li>
+                            <li>Install the profile</li>
+                            <li>Go to Settings → General → About</li>
+                            <li>Go to Certificate Trust Settings</li>
+                            <li>Enable trust for mitmproxy certificate</li>
+                        </ol>
+                    </div>
+
+                    <div class="platform-card">
+                        <h4>🤖 Android</h4>
+                        <ol>
+                            <li>Browse to <code>http://mitm.it</code></li>
+                            <li>Download Android certificate</li>
+                            <li>Go to Settings → Security → Install from storage</li>
+                            <li>Select the downloaded certificate</li>
+                            <li>Name it "mitmproxy" and confirm</li>
+                        </ol>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Basic Commands -->
+            <section>
+                <h2>⌨️ Basic Commands (mitmproxy console)</h2>
+
+                <h3>Navigation</h3>
+                <table>
+                    <tr>
+                        <th>Key</th>
+                        <th>Action</th>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">j</span> / <span class="keyboard-key">k</span></td>
+                        <td>Move down/up (vim-style)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">↑</span> / <span class="keyboard-key">↓</span></td>
+                        <td>Move up/down (arrow keys)</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">Enter</span></td>
+                        <td>Open/view selected flow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">q</span></td>
+                        <td>Go back / quit</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">Tab</span></td>
+                        <td>Switch between request/response</td>
+                    </tr>
+                </table>
+
+                <h3>Flow Management</h3>
+                <table>
+                    <tr>
+                        <th>Key</th>
+                        <th>Action</th>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">d</span></td>
+                        <td>Delete flow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">D</span></td>
+                        <td>Duplicate flow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">r</span></td>
+                        <td>Replay flow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">e</span></td>
+                        <td>Edit flow</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">z</span></td>
+                        <td>Clear flow list</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">w</span></td>
+                        <td>Save flows to file</td>
+                    </tr>
+                </table>
+
+                <h3>Filtering</h3>
+                <table>
+                    <tr>
+                        <th>Key</th>
+                        <th>Action</th>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">f</span></td>
+                        <td>Set filter expression</td>
+                    </tr>
+                    <tr>
+                        <td><span class="keyboard-key">F</span></td>
+                        <td>Clear filter</td>
+                    </tr>
+                </table>
+
+                <h3>Command Prompt</h3>
+                <p>Press <span class="keyboard-key">:</span> to open command prompt with intelligent tab completion</p>
+                <pre><code>:set console_eventlog_verbosity debug
+:flow.save @all flows.mitm
+:view.flows.resolve</code></pre>
+
+                <h3>Common Filter Expressions</h3>
+                <table>
+                    <tr>
+                        <th>Filter</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>~d example.com</code></td>
+                        <td>Domain contains "example.com"</td>
+                    </tr>
+                    <tr>
+                        <td><code>~u /api/</code></td>
+                        <td>URL contains "/api/"</td>
+                    </tr>
+                    <tr>
+                        <td><code>~m POST</code></td>
+                        <td>Method is POST</td>
+                    </tr>
+                    <tr>
+                        <td><code>~c 200</code></td>
+                        <td>Status code is 200</td>
+                    </tr>
+                    <tr>
+                        <td><code>~q</code></td>
+                        <td>Show requests only</td>
+                    </tr>
+                    <tr>
+                        <td><code>~s</code></td>
+                        <td>Show responses only</td>
+                    </tr>
+                    <tr>
+                        <td><code>~a</code></td>
+                        <td>Match asset content types (CSS/JS/images)</td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- Advanced Usage -->
+            <section>
+                <h2>🔧 Advanced Usage</h2>
+
+                <h3>Custom Port</h3>
+                <pre><code>$ mitmproxy --listen-port 9090</code></pre>
+
+                <h3>Transparent Proxy Mode</h3>
+                <pre><code>$ mitmproxy --mode transparent</code></pre>
+
+                <h3>Reverse Proxy</h3>
+                <pre><code>$ mitmproxy --mode reverse:https://example.com</code></pre>
+
+                <h3>Upstream Proxy</h3>
+                <pre><code>$ mitmproxy --mode upstream:http://proxy.example.com:8080</code></pre>
+
+                <h3>Save Traffic to File</h3>
+                <pre><code>$ mitmdump -w traffic.mitm</code></pre>
+
+                <h3>Replay Saved Traffic</h3>
+                <pre><code>$ mitmproxy -r traffic.mitm</code></pre>
+
+                <h3>Filter on Save</h3>
+                <pre><code>$ mitmdump -w api-traffic.mitm "~d api.example.com"</code></pre>
+
+                <h3>Custom Scripts (Python)</h3>
+                <p>Create a Python script to modify traffic:</p>
+                <pre><code># modify_headers.py
+def request(flow):
+    flow.request.headers["X-Custom-Header"] = "Modified"
+
+def response(flow):
+    flow.response.headers["X-Response-Modified"] = "True"</code></pre>
+
+                <p>Load the script:</p>
+                <pre><code>$ mitmproxy -s modify_headers.py</code></pre>
+
+                <h3>Map Remote Paths</h3>
+                <pre><code>$ mitmproxy --map-remote '|example.com/api|localhost:3000/api'</code></pre>
+
+                <h3>Block Specific Hosts</h3>
+                <pre><code>$ mitmproxy --set block_global=false --set block_list='analytics.google.com'</code></pre>
+            </section>
+
+            <!-- Configuration -->
+            <section>
+                <h2>⚙️ Configuration</h2>
+
+                <h3>Config File Location</h3>
+                <pre><code>~/.mitmproxy/config.yaml</code></pre>
+
+                <h3>Example Configuration</h3>
+                <pre><code># ~/.mitmproxy/config.yaml
+listen_port: 8080
+web_open_browser: true
+console_eventlog_verbosity: info
+
+# SSL/TLS settings
+ssl_insecure: false
+
+# Upstream proxy
+mode: regular
+
+# Filter settings
+view_filter: ~d example.com</code></pre>
+
+                <h3>Command-Line Options</h3>
+                <p>Override config with <code>--set</code> flag:</p>
+                <pre><code>$ mitmproxy --set console_eventlog_verbosity=debug</code></pre>
+            </section>
+
+            <!-- Use Cases -->
+            <section>
+                <h2>💼 Common Use Cases</h2>
+
+                <div class="tool-cards">
+                    <div class="card">
+                        <h3>API Testing</h3>
+                        <ul>
+                            <li>Inspect request/response payloads</li>
+                            <li>Modify requests on-the-fly</li>
+                            <li>Test error handling</li>
+                            <li>Replay requests with modifications</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>Mobile App Debugging</h3>
+                        <ul>
+                            <li>Monitor all network traffic</li>
+                            <li>Identify API endpoints</li>
+                            <li>Test offline scenarios</li>
+                            <li>Analyze data usage</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>Security Testing</h3>
+                        <ul>
+                            <li>Identify insecure connections</li>
+                            <li>Test authentication flows</li>
+                            <li>Analyze SSL/TLS configuration</li>
+                            <li>Find sensitive data leaks</li>
+                        </ul>
+                    </div>
+
+                    <div class="card">
+                        <h3>Web Development</h3>
+                        <ul>
+                            <li>Debug CORS issues</li>
+                            <li>Simulate slow connections</li>
+                            <li>Test with modified responses</li>
+                            <li>Monitor WebSocket traffic</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tips and Best Practices -->
+            <section>
+                <h2>💡 Tips & Best Practices</h2>
+
+                <div class="info">
+                    <h3>🎯 Performance Tips</h3>
+                    <ul>
+                        <li>Use filters to reduce noise: <code>~d api.example.com</code></li>
+                        <li>Exclude assets when not needed: <code>!~a</code></li>
+                        <li>Save only relevant flows to reduce file size</li>
+                        <li>Use <code>mitmdump</code> for automated tasks (lower overhead)</li>
+                    </ul>
+                </div>
+
+                <div class="success">
+                    <h3>✅ Security Best Practices</h3>
+                    <ul>
+                        <li>Remove CA certificate when not actively using mitmproxy</li>
+                        <li>Don't install the CA cert on production devices</li>
+                        <li>Use <code>--set block_global=true</code> to prevent external access</li>
+                        <li>Be cautious when intercepting authentication tokens</li>
+                    </ul>
+                </div>
+
+                <div class="warning">
+                    <h3>⚠️ Common Pitfalls</h3>
+                    <ul>
+                        <li><strong>Certificate not trusted:</strong> Make sure to install CA cert properly</li>
+                        <li><strong>No traffic visible:</strong> Check proxy settings in your browser/app</li>
+                        <li><strong>Can't access mitm.it:</strong> Ensure proxy is running and configured correctly</li>
+                        <li><strong>Mobile app not working:</strong> Some apps use certificate pinning - mitmproxy won't work</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- Resources -->
+            <section>
+                <h2>📚 Resources</h2>
+                <ul>
+                    <li><strong>Official Documentation:</strong> <a href="https://docs.mitmproxy.org" target="_blank">docs.mitmproxy.org</a></li>
+                    <li><strong>GitHub Repository:</strong> <a href="https://github.com/mitmproxy/mitmproxy" target="_blank">github.com/mitmproxy/mitmproxy</a></li>
+                    <li><strong>Quick Reference:</strong> <a href="https://quickref.me/mitmproxy.html" target="_blank">quickref.me/mitmproxy</a></li>
+                    <li><strong>Community:</strong> GitHub Discussions and Issues</li>
+                </ul>
+            </section>
+
+            <!-- Quick Reference -->
+            <section>
+                <h2>📋 Quick Reference Cheat Sheet</h2>
+                <table>
+                    <tr>
+                        <th>Command</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>mitmproxy</code></td>
+                        <td>Start interactive console</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmweb</code></td>
+                        <td>Start web interface</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmdump</code></td>
+                        <td>Start command-line tool</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmproxy --listen-port 9090</code></td>
+                        <td>Use custom port</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmdump -w file.mitm</code></td>
+                        <td>Save traffic to file</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmproxy -r file.mitm</code></td>
+                        <td>Replay saved traffic</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmproxy -s script.py</code></td>
+                        <td>Load Python script</td>
+                    </tr>
+                    <tr>
+                        <td><code>mitmproxy "~d api.example.com"</code></td>
+                        <td>Filter by domain</td>
+                    </tr>
+                    <tr>
+                        <td><code>http://mitm.it</code></td>
+                        <td>Certificate download page</td>
+                    </tr>
+                </table>
+            </section>
+        </div>
+
+        <footer>
+            <p>Created: October 2025 | Based on mitmproxy documentation and guides</p>
+            <p>For more information, visit <a href="https://mitmproxy.org" target="_blank">mitmproxy.org</a></p>
+        </footer>
+    </div>
+</body>
+</html>

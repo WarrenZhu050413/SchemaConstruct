@@ -144,6 +144,20 @@ export const DEFAULT_SHORTCUTS: Record<string, Omit<KeyboardShortcut, 'handler'>
     category: 'canvas',
     enabled: true,
   },
+  deleteSelection: {
+    id: 'deleteSelection',
+    key: 'Delete',
+    description: 'Delete selected cards',
+    category: 'canvas',
+    enabled: true,
+  },
+  deleteSelectionAlt: {
+    id: 'deleteSelectionAlt',
+    key: 'Backspace',
+    description: 'Delete selected cards',
+    category: 'canvas',
+    enabled: true,
+  },
   escape: {
     id: 'escape',
     key: 'Escape',

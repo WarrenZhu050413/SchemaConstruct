@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Neovim Config Overview &amp; <leader>sg Guide</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 8px 12px;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Inter", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+}
+.container { width: 100%; margin: 0 auto; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+h1 { font-size: 24px; font-weight: 900; background: linear-gradient(135deg, var(--chinese-red), #CD5C5C); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -0.5px; }
+h2 { font-size: 18px; font-weight: 700; color: var(--level-1); margin: 6px 0; }
+h3 { font-size: 15px; font-weight: 600; color: var(--level-2); margin: 4px 0; }
+.controls { text-align: right; margin: 4px 0 6px 0; }
+.controls button { background: var(--chinese-red); color: #fff; border: none; padding: 4px 8px; margin-left: 4px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+.controls button:hover { background: var(--chinese-gold); color: var(--ink-black); }
+.important-always-visible { border: 1px solid var(--chinese-gold); padding: 6px; background: rgba(255, 215, 0, 0.08); }
+.two-column-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; width: 100%; }
+.dense-list { list-style: none; border: 1px solid rgba(0,0,0,0.1); padding: 6px; background: rgba(255,255,255,0.6); display: grid; gap: 4px; }
+.dense-list li { font-size: 13px; }
+.dense-list strong { color: var(--level-1); }
+.tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; background: var(--jade-green); margin-left: 4px; }
+.tag.muted { background: var(--level-3); }
+.tag.critical { background: var(--chinese-red); }
+.tag.important { background: var(--chinese-gold); color: var(--ink-black); }
+.tag.note { background: rgba(0,0,0,0.5); }
+.collapsible { border: 1px solid rgba(0,0,0,0.15); margin: 6px 0; background: rgba(255,255,255,0.6); transition: all 0.2s ease-in-out; }
+.collapsible.full-width { grid-column: 1 / -1; }
+.collapsible-header { display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; cursor: pointer; background: rgba(139,0,0,0.08); font-weight: 600; color: var(--level-2); }
+.collapsible.open .collapsible-header { background: rgba(0,168,107,0.12); color: var(--level-1); }
+.collapsible-header .arrow { font-size: 12px; transition: transform 0.2s ease; color: var(--chinese-red); }
+.collapsible.open .collapsible-header .arrow { transform: rotate(90deg); color: var(--jade-green); }
+.collapsible-content { max-height: 0; overflow: hidden; padding: 0 8px; transition: max-height 0.25s ease; }
+.collapsible.open .collapsible-content { max-height: 800px; padding: 6px 8px 8px 8px; }
+.section-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 8px; }
+.section-card { border: 1px solid rgba(0,0,0,0.1); padding: 6px; background: rgba(255,255,255,0.7); }
+.section-card h3 { margin-bottom: 4px; color: var(--chinese-red); }
+.muted { color: var(--level-3); font-size: 12px; }
+pre { background: rgba(0,0,0,0.85); color: #f8f8f2; padding: 6px; overflow-x: auto; font-size: 12px; border-radius: 4px; }
+code { font-family: "JetBrains Mono", "Fira Code", "Menlo", monospace; }
+.mermaid { background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.1); padding: 6px; }
+a { color: var(--chinese-red); text-decoration: none; }
+a:hover { text-decoration: underline; }
+p { margin: 4px 0; }
+small { color: var(--level-4); }
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Neovim Search &amp; Config Snapshot</h1>
+<div class="muted">Warren Zhu · Updated 8 Oct 2025</div>
+</header>
+<div class="controls"><button id="expand-all">Expand All</button><button id="collapse-all">Collapse All</button></div>
+<div class="important-always-visible">
+<h2>🎯 Immediate Actions</h2>
+<div class="two-column-layout">
+<ul class="dense-list">
+<li><strong>Trigger <code>&lt;leader&gt;sg</code>:</strong> In normal mode press <code>&lt;Space&gt;</code> then <code>s</code> then <code>g</code>. This calls <code>telescope.builtin.live_grep</code> from <code>config/keymaps.lua:16</code> and the Telescope spec in <code>lua/plugins/telescope.lua:17</code>.</li>
+<li><strong>Search scope:</strong> Uses ripgrep across the current working directory with live updates. Type to refine, <code>&lt;CR&gt;</code> to open, <code>&lt;C-j&gt;/&lt;C-k&gt;</code> to move, <code>&lt;C-q&gt;</code> to quickfix.</li>
+</ul>
+<ul class="dense-list">
+<li><strong>Widen preview globally:</strong> Edit <code>~/.config/nvim/lua/plugins/telescope.lua</code> and extend <code>opts.defaults</code> with a horizontal layout override (see snippet). Reload config with <code>:Lazy reload telescope.nvim</code> or restart Neovim.</li>
+<li><strong>One-off wider preview:</strong> Wrap the keymap in <code>config/keymaps.lua</code> to call <code>tb.live_grep({ layout_config = { horizontal = { preview_width = 0.7 } } })</code> if you prefer to scope the change.</li>
+</ul>
+</div>
+</div>
+<div class="collapsible" data-collapsible="open">
+<div class="collapsible-header"><span>⚡ Telescope Preview Adjustment</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<p><strong>Recommended horizontal layout config (global):</strong></p>
+<pre><code class="language-lua">-- ~/.config/nvim/lua/plugins/telescope.lua
+opts = {
+  defaults = {
+    layout_strategy = 'horizontal',
+    layout_config = {
+      width = 0.96,
+      height = 0.92,
+      preview_width = 0.68,      -- global default for most pickers
+      horizontal = { preview_width = 0.68, results_width = 0.32 },
+      mirror = false,
+    },
+  },
+  pickers = { find_files = { hidden = true } },
+}
+</code></pre>
+<p>Add the block inside the existing <code>opts</code> table, keeping <code>pickers.find_files</code> as-is. Width values accept 0-1 floats (ratio) or absolute columns. After saving, run <code>:source %</code> inside the file or restart Neovim.</p>
+<p><strong>Optional keymap-only override:</strong></p>
+<pre><code class="language-lua">map('n', '<leader>sg', function()
+  tb.live_grep({ layout_strategy = 'horizontal', layout_config = { horizontal = { preview_width = 0.7 } } })
+end, { desc = 'Search in files (grep)' })
+</code></pre>
+<p>Place this in <code>config/keymaps.lua</code> replacing the existing mapping if you want preview tweaks just for live grep.</p>
+</div>
+</div>
+<div class="two-column-layout">
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>📍 Config Topology</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="section-grid">
+<div class="section-card">
+<h3>Bootstrapping</h3>
+<p><code>init.lua</code> sets <code>mapleader</code> to space, boots <code>lazy.nvim</code>, loads <code>config/options.lua</code>, then imports plugin specs from <code>lua/plugins/</code>, and finally applies <code>config/keymaps.lua</code> &amp; <code>config/autocmds.lua</code>.</p>
+</div>
+<div class="section-card">
+<h3>Core Settings</h3>
+<p><code>config/options.lua</code> mirrors VS Code defaults (relative numbers, clipboard integration, split behavior). Tree-sitter folding enabled by default.</p>
+</div>
+<div class="section-card">
+<h3>Keymaps &amp; Autocmds</h3>
+<p><code>config/keymaps.lua</code> centralizes leader maps; <code>config/autocmds.lua</code> handles auto-reload, Markdown tweaks, LSP attach mappings/inlay hints, and quit cleanup.</p>
+</div>
+<div class="section-card">
+<h3>Reference Cheatsheet</h3>
+<p><code>QUICK_COMMANDS.txt</code> in the config root documents the VS Code-style shortcuts for fast lookup.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="collapsible" data-collapsible="closed">
+<div class="collapsible-header"><span>🏛️ Plugin Groups</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="section-grid">
+<div class="section-card">
+<h3>UI &amp; UX</h3>
+<p><code>plugins/ui.lua</code> (Catppuccin, Lualine, Which-key). Transparent toggle via <code>&lt;leader&gt;tt</code> in <code>config/keymaps.lua</code>.</p>
+</div>
+<div class="section-card">
+<h3>Search &amp; Files</h3>
+<p><code>plugins/telescope.lua</code> for fuzzy find/live grep; <code>plugins/explorer_terminal.lua</code> for NvimTree and ToggleTerm.</p>
+</div>
+<div class="section-card">
+<h3>LSP &amp; Completion</h3>
+<p><code>plugins/lsp.lua</code> uses <code>vim.lsp.config</code> (0.11+) with Mason autoinstall; <code>plugins/cmp.lua</code> wires <code>nvim-cmp</code> + LuaSnip.</p>
+</div>
+<div class="section-card">
+<h3>Formatting &amp; Linting</h3>
+<p><code>plugins/format_lint.lua</code> sets Conform format-on-save and nvim-lint on write/leave insert; Mason Tool Installer ensures <code>prettierd</code>, <code>ruff</code>, etc.</p>
+</div>
+<div class="section-card">
+<h3>Git &amp; Diagnostics</h3>
+<p><code>plugins/git_trouble.lua</code> registers Gitsigns with blame preview and Trouble for a Problems pane (<code>&lt;leader&gt;xx</code>).</p>
+</div>
+<div class="section-card">
+<h3>Markdown Toolkit</h3>
+<p><code>plugins/markdown.lua</code> bundles browser preview, inline render, and TOC generation (<code>&lt;leader&gt;mp</code>, <code>&lt;leader&gt;mt</code>).</p>
+</div>
+<div class="section-card">
+<h3>Sessions</h3>
+<p><code>plugins/session.lua</code> auto-saves/restores project sessions and exposes <code>&lt;leader&gt;w*</code> bindings.</p>
+</div>
+<div class="section-card">
+<h3>Editing Ergonomics</h3>
+<p><code>plugins/editing.lua</code> installs autopairs, comment toggle, and surround for VS Code parity.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="collapsible full-width" data-collapsible="closed">
+<div class="collapsible-header"><span>📊 Config Map (Mermaid)</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="mermaid">
+graph TD
+    A[init.lua] --> B[config.options]
+    A --> C[lazy.nvim spec]
+    C --> C1[plugins/init.lua]
+    C1 --> C2[plugins/ui.lua]
+    C1 --> C3[plugins/telescope.lua]
+    C1 --> C4[plugins/treesitter.lua]
+    C1 --> C5[plugins/cmp.lua]
+    C1 --> C6[plugins/lsp.lua]
+    C1 --> C7[plugins/format_lint.lua]
+    C1 --> C8[plugins/explorer_terminal.lua]
+    C1 --> C9[plugins/git_trouble.lua]
+    C1 --> C10[plugins/markdown.lua]
+    C1 --> C11[plugins/session.lua]
+    C1 --> C12[plugins/editing.lua]
+    A --> D[config.keymaps]
+    A --> E[config.autocmds]
+    D --> F[leader mappings]
+    E --> G[LSP attach hooks]
+</div>
+</div>
+</div>
+<div class="collapsible full-width" data-collapsible="closed">
+<div class="collapsible-header"><span>📚 Navigation Tips</span><span class="arrow">▶</span></div>
+<div class="collapsible-content">
+<div class="two-column-layout">
+<ul class="dense-list">
+<li><strong>Jump to config:</strong> From project buffers run <code>:e ~/.config/nvim/lua/plugins/telescope.lua</code> or use <code>&lt;leader&gt;sf</code> to fuzzy-find <code>telescope.lua</code>.</li>
+<li><strong>Check effective keys:</strong> <code>&lt;leader&gt;sk</code> opens Telescope keymap picker for live lookup.</li>
+<li><strong>Validate layout changes:</strong> After editing, call <code>:Telescope live_grep</code> directly to verify preview width before updating the keymap.</li>
+</ul>
+<ul class="dense-list">
+<li><strong>Session hygiene:</strong> Toggle auto-save with <code>&lt;leader&gt;wa</code> when testing config tweaks to avoid persisting experimental window layouts.</li>
+<li><strong>Diagnostics view:</strong> Use <code>&lt;leader&gt;xx</code> (Trouble) for a VS Code Problems panel; double-press <code>q</code> to close both Trouble and the last buffer thanks to <code>QuitPre</code> autocmd cleanup.</li>
+<li><strong>Markdown workflows:</strong> Inline render is automatic; use <code>&lt;leader&gt;mp</code> only when you need a browser preview.</li>
+</ul>
+</div>
+</div>
+</div>
+<footer class="muted">Peek <code>~/.config/nvim/QUICK_COMMANDS.txt</code> for the full VS Code-style cheatsheet whenever you forget a binding.</footer>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.add('open'); });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) { c.classList.remove('open'); });
+        });
+    }
+});
+</script>
+</body>
+</html>

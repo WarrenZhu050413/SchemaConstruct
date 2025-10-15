@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElementChatWindow Component - Architecture & Usage</title>
+    <style>
+        :root {
+            --chinese-red: #8B0000;
+            --chinese-gold: #FFD700;
+            --jade-green: #00A86B;
+            --ink-black: #2B2B2B;
+            --paper-beige: #F5F5DC;
+            --light-cream: #FAFAF0;
+            --level-1: #000;
+            --level-2: #333;
+            --level-3: #666;
+            --level-4: #999;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+            color: var(--ink-black);
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            max-width: 100%;
+            line-height: 1.3;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            padding: 8px;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            margin: 8px 0;
+            padding: 8px;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 6px 0;
+            padding: 6px;
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.03);
+            color: var(--level-1);
+        }
+
+        h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 6px 0 3px 8px;
+            color: var(--level-2);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        h4 {
+            font-size: 13px;
+            font-weight: 500;
+            margin: 4px 0 2px 16px;
+            color: var(--level-3);
+        }
+
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 8px 0;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid rgba(139, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .card.priority {
+            border: 2px solid var(--chinese-gold);
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.05), white);
+        }
+
+        .collapsible {
+            margin: 6px 0;
+            width: 100%;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px;
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+            border-left: 3px solid var(--chinese-gold);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+        }
+
+        .collapsible-header .arrow {
+            display: inline-block;
+            transition: transform 0.3s ease;
+            color: var(--chinese-red);
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .collapsible.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 8px;
+            margin-left: 12px;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 10000px;
+            padding: 8px;
+        }
+
+        code {
+            background: rgba(139, 0, 0, 0.08);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+            color: var(--chinese-red);
+        }
+
+        pre {
+            background: var(--ink-black);
+            color: var(--light-cream);
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+            border: 1px solid var(--chinese-gold);
+        }
+
+        pre code {
+            background: transparent;
+            color: var(--light-cream);
+            padding: 0;
+        }
+
+        ul, ol {
+            margin-left: 24px;
+            margin-top: 4px;
+            margin-bottom: 4px;
+        }
+
+        li {
+            margin: 3px 0;
+            line-height: 1.4;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .badge.gold {
+            background: linear-gradient(135deg, var(--chinese-gold), #FFA500);
+            color: var(--ink-black);
+        }
+
+        .badge.green {
+            background: linear-gradient(135deg, var(--jade-green), #32CD32);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        th {
+            background: var(--chinese-red);
+            color: white;
+            padding: 6px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            border: 1px solid rgba(139, 0, 0, 0.2);
+            padding: 6px;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(139, 0, 0, 0.02);
+        }
+
+        .important-box {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
+            border: 2px solid var(--chinese-gold);
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+
+        .mermaid-container {
+            background: white;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 12px 0;
+            border: 2px solid var(--chinese-gold);
+        }
+
+        .flow-arrow {
+            color: var(--chinese-red);
+            font-weight: bold;
+            margin: 0 8px;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+        function toggleCollapsible(element) {
+            const collapsible = element.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Open all critical sections by default
+            document.querySelectorAll('.collapsible.critical').forEach(el => {
+                el.classList.add('open');
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>💬 ElementChatWindow Component</h1>
+
+        <div class="important-box">
+            <strong>Component Purpose:</strong> A draggable, resizable, collapsible chat window that attaches to DOM elements, providing AI-powered contextual conversations with streaming responses, message queuing, and persistent state management.
+        </div>
+
+        <div class="two-column-layout">
+            <div class="card priority">
+                <h3>🎯 Core Features</h3>
+                <ul>
+                    <li><strong>Element Anchoring:</strong> Follows DOM elements across page changes</li>
+                    <li><strong>Streaming Chat:</strong> Real-time AI responses with delta rendering</li>
+                    <li><strong>Multi-Collapse:</strong> 3 states (expanded, rectangle, square)</li>
+                    <li><strong>Message Queue:</strong> Queues messages during streaming</li>
+                    <li><strong>Persistent State:</strong> Saves position, size, messages to IndexedDB</li>
+                    <li><strong>Image Upload:</strong> Drag & drop image support with preview</li>
+                </ul>
+            </div>
+
+            <div class="card priority">
+                <h3>📊 Component State</h3>
+                <ul>
+                    <li><code>messages</code> - Chat history array</li>
+                    <li><code>isStreaming</code> - Active streaming flag</li>
+                    <li><code>messageQueue</code> - Queued message array</li>
+                    <li><code>collapseState</code> - 'expanded' | 'rectangle' | 'square'</li>
+                    <li><code>position</code> - {x, y} window coordinates</li>
+                    <li><code>anchorOffset</code> - Offset from anchor element</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>🏗️ Architecture Overview</h2>
+
+        <div class="mermaid-container">
+            <div class="mermaid">
+                graph TB
+                    A[ElementChatWindow] --> B[Element Anchoring System]
+                    A --> C[Message Management]
+                    A --> D[UI State Management]
+                    A --> E[Persistence Layer]
+
+                    B --> B1[Multi-Descriptor Support]
+                    B --> B2[Position Tracking]
+                    B --> B3[Auto-Alignment]
+
+                    C --> C1[Streaming Handler]
+                    C --> C2[Message Queue]
+                    C --> C3[Duplicate Prevention]
+
+                    D --> D1[Collapse States]
+                    D --> D2[Drag & Resize]
+                    D --> D3[Image Upload]
+
+                    E --> E1[IndexedDB Storage]
+                    E --> E2[Session Recovery]
+                    E --> E3[Chat Indicators]
+
+                    style A fill:#8B0000,stroke:#FFD700,stroke-width:3px,color:#fff
+                    style B fill:#FFD700,stroke:#8B0000,stroke-width:2px
+                    style C fill:#FFD700,stroke:#8B0000,stroke-width:2px
+                    style D fill:#FFD700,stroke:#8B0000,stroke-width:2px
+                    style E fill:#FFD700,stroke:#8B0000,stroke-width:2px
+            </div>
+        </div>
+
+        <div class="collapsible critical">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Component Props Interface</span>
+            </div>
+            <div class="collapsible-content">
+                <pre><code>interface ElementChatWindowProps {
+  elementId: string;                    // Unique chat ID
+  elementDescriptors?: ElementDescriptor[];  // Multi-element support
+  elementDescriptor?: ElementDescriptor;     // Legacy single element
+  existingSession?: ElementChatSession | null;
+  onClose: () => void;
+  initialPosition?: { x: number; y: number };
+  selectedText?: string;                // For text-selection chat
+}</code></pre>
+            </div>
+        </div>
+
+        <h2>🔄 Key Workflows</h2>
+
+        <div class="collapsible critical">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Message Sending & Streaming Flow</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="mermaid-container">
+                    <div class="mermaid">
+                        sequenceDiagram
+                            participant U as User
+                            participant C as Component
+                            participant Q as Message Queue
+                            participant A as Claude API
+                            participant S as Storage
+
+                            U->>C: Send Message
+                            alt Is Streaming
+                                C->>Q: Add to Queue
+                                Q-->>U: Show Queued Badge
+                            else Not Streaming
+                                C->>A: chatWithPage()
+                                A-->>C: Stream Chunks
+                                loop For Each Chunk
+                                    C->>C: Format & Render Delta
+                                    C-->>U: Update UI
+                                end
+                                C->>C: Separate Thinking/Answer
+                                C->>S: Save Message
+                                C-->>U: Show Complete
+                            end
+
+                            alt Queue Has Messages
+                                C->>Q: Process Next
+                                Q->>A: Send Queued Message
+                            end
+                    </div>
+                </div>
+
+                <h4>Duplicate Prevention Logic</h4>
+                <ul>
+                    <li><strong>Signature Check:</strong> Combines content + images into hash, blocks sends within 1.5s</li>
+                    <li><strong>Turn ID Mapping:</strong> Tracks assistant messages by turn ID to update existing bubbles</li>
+                    <li><strong>Content Comparison:</strong> Compares trimmed content before creating new assistant message</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Element Anchoring System</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Multi-Descriptor Resolution Priority</h4>
+                <ol>
+                    <li><strong>Active Anchor First:</strong> Try <code>activeAnchorKey</code> descriptor</li>
+                    <li><strong>Fallback Cascade:</strong> Iterate through all descriptors</li>
+                    <li><strong>Resolution Methods:</strong>
+                        <ul>
+                            <li><code>getElementById()</code> if descriptor has ID</li>
+                            <li><code>querySelector()</code> if CSS selector present</li>
+                            <li><code>[data-nabokov-chat-id]</code> attribute match</li>
+                            <li>Bounding rect comparison for duplicates</li>
+                            <li><code>findElementByDescriptor()</code> fallback</li>
+                        </ul>
+                    </li>
+                </ol>
+
+                <h4>Position Synchronization</h4>
+                <pre><code>// Runs on: scroll, resize, MutationObserver, ResizeObserver
+ensureAnchorPosition() {
+  1. Resolve element from descriptors
+  2. Check if anchor changed → update activeAnchorKey
+  3. Infer offset if missing: position - rect
+  4. Apply offset: nextPos = rect + offset
+  5. Update position if changed > 0.5px
+}</code></pre>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Collapse State System</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <tr>
+                        <th>State</th>
+                        <th>Size</th>
+                        <th>UI Elements</th>
+                        <th>Use Case</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Expanded</strong></td>
+                        <td>Configurable (default 420×550px)</td>
+                        <td>Full chat: header, messages, input, queue</td>
+                        <td>Active conversation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Rectangle</strong></td>
+                        <td>Width × 44px (header only)</td>
+                        <td>Header with status indicators</td>
+                        <td>Minimized but visible</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Square</strong></td>
+                        <td>100×100px</td>
+                        <td>Icon + status label</td>
+                        <td>Maximum minimization</td>
+                    </tr>
+                </table>
+
+                <h4>Square State Indicators</h4>
+                <ul>
+                    <li><span class="badge">Processing</span> Gold pulsing animation during streaming</li>
+                    <li><span class="badge">Queued</span> Red/gold when messages queued</li>
+                    <li><span class="badge">Idle</span> White when has history</li>
+                    <li><span class="badge">Empty</span> Muted when no messages</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>💾 Persistence & Storage</h2>
+
+        <div class="two-column-layout">
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <span><span class="arrow">▸</span>Session State Saved</span>
+                </div>
+                <div class="collapsible-content">
+                    <ul>
+                        <li><code>messages[]</code> - Full chat history</li>
+                        <li><code>position</code> - Window coordinates</li>
+                        <li><code>size</code> - Width/height</li>
+                        <li><code>collapseState</code> - UI collapse state</li>
+                        <li><code>anchorOffset</code> - Element offset</li>
+                        <li><code>queueExpanded</code> - Queue visibility</li>
+                        <li><code>clearPreviousAssistant</code> - Queue behavior</li>
+                        <li><code>activeAnchorKey</code> - Active descriptor</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <span><span class="arrow">▸</span>Save Triggers</span>
+                </div>
+                <div class="collapsible-content">
+                    <ul>
+                        <li><strong>Debounced (500ms):</strong> Messages, position, size, collapse changes</li>
+                        <li><strong>Immediate:</strong> On close, session creation</li>
+                        <li><strong>Service:</strong> <code>elementChatService.saveElementChat()</code></li>
+                        <li><strong>Storage:</strong> IndexedDB via <code>chatService</code></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h2>🎨 Theme System</h2>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Color Palette (Red Chat Theme)</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <tr>
+                        <th>Token</th>
+                        <th>Value</th>
+                        <th>Usage</th>
+                    </tr>
+                    <tr>
+                        <td><code>containerAccent</code></td>
+                        <td style="background: #B22222; color: white;">#B22222</td>
+                        <td>Borders, accents, focus states</td>
+                    </tr>
+                    <tr>
+                        <td><code>headerGradient</code></td>
+                        <td style="background: linear-gradient(135deg, #8B0000, #C23B22); color: white;">Gradient</td>
+                        <td>Header background</td>
+                    </tr>
+                    <tr>
+                        <td><code>messageUserBackground</code></td>
+                        <td style="background: #FCE2D7;">#FCE2D7</td>
+                        <td>User message bubbles</td>
+                    </tr>
+                    <tr>
+                        <td><code>messageAssistantBackground</code></td>
+                        <td style="background: #FBE9C5;">#FBE9C5</td>
+                        <td>Assistant message bubbles</td>
+                    </tr>
+                    <tr>
+                        <td><code>iconColor</code></td>
+                        <td style="background: #FFD700; color: black;">#FFD700</td>
+                        <td>Icons, badges, highlights</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h2>🔧 Advanced Features</h2>
+
+        <div class="two-column-layout">
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <span><span class="arrow">▸</span>Streaming Delta Processing</span>
+                </div>
+                <div class="collapsible-content">
+                    <h4>Chunk Formatting</h4>
+                    <pre><code>formatStreamingChunk(chunk, previous) {
+  1. Normalize newlines (\r\n → \n)
+  2. Insert breaks before tables (|)
+  3. Force break if markdown block starts
+  4. Return formatted chunk
+}</code></pre>
+
+                    <h4>Thinking/Answer Separation</h4>
+                    <ul>
+                        <li>Detects <code>\n\n</code> double-break pattern</li>
+                        <li>First chunk = thinking (collapsible)</li>
+                        <li>Rest = answer (main content)</li>
+                        <li>Fallback: all content in answer</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="collapsible">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <span><span class="arrow">▸</span>Message Queue System</span>
+                </div>
+                <div class="collapsible-content">
+                    <h4>Queue Behavior</h4>
+                    <ul>
+                        <li><strong>Trigger:</strong> Message sent during streaming</li>
+                        <li><strong>Display:</strong> Expandable panel with message preview</li>
+                        <li><strong>Processing:</strong> FIFO, auto-processes when streaming completes</li>
+                        <li><strong>Clear Previous:</strong> Optional checkbox to replace last assistant message</li>
+                    </ul>
+
+                    <h4>Queue States</h4>
+                    <ul>
+                        <li><code>activeQueuedId</code> - Currently processing message</li>
+                        <li><code>isProcessingQueue</code> - Processing flag</li>
+                        <li><code>queueExpanded</code> - UI visibility</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="collapsible full-width">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <span><span class="arrow">▸</span>Image Upload System</span>
+                </div>
+                <div class="collapsible-content">
+                    <h4>Upload Flow</h4>
+                    <ol>
+                        <li><strong>Drop Zone:</strong> <code>&lt;ImageUploadZone&gt;</code> wrapper around input</li>
+                        <li><strong>Validation:</strong> <code>isImageFile()</code> checks MIME type</li>
+                        <li><strong>Conversion:</strong> <code>fileToBase64()</code> creates data URL</li>
+                        <li><strong>Dimensions:</strong> <code>getImageDimensions()</code> extracts width/height</li>
+                        <li><strong>Storage:</strong> Added to <code>pendingImages[]</code> state</li>
+                        <li><strong>Transmission:</strong> Sent as base64 in message payload</li>
+                    </ol>
+
+                    <h4>Preview UI</h4>
+                    <ul>
+                        <li>Thumbnail grid (80×80px) with remove buttons</li>
+                        <li>Displayed above textarea</li>
+                        <li>Cleared on send or manual removal</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <h2>📡 Integration Points</h2>
+
+        <div class="collapsible critical">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Service Layer Dependencies</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <tr>
+                        <th>Service</th>
+                        <th>Import Path</th>
+                        <th>Purpose</th>
+                    </tr>
+                    <tr>
+                        <td><code>elementChatService</code></td>
+                        <td><code>@/services/elementChatService</code></td>
+                        <td>CRUD operations, session management</td>
+                    </tr>
+                    <tr>
+                        <td><code>claudeAPIService</code></td>
+                        <td><code>@/services/claudeAPIService</code></td>
+                        <td>AI streaming via <code>chatWithPage()</code></td>
+                    </tr>
+                    <tr>
+                        <td><code>elementIdService</code></td>
+                        <td><code>@/services/elementIdService</code></td>
+                        <td>Element resolution, descriptor matching</td>
+                    </tr>
+                    <tr>
+                        <td><code>elementChatIndicatorService</code></td>
+                        <td><code>@/services/elementChatIndicatorService</code></td>
+                        <td>Badge indicators on elements</td>
+                    </tr>
+                    <tr>
+                        <td><code>cardService</code></td>
+                        <td><code>@/shared/services/cardService</code></td>
+                        <td>Save to Stash/Canvas functionality</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h2>🧪 Testing Support</h2>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Test Hooks & Attributes</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>Host Element Attributes (for E2E testing)</h4>
+                <ul>
+                    <li><code>data-collapse-state</code> - Current collapse state</li>
+                    <li><code>data-processing</code> - Streaming status</li>
+                    <li><code>data-message-count</code> - Number of messages</li>
+                    <li><code>data-rendered-width/height</code> - Actual dimensions</li>
+                </ul>
+
+                <h4>Custom Events</h4>
+                <ul>
+                    <li><code>nabokov:test:set-collapse-state</code> - Force collapse state</li>
+                    <li><code>nabokov:test:force-anchor-update</code> - Trigger re-anchor</li>
+                </ul>
+
+                <h4>Global Debug Variables</h4>
+                <pre><code>window.__NABOKOV_DEBUG_STREAMING_DELTAS__  // Current deltas
+window.__NABOKOV_DEBUG_LAST_DELTAS__       // Previous deltas
+window.__NABOKOV_DEBUG_LAST_MESSAGES__     // Message history
+window.__NABOKOV_TEST_FORCE_DUPLICATE__    // Force duplicate for testing</code></pre>
+            </div>
+        </div>
+
+        <h2>📝 Usage Examples</h2>
+
+        <div class="collapsible critical">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Basic Element Chat</span>
+            </div>
+            <div class="collapsible-content">
+                <pre><code>&lt;ElementChatWindow
+  elementId="chat-123"
+  elementDescriptor={{
+    chatId: "element-abc",
+    tagName: "DIV",
+    id: "my-element",
+    classes: ["card"],
+    textPreview: "Sample text...",
+    boundingRect: element.getBoundingClientRect(),
+    cssSelector: "#my-element"
+  }}
+  onClose={() => console.log('Chat closed')}
+  initialPosition={{ x: 100, y: 100 }}
+/&gt;</code></pre>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Multi-Element Chat</span>
+            </div>
+            <div class="collapsible-content">
+                <pre><code>const descriptors = [primaryElement, ...relatedElements].map(el => ({
+  chatId: el.dataset.nabChat,
+  tagName: el.tagName,
+  id: el.id,
+  classes: Array.from(el.classList),
+  textPreview: el.innerText.slice(0, 100),
+  boundingRect: el.getBoundingClientRect(),
+  cssSelector: generateSelector(el)
+}));
+
+&lt;ElementChatWindow
+  elementId="multi-chat-456"
+  elementDescriptors={descriptors}
+  onClose={handleClose}
+/&gt;</code></pre>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Text Selection Chat</span>
+            </div>
+            <div class="collapsible-content">
+                <pre><code>const selection = window.getSelection();
+const selectedText = selection?.toString().trim();
+
+&lt;ElementChatWindow
+  elementId="text-chat-789"
+  elementDescriptor={createDescriptorForRange(selection.getRangeAt(0))}
+  selectedText={selectedText}
+  onClose={handleClose}
+  initialPosition={{ x: mouseX, y: mouseY }}
+/&gt;</code></pre>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <span><span class="arrow">▸</span>Restore Existing Session</span>
+            </div>
+            <div class="collapsible-content">
+                <pre><code>const session = await loadElementChatSession(elementId);
+
+&lt;ElementChatWindow
+  elementId={elementId}
+  existingSession={session}  // Includes messages, position, state
+  onClose={handleClose}
+/&gt;</code></pre>
+            </div>
+        </div>
+
+        <h2>⚠️ Important Considerations</h2>
+
+        <div class="important-box">
+            <h3>Performance & Memory</h3>
+            <ul>
+                <li><strong>Ref Management:</strong> All refs cleaned up in useEffect return</li>
+                <li><strong>Animation Frames:</strong> Canceled on unmount to prevent leaks</li>
+                <li><strong>Observers:</strong> MutationObserver, ResizeObserver disconnected</li>
+                <li><strong>Debouncing:</strong> Save operations debounced to 500ms</li>
+            </ul>
+        </div>
+
+        <div class="important-box">
+            <h3>State Synchronization</h3>
+            <ul>
+                <li><strong>Ref Mirrors:</strong> Critical state mirrored in refs for async access</li>
+                <li><strong>Session Updates:</strong> sessionRef.current updated before persistence</li>
+                <li><strong>Position Tracking:</strong> positionRef.current prevents stale closure issues</li>
+            </ul>
+        </div>
+
+        <div class="important-box">
+            <h3>Edge Cases Handled</h3>
+            <ul>
+                <li><strong>Element Missing:</strong> Sets <code>anchorElementMissing</code> flag, shows warning</li>
+                <li><strong>Duplicate Descriptors:</strong> Dedupes by chat ID + selector combo</li>
+                <li><strong>Stream Interruption:</strong> Preserves deltas, shows last state</li>
+                <li><strong>Concurrent Sends:</strong> Signature + timestamp prevents duplicates</li>
+            </ul>
+        </div>
+
+        <div style="margin-top: 24px; padding: 16px; background: rgba(139, 0, 0, 0.05); border-left: 4px solid var(--chinese-red);">
+            <p><strong>Component Location:</strong> <code>src/components/InlineChatWindow.tsx</code> (actual filename based on imports)</p>
+            <p><strong>Key Dependencies:</strong> React, Emotion, react-rnd, react-markdown, remark-gfm</p>
+            <p><strong>Shadow DOM:</strong> Rendered inside Shadow DOM for style isolation</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build vs Playwright Tests</title>
+<style>
+:root {
+  --chinese-red: #8B0000;
+  --chinese-gold: #FFD700;
+  --jade-green: #00A86B;
+  --ink-black: #2B2B2B;
+  --paper-beige: #F5F5DC;
+  --light-cream: #FAFAF0;
+  --level-1: #000;
+  --level-2: #333;
+  --level-3: #666;
+  --level-4: #999;
+}
+body {
+  background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+  color: var(--ink-black);
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  max-width: 100%;
+  line-height: 1.2;
+  font-size: 14px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+.container {
+  width: 100%;
+  padding: 8px;
+}
+header {
+  padding: 4px 0 6px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 900;
+  margin: 4px 0;
+  padding: 6px 4px;
+  background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.4px;
+}
+.controls {
+  display: flex;
+  gap: 6px;
+}
+.controls button {
+  border: 1px solid rgba(139, 0, 0, 0.35);
+  background: rgba(255, 231, 209, 0.85);
+  color: var(--chinese-red);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.controls button:hover {
+  background: rgba(255, 213, 170, 0.95);
+}
+.two-column {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 6px;
+  align-items: start;
+}
+section.collapsible {
+  border: 1px solid rgba(139, 0, 0, 0.35);
+  background: rgba(250, 250, 240, 0.95);
+  border-radius: 4px;
+  overflow: hidden;
+}
+section.collapsible header {
+  background: rgba(139, 0, 0, 0.08);
+  padding: 6px 8px;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  border-bottom: none;
+  margin-bottom: 0;
+}
+section.collapsible header .arrow {
+  transition: transform 0.25s ease;
+}
+section.collapsible.open header .arrow {
+  transform: rotate(90deg);
+}
+section.collapsible .content {
+  display: none;
+  padding: 6px 8px;
+}
+section.collapsible.open .content {
+  display: block;
+}
+ul.dense {
+  list-style: none;
+}
+ul.dense li {
+  position: relative;
+  padding-left: 12px;
+  margin: 2px 0;
+  color: var(--level-2);
+}
+ul.dense li::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  color: var(--chinese-red);
+  font-size: 10px;
+  top: 2px;
+}
+.note {
+  font-size: 11px;
+  color: var(--level-3);
+  margin-top: 4px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Build vs Playwright Tests</h1>
+    <div class="controls">
+      <button id="expand-all">Expand All</button>
+      <button id="collapse-all">Collapse All</button>
+    </div>
+  </header>
+  <div class="two-column">
+    <section class="collapsible" data-collapsible="open">
+      <header>
+        <span>🔧 npm run build:extension</span>
+        <span class="arrow">▶</span>
+      </header>
+      <div class="content">
+        <ul class="dense">
+          <li>Runs <code>tsc --noEmit</code> first, guaranteeing the TypeScript surface compiles.</li>
+          <li>Invokes <code>vite build</code> to bundle background, content, and UI code into <code>dist/</code>.</li>
+          <li>Copies manifest/icons and rewrites HTML paths so Chrome can load the unpacked extension.</li>
+          <li>Output: a production-ready directory you can load via <em>chrome://extensions → Load unpacked…</em></li>
+        </ul>
+        <p class="note">Use this to validate the shipping artefact (bundled scripts, manifest, static assets).</p>
+      </div>
+    </section>
+    <section class="collapsible" data-collapsible="open">
+      <header>
+        <span>🧪 Playwright Tests</span>
+        <span class="arrow">▶</span>
+      </header>
+      <div class="content">
+        <ul class="dense">
+          <li>Runs browser-driven E2E specs (e.g. <code>npm run test:e2e</code>).</li>
+          <li>Launches Chromium with the unpacked extension (usually via <code>launchPersistentContext</code> and <code>--load-extension</code>).</li>
+          <li>Expects a built extension (from <code>dist/</code>) before the tests start.</li>
+          <li>Focus: behavioural regressions in real DOM/browser context.</li>
+        </ul>
+        <p class="note">Playwright drives Chrome to click through the UI; it doesn’t produce the build artefact.</p>
+      </div>
+    </section>
+  </div>
+  <section class="collapsible" data-collapsible="open">
+    <header>
+      <span>🚫 Testing Without Building</span>
+      <span class="arrow">▶</span>
+    </header>
+    <div class="content">
+      <ul class="dense">
+        <li><strong>Unit tests (Vitest)</strong>: run via <code>npm run test</code>; they execute against source TS/JS directly—no build needed.</li>
+        <li><strong>Playwright with a dev server</strong>: spin up Vite in dev mode (<code>npm run dev</code>) and point the tests or manual browser at <code>http://localhost:5173</code>; useful for UI smoke checks without bundling.</li>
+        <li><strong>Manual chrome debugging</strong>: use <code>npm run watch:extension</code> (or a custom Vite dev build) to reload content scripts on change, avoiding a full build loop.</li>
+      </ul>
+      <p class="note">These paths let you iterate quickly. When you need the actual extension package, run <code>npm run build:extension</code>.</p>
+    </div>
+  </section>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+    const isOpen = section.getAttribute('data-collapsible') === 'open';
+    section.classList.add('collapsible');
+    if (isOpen) section.classList.add('open');
+  });
+  document.querySelectorAll('section.collapsible header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      const section = this.closest('section.collapsible');
+      section.classList.toggle('open');
+    });
+  });
+  const expandAllBtn = document.getElementById('expand-all');
+  const collapseAllBtn = document.getElementById('collapse-all');
+  if (expandAllBtn) {
+    expandAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('section.collapsible').forEach(function(section) {
+        section.classList.add('open');
+      });
+    });
+  }
+  if (collapseAllBtn) {
+    collapseAllBtn.addEventListener('click', function() {
+      document.querySelectorAll('section.collapsible').forEach(function(section) {
+        section.classList.remove('open');
+      });
+    });
+  }
+});
+</script>
+</body>
+</html>

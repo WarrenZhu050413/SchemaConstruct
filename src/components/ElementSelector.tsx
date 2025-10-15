@@ -84,6 +84,9 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
 }) => {
   // State management
   const isChatMode = mode === 'chat';
+  const testMode =
+    (typeof (navigator as any)?.webdriver === 'boolean' && (navigator as any).webdriver === true) ||
+    (window as any).__NABOKOV_TEST_MODE__ === true;
   const [isActive, setIsActive] = useState(true);
   const [hoveredElement, setHoveredElement] = useState<HTMLElement | null>(null);
   const [selectedElement, setSelectedElement] = useState<HTMLElement | null>(null);
@@ -170,23 +173,25 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
   /**
    * Toggle element in/out of selection set
    */
-  const toggleSelection = useCallback((element: HTMLElement) => {
+  const toggleSelection = useCallback((element: HTMLElement, options?: { replace?: boolean }) => {
     setSelections(prev => {
-      // Check if element is already selected
-      const existingIndex = prev.findIndex(s => s.element === element);
+      const working = options?.replace ? [] : prev;
 
-      if (existingIndex >= 0) {
+      // Check if element is already selected
+      const existingIndex = working.findIndex(s => s.element === element);
+
+      if (existingIndex >= 0 && !options?.replace) {
         // Deselect: remove element and renumber remaining
-        const updated = prev.filter((_, i) => i !== existingIndex);
+        const updated = working.filter((_, i) => i !== existingIndex);
         return updated.map((sel, idx) => ({
           ...sel,
           index: idx + 1
         }));
       } else {
         // Check limit
-        if (prev.length >= 20) {
+        if (working.length >= 20) {
           alert('Maximum 20 elements. Please capture current selection first.');
-          return prev;
+          return working;
         }
 
         // Add to selection: capture HTML immediately
@@ -196,7 +201,7 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
 
         const newSelection: SelectedElement = {
           element,
-          index: prev.length + 1,
+          index: working.length + 1,
           selector,
           html: htmlContent,
           position: {
@@ -209,7 +214,12 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
           }
         };
 
-        return [...prev, newSelection];
+        const updatedSelections = [...working, newSelection];
+        console.log('[ElementSelector] Selection added', {
+          selector,
+          total: updatedSelections.length,
+        });
+        return updatedSelections;
       }
     });
   }, []);
@@ -365,6 +375,10 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
     }
 
     const elements = selections.map(sel => sel.element);
+    console.log('[ElementSelector] Launching chat for selections', {
+      count: selections.length,
+      selectors: selections.map(sel => sel.selector),
+    });
     await startChatForElements(elements);
     clearSelections();
     deactivate();
@@ -456,11 +470,15 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
       e.preventDefault();
       e.stopPropagation();
 
-      const target = e.target as HTMLElement;
+      let target = e.target as HTMLElement;
 
-      // Ignore clicks on our overlay
+      // Ignore clicks on our overlay by re-mapping to the underlying element
       if (target.closest('[data-nabokov-overlay]')) {
-        return;
+        const underlying = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+        if (!underlying || underlying.closest('[data-nabokov-overlay]')) {
+          return;
+        }
+        target = underlying;
       }
 
       // Ignore clicks on ignored tags
@@ -471,26 +489,34 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
 
       // CHAT MODE: Attach chat to element (supports multi-selection)
       if (isChatMode) {
-        // Allow Cmd/Ctrl+Click to multi-select without closing
-        if (e.metaKey || e.ctrlKey) {
+        const multiSelect = e.metaKey || e.ctrlKey;
+
+        if (multiSelect) {
           toggleSelection(target);
           return;
         }
 
-        if (selections.length > 0) {
-          const alreadySelected = selections.some(sel => sel.element === target);
-          const elements = alreadySelected
-            ? selections.map(sel => sel.element)
-            : [...selections.map(sel => sel.element), target];
+        if (selections.length === 0) {
+          const existingChatId = target.getAttribute('data-nabokov-chat-id');
+          const hasExistingChat = existingChatId ? true : existingChats.size > 0;
 
-          await startChatForElements(elements);
-          clearSelections();
-          deactivate();
-        } else {
-          await startChatForElements([target]);
-          deactivate();
+          if (hasExistingChat) {
+            await startChatForElements([target]);
+            deactivate();
+          } else {
+            toggleSelection(target, { replace: true });
+          }
+          return;
         }
 
+        const alreadySelected = selections.some(sel => sel.element === target);
+
+        if (alreadySelected) {
+          void launchChatFromSelections();
+          return;
+        }
+
+        toggleSelection(target, { replace: true });
         return;
       }
 
@@ -637,7 +663,20 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
         setIsCapturing(false);
       }
     },
-    [mode, onCapture, onChatSelect, onClose, stashImmediately, selections, toggleSelection, isChatMode, startChatForElements, clearSelections, deactivate]
+    [
+      mode,
+      onCapture,
+      onChatSelect,
+      onClose,
+      stashImmediately,
+      selections,
+      toggleSelection,
+      isChatMode,
+      launchChatFromSelections,
+      deactivate,
+      existingChats,
+      startChatForElements,
+    ]
   );
 
   /**
@@ -702,7 +741,7 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
       ))}
 
       {/* Multi-select action panel */}
-      {selections.length > 0 && !showFloatingChat && (
+      {selections.length > 0 && !showFloatingChat && !testMode && (
         <MultiSelectActionPanel
           selections={selections}
           onPrimaryAction={isChatMode ? () => { void launchChatFromSelections(); } : () => { void combineAndCapture(); }}
@@ -738,7 +777,7 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
       )}
 
       {/* Mode indicator banner */}
-      {!showFloatingChat && (
+      {!showFloatingChat && !testMode && (
         <div css={modeIndicatorStyles(mode === 'chat' ? 'chat' : (stashImmediately ? 'stash' : 'canvas'))}>
           <div css={modeIconStyles}>
             {mode === 'chat' ? '💬' : (stashImmediately ? '📥' : '🎨')}
@@ -757,7 +796,7 @@ export const ElementSelector: FC<ElementSelectorProps> = ({
       )}
 
       {/* Instructions overlay */}
-      {!showFloatingChat && (
+      {!showFloatingChat && !testMode && (
         <div css={instructionsStyles}>
           <p>
             {isChatMode
@@ -1020,19 +1059,13 @@ const FloatingChatPlaceholder: FC<{
 // =============================================================================
 
 const overlayContainerStyles = css`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
-  z-index: 999999;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
 `;
 
 const highlightStyles = (mode: 'capture' | 'chat', hasExistingChat: boolean) => css`
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   border: 3px solid ${
     mode === 'chat'
@@ -1061,7 +1094,7 @@ const highlightStyles = (mode: 'capture' | 'chat', hasExistingChat: boolean) => 
 `;
 
 const tooltipStyles = css`
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   background: linear-gradient(
     135deg,
@@ -1365,7 +1398,7 @@ const successTextStyles = css`
 // Multi-selection styles
 
 const chatIndicatorBadgeStyles = css`
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   width: 28px;
   height: 28px;
@@ -1399,7 +1432,7 @@ const chatIndicatorBadgeStyles = css`
 `;
 
 const selectionBadgeStyles = css`
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   width: 24px;
   height: 24px;
@@ -1430,7 +1463,7 @@ const selectionBadgeStyles = css`
 `;
 
 const selectionOutlineStyles = css`
-  position: absolute;
+  position: fixed;
   pointer-events: none;
   border: 3px solid ${CHINESE_AESTHETIC_COLORS.cinnabar};
   box-shadow:

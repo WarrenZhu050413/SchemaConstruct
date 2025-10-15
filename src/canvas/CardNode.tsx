@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useEffect } from 'react';
+import React, { memo, useState, useRef, useEffect, useCallback } from 'react';
 import { Handle, Position, NodeResizer, useNodeId, useStore } from '@xyflow/react';
 import type { Card } from '@/types/card';
 import DOMPurify from 'isomorphic-dompurify';
@@ -70,7 +70,14 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [showButtonSettings, setShowButtonSettings] = useState(false);
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const [tagInput, setTagInput] = useState('');
   const contentEditRef = useRef<HTMLTextAreaElement>(null);
+  if ((window as any).__NABOKOV_TEST_MODE__) {
+    console.log('[CardNode] render star state', { cardId: card.id, starred: card.starred });
+  }
+  if ((window as any).__NABOKOV_TEST_MODE__ && card.starred) {
+    console.log('[CardNode] Rendering starred indicator', { cardId: card.id });
+  }
   const titleEditRef = useRef<HTMLInputElement>(null);
   const generationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const beautifyWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -98,6 +105,7 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
 
   // Generate dynamic styles based on font size
   const styles = getStyles(fontSizeValues);
+  const isAutomation = typeof navigator !== 'undefined' && !!navigator.webdriver;
 
   // Load connection count for Fill-In feature
   useEffect(() => {
@@ -375,14 +383,10 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
     }
   };
 
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Extract plain text from HTML content while preserving newlines
+  const openEditMode = useCallback(() => {
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = sanitizedContent;
 
-    // Convert <br> tags to newlines and <p> tags to double newlines
-    // This preserves the structure when editing
     let htmlWithNewlines = tempDiv.innerHTML;
     htmlWithNewlines = htmlWithNewlines.replace(/<br\s*\/?>/gi, '\n');
     htmlWithNewlines = htmlWithNewlines.replace(/<\/p>\s*<p>/gi, '\n\n');
@@ -394,7 +398,27 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
     setEditContent(plainText);
     setEditTitle(card.metadata.title);
     setIsEditing(true);
+  }, [card.metadata.title, sanitizedContent]);
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if ((window as any).__NABOKOV_TEST_MODE__ || isAutomation) {
+      console.log('[CardNode] Entering edit mode via double-click for automation', { cardId: card.id });
+    }
+    openEditMode();
   };
+
+  useEffect(() => {
+    const handleEditRequest = (event: Event) => {
+      const detail = (event as CustomEvent<{ cardId: string }>).detail;
+      if (detail?.cardId === card.id) {
+        openEditMode();
+      }
+    };
+    window.addEventListener('nabokov:card-edit-request', handleEditRequest as EventListener);
+    return () => window.removeEventListener('nabokov:card-edit-request', handleEditRequest as EventListener);
+  }, [card.id, openEditMode]);
 
   const handleSaveEdit = async () => {
     try {
@@ -551,9 +575,62 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
     }
   };
 
+  const handleAddTag = useCallback(
+    async (rawTag: string) => {
+      const trimmed = rawTag.trim();
+      if (!trimmed) {
+        setTagInput('');
+        return;
+      }
+
+      const existingTags = card.tags || [];
+      if (existingTags.includes(trimmed)) {
+        setTagInput('');
+        return;
+      }
+
+      try {
+        const updatedCard: Card = {
+          ...card,
+          tags: [...existingTags, trimmed],
+          updatedAt: Date.now(),
+        };
+
+        await saveCard(updatedCard);
+        window.dispatchEvent(new CustomEvent('nabokov:cards-updated'));
+        setTagInput('');
+      } catch (error) {
+        console.error('[CardNode] Error adding tag:', error);
+      }
+    },
+    [card]
+  );
+
+  const handleRemoveTag = useCallback(
+    async (tag: string) => {
+      if (!card.tags || !card.tags.includes(tag)) {
+        return;
+      }
+
+      try {
+        const updatedCard: Card = {
+          ...card,
+          tags: card.tags.filter(t => t !== tag),
+          updatedAt: Date.now(),
+        };
+
+        await saveCard(updatedCard);
+        window.dispatchEvent(new CustomEvent('nabokov:cards-updated'));
+      } catch (error) {
+        console.error('[CardNode] Error removing tag:', error);
+      }
+    },
+    [card]
+  );
+
   if (isEditing) {
     return (
-      <div style={styles.card} onKeyDown={handleKeyDown}>
+      <div style={styles.card} onKeyDown={handleKeyDown} data-card-id={card.id} data-id={card.id}>
         {/* Edit Mode Header */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
@@ -676,10 +753,19 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
             ...styles.domain,
             ...(card.cardType === 'note' ? styles.noteDomain : {}),
           }}>
-            {card.metadata.domain}
+            {card.metadata.domain}{card.starred ? ' ⭐' : ''}
           </div>
         </div>
         <div style={styles.headerRight}>
+          {card.starred && (
+            <span
+              style={styles.starIndicator}
+              title="Starred card"
+              data-testid="star-indicator"
+            >
+              ⭐
+            </span>
+          )}
           <button
             onClick={handleToggleCollapse}
             style={styles.collapseButton}
@@ -793,6 +879,46 @@ export const CardNode = memo(({ data }: CardNodeProps) => {
               )}
             </div>
           )}
+
+          {/* Tag list */}
+          {(card.tags?.length ?? 0) > 0 && (
+            <div style={styles.tagRow} data-testid="card-tags">
+              {(card.tags ?? []).map(tag => (
+                <span key={tag} style={styles.tagPill}>
+                  #{tag}
+                  <button
+                    type="button"
+                    style={styles.tagRemoveButton}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleRemoveTag(tag);
+                    }}
+                    aria-label={`Remove tag ${tag}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Tag input */}
+          <div style={styles.tagInputRow}>
+            <input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  await handleAddTag(tagInput);
+                }
+              }}
+              placeholder="Add tag"
+              aria-label="Add tag"
+              style={styles.tagInput}
+            />
+          </div>
 
           {/* Enhanced Footer with visible action buttons */}
           {card.cardType !== 'image' && card.content && !card.isGenerating && (
@@ -1093,6 +1219,8 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     overflowX: 'hidden',
     padding: '12px',
     fontSize: fontSizeValues.content,
+    position: 'relative',
+    zIndex: 1,
     // Custom scrollbar styling
     scrollbarWidth: 'thin', // Firefox
     scrollbarColor: 'rgba(139, 0, 0, 0.3) transparent', // Firefox
@@ -1117,6 +1245,9 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     padding: '8px 12px',
     borderTop: '1px solid rgba(184, 156, 130, 0.15)',
     gap: '8px',
+    position: 'relative',
+    zIndex: 2,
+    pointerEvents: 'auto',
   },
   footerLeft: {
     display: 'flex',
@@ -1481,6 +1612,57 @@ function getStyles(fontSizeValues: import('@/types/settings').FontSizeValues): R
     fontSize: fontSizeValues.code,
     fontFamily: 'Monaco, Menlo, monospace',
   },
+  tagRow: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+    marginTop: '12px',
+  } as React.CSSProperties,
+  tagPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    background: 'rgba(212, 175, 55, 0.12)',
+    color: '#5C4D42',
+    border: '1px solid rgba(212, 175, 55, 0.4)',
+    borderRadius: '999px',
+    padding: '4px 10px',
+    fontSize: '11px',
+  } as React.CSSProperties,
+  tagRemoveButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#8B0000',
+    cursor: 'pointer',
+    fontSize: '12px',
+    padding: 0,
+    lineHeight: 1,
+  } as React.CSSProperties,
+  tagInputRow: {
+    marginTop: '10px',
+  },
+  tagInput: {
+    width: '100%',
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid rgba(184, 156, 130, 0.3)',
+    fontSize: '12px',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    color: '#3E3226',
+    background: 'rgba(255, 255, 255, 0.85)',
+  },
+  starIndicator: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
+    marginRight: '8px',
+    fontSize: '13px',
+    color: '#D4AF37',
+    textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+    fontWeight: 600,
+    flexShrink: 0,
+    pointerEvents: 'none',
+  } as React.CSSProperties,
   // Skeleton loading styles
   contentGenerating: {
     pointerEvents: 'none',

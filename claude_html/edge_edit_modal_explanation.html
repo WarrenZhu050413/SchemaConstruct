@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdgeEditModal Component - How It Works</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --chinese-red: #8B0000;
+            --chinese-gold: #FFD700;
+            --jade-green: #00A86B;
+            --ink-black: #2B2B2B;
+            --paper-beige: #F5F5DC;
+            --light-cream: #FAFAF0;
+            --level-1: #000;
+            --level-2: #333;
+            --level-3: #666;
+            --level-4: #999;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+            color: var(--ink-black);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            line-height: 1.4;
+            font-size: 14px;
+            padding: 12px;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            margin: 8px 0 12px 0;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 12px 0 6px 0;
+            padding: 6px 8px;
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.03);
+            color: var(--level-1);
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 8px 0 4px 0;
+            color: var(--level-2);
+            padding-left: 4px;
+        }
+
+        h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 6px 0 3px 0;
+            color: var(--level-3);
+        }
+
+        .important-box {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), white);
+            border: 2px solid var(--chinese-gold);
+            border-radius: 4px;
+            padding: 12px;
+            margin: 12px 0;
+        }
+
+        .important-box h2 {
+            color: var(--chinese-red);
+            margin-top: 0;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 12px 0;
+        }
+
+        .code-block {
+            background: linear-gradient(135deg, rgba(43, 43, 43, 0.95), rgba(20, 20, 20, 0.95));
+            color: #f0f0f0;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 8px 0;
+            border-left: 4px solid var(--chinese-gold);
+        }
+
+        .code-block code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        code {
+            background: rgba(139, 0, 0, 0.08);
+            color: var(--chinese-red);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+        }
+
+        .keyword { color: #ff79c6; }
+        .string { color: #50fa7b; }
+        .function { color: #8be9fd; }
+        .comment { color: #6272a4; font-style: italic; }
+        .property { color: #bd93f9; }
+
+        .collapsible {
+            margin: 8px 0;
+            border: 1px solid rgba(139, 0, 0, 0.15);
+            border-radius: 4px;
+            background: white;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+            border-left: 3px solid var(--chinese-gold);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            color: var(--level-2);
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+        }
+
+        .collapsible-header .arrow {
+            display: inline-block;
+            transition: transform 0.3s ease;
+            color: var(--chinese-red);
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .collapsible.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 3000px;
+            padding: 12px;
+        }
+
+        .flow-diagram {
+            background: white;
+            padding: 16px;
+            border-radius: 4px;
+            margin: 12px 0;
+            border: 1px solid rgba(139, 0, 0, 0.1);
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 1px solid rgba(139, 0, 0, 0.2);
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-card .icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .feature-card .title {
+            font-weight: 600;
+            color: var(--chinese-red);
+            margin-bottom: 4px;
+        }
+
+        .feature-card .desc {
+            font-size: 12px;
+            color: var(--level-3);
+        }
+
+        ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        li {
+            margin: 4px 0;
+            line-height: 1.5;
+        }
+
+        li strong {
+            color: var(--chinese-red);
+        }
+
+        .section {
+            background: white;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+            border-left: 3px solid var(--chinese-red);
+        }
+
+        .inline-code-ref {
+            background: rgba(0, 168, 107, 0.1);
+            color: var(--jade-green);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            background: white;
+            font-size: 13px;
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 6px 8px;
+            border-bottom: 1px solid rgba(139, 0, 0, 0.1);
+        }
+
+        tr:hover {
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .badge.state { background: #e3f2fd; color: #1976d2; }
+        .badge.prop { background: #f3e5f5; color: #7b1fa2; }
+        .badge.event { background: #fff3e0; color: #e65100; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 EdgeEditModal Component Explained</h1>
+
+        <div class="important-box">
+            <h2>What It Does</h2>
+            <p><strong>EdgeEditModal</strong> is a modal dialog that appears when users want to create or edit a connection (edge) between two cards on the canvas. It lets users:</p>
+            <ul>
+                <li><strong>Choose a relationship type</strong> (Related, Generated From, References, etc.)</li>
+                <li><strong>Add a custom label</strong> to describe the connection</li>
+                <li><strong>Submit or cancel</strong> with keyboard shortcuts</li>
+            </ul>
+        </div>
+
+        <h2>Component Flow</h2>
+        <div class="flow-diagram">
+            <div class="mermaid">
+graph TD
+    A[User Connects Two Cards] --> B[EdgeEditModal Opens]
+    B --> C{User Actions}
+    C --> D[Select Connection Type]
+    C --> E[Type Custom Label]
+    C --> F[Press Enter/Click Submit]
+    C --> G[Press Esc/Click Overlay]
+
+    D --> H[Update connectionType State]
+    E --> I[Update label State]
+    F --> J[onSubmit callback]
+    G --> K[onCancel callback]
+
+    J --> L[Parent Creates Edge in React Flow]
+    K --> M[Modal Closes Without Changes]
+
+    style B fill:#FFD700,stroke:#8B0000,stroke-width:2px
+    style J fill:#00A86B,stroke:#2B2B2B,stroke-width:2px
+    style K fill:#CD5C5C,stroke:#2B2B2B,stroke-width:2px
+            </div>
+        </div>
+
+        <h2>Component Architecture</h2>
+
+        <div class="collapsible open">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Props Interface</div>
+            </div>
+            <div class="collapsible-content">
+                <div class="code-block"><code><span class="keyword">export interface</span> <span class="function">EdgeEditModalProps</span> {
+  <span class="property">initialType</span>?: <span class="keyword">ConnectionType</span>;
+  <span class="property">initialLabel</span>?: <span class="keyword">string</span>;
+  <span class="property">onSubmit</span>: (type: ConnectionType, label: string) => <span class="keyword">void</span>;
+  <span class="property">onCancel</span>: () => <span class="keyword">void</span>;
+}</code></div>
+
+                <table>
+                    <tr>
+                        <th>Prop</th>
+                        <th>Type</th>
+                        <th>Purpose</th>
+                    </tr>
+                    <tr>
+                        <td><code>initialType</code></td>
+                        <td><span class="badge prop">Optional</span></td>
+                        <td>Pre-selected connection type (defaults to 'related')</td>
+                    </tr>
+                    <tr>
+                        <td><code>initialLabel</code></td>
+                        <td><span class="badge prop">Optional</span></td>
+                        <td>Pre-filled custom label text</td>
+                    </tr>
+                    <tr>
+                        <td><code>onSubmit</code></td>
+                        <td><span class="badge event">Callback</span></td>
+                        <td>Called when user confirms with (type, label) data</td>
+                    </tr>
+                    <tr>
+                        <td><code>onCancel</code></td>
+                        <td><span class="badge event">Callback</span></td>
+                        <td>Called when user cancels the modal</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="collapsible open">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>State Management</div>
+            </div>
+            <div class="collapsible-content">
+                <p>The component uses two React state hooks:</p>
+
+                <div class="code-block"><code><span class="keyword">const</span> [<span class="property">connectionType</span>, <span class="property">setConnectionType</span>] = <span class="function">useState</span>&lt;ConnectionType&gt;(initialType);
+<span class="keyword">const</span> [<span class="property">label</span>, <span class="property">setLabel</span>] = <span class="function">useState</span>(initialLabel);</code></div>
+
+                <div class="two-column">
+                    <div class="section">
+                        <h4>connectionType <span class="badge state">State</span></h4>
+                        <p><strong>Tracks:</strong> Which connection type is selected</p>
+                        <p><strong>Updated by:</strong> Clicking a type option card</p>
+                        <p><strong>Values:</strong> <code>'related'</code>, <code>'generated-from'</code>, <code>'references'</code>, <code>'contradicts'</code>, <code>'custom'</code></p>
+                    </div>
+                    <div class="section">
+                        <h4>label <span class="badge state">State</span></h4>
+                        <p><strong>Tracks:</strong> Custom label text</p>
+                        <p><strong>Updated by:</strong> Typing in the text input</p>
+                        <p><strong>Values:</strong> Any string (e.g., "supports", "builds upon")</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Connection Types</h2>
+        <p>Five predefined connection types are available <span class="inline-code-ref">src/canvas/EdgeEditModal.tsx:41-47</span>:</p>
+
+        <div class="feature-grid">
+            <div class="feature-card">
+                <div class="icon">🔗</div>
+                <div class="title">Related</div>
+                <div class="desc">General connection between cards</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">⚡</div>
+                <div class="title">Generated From</div>
+                <div class="desc">AI-generated from this card</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📖</div>
+                <div class="title">References</div>
+                <div class="desc">Cites or refers to</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">⚠️</div>
+                <div class="title">Contradicts</div>
+                <div class="desc">Conflicts with or opposes</div>
+            </div>
+            <div class="feature-card">
+                <div class="icon">✨</div>
+                <div class="title">Custom</div>
+                <div class="desc">User-defined relationship</div>
+            </div>
+        </div>
+
+        <h2>User Interaction Handlers</h2>
+
+        <div class="collapsible open">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Submit Handler</div>
+            </div>
+            <div class="collapsible-content">
+                <p>When the user confirms (Enter key or Submit button):</p>
+                <div class="code-block"><code><span class="keyword">const</span> <span class="function">handleSubmit</span> = () => {
+  <span class="function">onSubmit</span>(connectionType, label);
+};</code></div>
+                <p>This calls the parent component's <code>onSubmit</code> callback with:</p>
+                <ul>
+                    <li><strong>connectionType:</strong> Currently selected type</li>
+                    <li><strong>label:</strong> Custom text from input (can be empty)</li>
+                </ul>
+                <p>The parent component (likely <code>Canvas.tsx</code>) then creates the actual edge in React Flow with this metadata.</p>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Keyboard Shortcuts</div>
+            </div>
+            <div class="collapsible-content">
+                <div class="code-block"><code><span class="keyword">const</span> <span class="function">handleKeyDown</span> = (e: React.KeyboardEvent) => {
+  <span class="keyword">if</span> (e.key === <span class="string">'Enter'</span> && !e.shiftKey) {
+    e.<span class="function">preventDefault</span>();
+    <span class="function">handleSubmit</span>();
+  } <span class="keyword">else if</span> (e.key === <span class="string">'Escape'</span>) {
+    <span class="function">onCancel</span>();
+  }
+};</code></div>
+                <table>
+                    <tr>
+                        <th>Key</th>
+                        <th>Action</th>
+                        <th>Note</th>
+                    </tr>
+                    <tr>
+                        <td><strong>Enter</strong></td>
+                        <td>Submit the form</td>
+                        <td>Only if Shift is NOT held (allows multi-line in future)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Escape</strong></td>
+                        <td>Cancel and close</td>
+                        <td>Calls <code>onCancel()</code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Overlay Click Handler</div>
+            </div>
+            <div class="collapsible-content">
+                <p>Clicking outside the modal (on the backdrop overlay) also cancels:</p>
+                <div class="code-block"><code><span class="keyword">&lt;div</span>
+  <span class="property">css</span>={overlayStyles}
+  <span class="property">onClick</span>={onCancel}
+  <span class="property">data-testid</span>=<span class="string">"edge-modal-overlay"</span>
+<span class="keyword">/&gt;</span></code></div>
+            </div>
+        </div>
+
+        <h2>UI Structure</h2>
+
+        <div class="flow-diagram">
+            <div class="mermaid">
+graph TB
+    A[Modal Container] --> B[Overlay Layer]
+    A --> C[Modal Dialog]
+
+    C --> D[Header Section]
+    C --> E[Content Section]
+    C --> F[Footer Section]
+
+    D --> D1[Title: Connection Properties]
+
+    E --> E1[Connection Type Grid]
+    E --> E2[Custom Label Input]
+
+    E1 --> E1A[Type Option 1: Related]
+    E1 --> E1B[Type Option 2: Generated From]
+    E1 --> E1C[Type Option 3: References]
+    E1 --> E1D[Type Option 4: Contradicts]
+    E1 --> E1E[Type Option 5: Custom]
+
+    E2 --> E2A[Text Input Field]
+    E2 --> E2B[Hint: Press Enter to save]
+
+    F --> F1[Cancel Button]
+    F --> F2[Create Connection Button]
+
+    style A fill:#FFD700,stroke:#8B0000,stroke-width:2px
+    style E1 fill:#f0f0f0,stroke:#666,stroke-width:1px
+    style F2 fill:#00A86B,stroke:#2B2B2B,stroke-width:2px
+            </div>
+        </div>
+
+        <h2>Styling Approach</h2>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Emotion CSS-in-JS</div>
+            </div>
+            <div class="collapsible-content">
+                <p>The component uses <code>@emotion/react</code> for scoped styling:</p>
+                <div class="code-block"><code><span class="keyword">/** @jsxImportSource @emotion/react */</span>
+<span class="keyword">import</span> { css } <span class="keyword">from</span> <span class="string">'@emotion/react'</span>;
+
+<span class="comment">// Define styles as constants</span>
+<span class="keyword">const</span> <span class="property">overlayStyles</span> = <span class="function">css</span>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 10001;
+  backdrop-filter: blur(4px);
+`;
+
+<span class="comment">// Apply styles with css prop</span>
+&lt;div <span class="property">css</span>={overlayStyles} /&gt;</code></div>
+
+                <p><strong>Why Emotion?</strong></p>
+                <ul>
+                    <li>Scoped styles avoid conflicts with host page CSS</li>
+                    <li>Works inside Shadow DOM (where extension UI is injected)</li>
+                    <li>Dynamic styling based on props (e.g., <code>typeOptionStyles(selected)</code>)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Color Scheme</div>
+            </div>
+            <div class="collapsible-content">
+                <p>The modal uses a warm, literary aesthetic matching Nabokov's theme:</p>
+                <table>
+                    <tr>
+                        <th>Color</th>
+                        <th>Usage</th>
+                        <th>Hex</th>
+                    </tr>
+                    <tr>
+                        <td style="background: #FAF7F2; padding: 8px;">Paper Beige</td>
+                        <td>Header/footer background</td>
+                        <td><code>#FAF7F2</code></td>
+                    </tr>
+                    <tr>
+                        <td style="background: #D4AF37; padding: 8px;">Antique Gold</td>
+                        <td>Selected border, submit button</td>
+                        <td><code>#D4AF37</code></td>
+                    </tr>
+                    <tr>
+                        <td style="background: #3E3226; color: white; padding: 8px;">Dark Brown</td>
+                        <td>Primary text color</td>
+                        <td><code>#3E3226</code></td>
+                    </tr>
+                    <tr>
+                        <td style="background: #B89C82; padding: 8px;">Muted Tan</td>
+                        <td>Borders, muted elements</td>
+                        <td><code>#B89C82</code></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h2>Integration with Canvas</h2>
+
+        <div class="collapsible open">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Typical Usage Pattern</div>
+            </div>
+            <div class="collapsible-content">
+                <p>The Canvas component likely uses it like this:</p>
+                <div class="code-block"><code><span class="keyword">const</span> <span class="function">Canvas</span> = () => {
+  <span class="keyword">const</span> [showEdgeModal, setShowEdgeModal] = <span class="function">useState</span>(<span class="keyword">false</span>);
+  <span class="keyword">const</span> [edgeData, setEdgeData] = <span class="function">useState</span>(<span class="keyword">null</span>);
+
+  <span class="comment">// When user connects two nodes in React Flow</span>
+  <span class="keyword">const</span> <span class="function">onConnect</span> = (connection) => {
+    <span class="function">setEdgeData</span>(connection);
+    <span class="function">setShowEdgeModal</span>(<span class="keyword">true</span>);
+  };
+
+  <span class="keyword">const</span> <span class="function">handleEdgeSubmit</span> = (type, label) => {
+    <span class="comment">// Create edge with metadata</span>
+    <span class="keyword">const</span> newEdge = {
+      ...edgeData,
+      data: { type, label }
+    };
+    <span class="function">setEdges</span>(prev => [...prev, newEdge]);
+    <span class="function">setShowEdgeModal</span>(<span class="keyword">false</span>);
+  };
+
+  <span class="keyword">return</span> (
+    <span class="keyword">&lt;&gt;</span>
+      <span class="keyword">&lt;ReactFlow</span> <span class="property">onConnect</span>={onConnect} <span class="keyword">/&gt;</span>
+
+      {showEdgeModal && (
+        <span class="keyword">&lt;EdgeEditModal</span>
+          <span class="property">onSubmit</span>={handleEdgeSubmit}
+          <span class="property">onCancel</span>={() => <span class="function">setShowEdgeModal</span>(<span class="keyword">false</span>)}
+        <span class="keyword">/&gt;</span>
+      )}
+    <span class="keyword">&lt;/&gt;</span>
+  );
+};</code></div>
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <div><span class="arrow">▶</span>Edge Data Flow</div>
+            </div>
+            <div class="collapsible-content">
+                <div class="flow-diagram">
+                    <div class="mermaid">
+sequenceDiagram
+    participant User
+    participant Canvas
+    participant ReactFlow
+    participant Modal
+    participant EdgeData
+
+    User->>ReactFlow: Drag connection from Card A to Card B
+    ReactFlow->>Canvas: onConnect(source, target)
+    Canvas->>Modal: Show EdgeEditModal
+    User->>Modal: Select type: "References"
+    User->>Modal: Type label: "cites"
+    User->>Modal: Press Enter
+    Modal->>Canvas: onSubmit("references", "cites")
+    Canvas->>EdgeData: Create edge { source, target, data: {type, label} }
+    EdgeData->>ReactFlow: Add edge to graph
+    ReactFlow->>User: Display connection with label
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h2>Key Features Summary</h2>
+
+        <div class="section">
+            <h3>✅ What Makes This Component Good</h3>
+            <ul>
+                <li><strong>TypeScript typed props</strong> - Type safety for parent components</li>
+                <li><strong>Controlled inputs</strong> - React state controls all form values</li>
+                <li><strong>Keyboard shortcuts</strong> - Fast workflow with Enter/Escape</li>
+                <li><strong>Visual feedback</strong> - Selected type is highlighted, hover states</li>
+                <li><strong>Scoped styling</strong> - Emotion CSS won't leak to other components</li>
+                <li><strong>Accessible</strong> - Proper labels, test IDs for testing</li>
+                <li><strong>Overlay dismissal</strong> - Clicking outside closes modal (common UX pattern)</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>📍 File Location</h3>
+            <p><code>src/canvas/EdgeEditModal.tsx</code></p>
+            <p>This is specifically for the Canvas page, not the inline chat or other extension features.</p>
+        </div>
+
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'base',
+            themeVariables: {
+                primaryColor: '#FFD700',
+                primaryTextColor: '#2B2B2B',
+                primaryBorderColor: '#8B0000',
+                lineColor: '#8B0000',
+                secondaryColor: '#F5F5DC',
+                tertiaryColor: '#FAFAF0',
+                fontSize: '14px',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
+            }
+        });
+
+        function toggleCollapsible(header) {
+            const collapsible = header.parentElement;
+            collapsible.classList.toggle('open');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Best Practices for Eating Salmon</title>
+    <style>
+        /* Color Palette */
+        :root {
+            --chinese-red: #8B0000;
+            --chinese-gold: #FFD700;
+            --jade-green: #00A86B;
+            --ink-black: #2B2B2B;
+            --paper-beige: #F5F5DC;
+            --light-cream: #FAFAF0;
+            --level-1: #000;
+            --level-2: #333;
+            --level-3: #666;
+            --level-4: #999;
+        }
+
+        [data-theme="dark"] {
+            --chinese-red: #DC143C;
+            --chinese-gold: #FFD700;
+            --jade-green: #10B981;
+            --ink-black: #E5E5DC;
+            --paper-beige: #1A1A1A;
+            --light-cream: #252525;
+            --level-1: #F5F5DC;
+            --level-2: #D4C4B0;
+            --level-3: #A89F91;
+            --level-4: #6B6B6B;
+        }
+
+        /* Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+            color: var(--ink-black);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.3;
+            font-size: 14px;
+            width: 100vw;
+            max-width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            padding: 8px;
+        }
+
+        /* Headers */
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            margin: 8px 0;
+            padding: 8px;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 8px 0 4px 0;
+            padding: 6px;
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.03);
+            color: var(--level-1);
+        }
+
+        h3 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 6px 0 3px 8px;
+            color: var(--level-2);
+            letter-spacing: 0.3px;
+        }
+
+        h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 4px 0 2px 12px;
+            color: var(--level-2);
+        }
+
+        /* Theme Toggle */
+        #theme-toggle {
+            position: fixed;
+            top: 8px;
+            right: 8px;
+            z-index: 10000;
+            background: var(--chinese-gold);
+            color: var(--ink-black);
+            border: 2px solid var(--chinese-red);
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Important Always-Visible Section */
+        .important-always-visible {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 255, 255, 0.9));
+            border: 3px solid var(--chinese-gold);
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(139, 0, 0, 0.1);
+        }
+
+        .important-always-visible h2 {
+            color: var(--chinese-red);
+            margin-top: 0;
+            border-left: none;
+            background: none;
+            padding: 0;
+        }
+
+        /* Two-Column Layout */
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 8px 0;
+        }
+
+        /* Collapsible Sections */
+        .collapsible {
+            margin: 6px 0;
+            width: 100%;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px 10px;
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+            border-left: 3px solid var(--chinese-gold);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            color: var(--level-1);
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+        }
+
+        .collapsible-header .arrow {
+            display: inline-block;
+            transition: transform 0.3s ease;
+            color: var(--chinese-red);
+            font-size: 12px;
+            margin-right: 8px;
+        }
+
+        .collapsible.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0 12px;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 5000px;
+            padding: 10px 12px;
+        }
+
+        /* Priority Levels */
+        .collapsible.critical .collapsible-header {
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.08);
+            font-weight: 700;
+        }
+
+        .collapsible.important .collapsible-header {
+            border-left: 3px solid var(--jade-green);
+            background: rgba(0, 168, 107, 0.05);
+        }
+
+        .collapsible.secondary .collapsible-header {
+            border-left: 2px solid #999;
+            background: rgba(0, 0, 0, 0.02);
+            font-size: 13px;
+        }
+
+        /* Lists */
+        ul, ol {
+            margin: 4px 0 4px 20px;
+            padding: 0;
+        }
+
+        li {
+            margin: 3px 0;
+            line-height: 1.4;
+            color: var(--level-2);
+        }
+
+        li strong {
+            color: var(--level-1);
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+
+        th, td {
+            padding: 6px 8px;
+            border: 1px solid rgba(139, 0, 0, 0.2);
+            text-align: left;
+        }
+
+        th {
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            color: white;
+            font-weight: 700;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(255, 215, 0, 0.05);
+        }
+
+        /* Code/Emphasis Boxes */
+        .info-box {
+            background: rgba(0, 168, 107, 0.08);
+            border-left: 3px solid var(--jade-green);
+            padding: 8px;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+
+        .warning-box {
+            background: rgba(255, 165, 0, 0.1);
+            border-left: 3px solid #FFA500;
+            padding: 8px;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+
+        .danger-box {
+            background: rgba(139, 0, 0, 0.08);
+            border-left: 3px solid var(--chinese-red);
+            padding: 8px;
+            margin: 6px 0;
+            font-size: 13px;
+        }
+
+        /* Sections */
+        .primary-section {
+            border: 2px solid var(--chinese-red);
+            background: rgba(255, 255, 255, 0.8);
+            margin: 8px 0;
+            padding: 8px;
+        }
+
+        .secondary-section {
+            border-left: 3px solid var(--chinese-gold);
+            background: rgba(255, 215, 0, 0.03);
+            margin: 6px 0 6px 8px;
+            padding: 6px;
+        }
+
+        /* Grid for comparison */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin: 8px 0;
+        }
+
+        .comparison-item {
+            border: 2px solid var(--chinese-gold);
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .comparison-item h4 {
+            margin: 0 0 6px 0;
+            color: var(--chinese-red);
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 700;
+            margin: 0 4px 0 0;
+        }
+
+        .badge.health {
+            background: var(--jade-green);
+            color: white;
+        }
+
+        .badge.culinary {
+            background: var(--chinese-gold);
+            color: var(--ink-black);
+        }
+
+        .badge.safety {
+            background: var(--chinese-red);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .two-column-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button id="theme-toggle">🌙 Dark Mode</button>
+
+    <div class="container">
+        <h1>🐟 Best Practices for Eating Salmon</h1>
+
+        <!-- Critical Information Always Visible -->
+        <div class="important-always-visible">
+            <h2>Essential Guidelines (Start Here)</h2>
+            <ul>
+                <li><strong>Freshness First:</strong> Salmon should smell like the ocean, not fishy. Eyes should be clear, flesh firm and bouncy</li>
+                <li><strong>Safe Temperature:</strong> Cook to internal temp of 145°F (63°C) or eat sushi-grade raw from reputable source</li>
+                <li><strong>Optimal Timing:</strong> Eat cooked salmon within 3-4 days when refrigerated; raw within 1-2 days</li>
+                <li><strong>Health Impact:</strong> Rich in Omega-3s, vitamin D, and protein—one of the healthiest fish choices</li>
+            </ul>
+        </div>
+
+        <!-- Health Benefits Section -->
+        <div class="primary-section">
+            <h2><span class="badge health">HEALTH</span> Nutritional Benefits</h2>
+            <div class="two-column-layout">
+                <div>
+                    <h4>Key Nutrients (per 3.5 oz / 100g)</h4>
+                    <ul>
+                        <li><strong>Protein:</strong> 20-25g (muscle building, satiety)</li>
+                        <li><strong>Omega-3 EPA/DHA:</strong> 1.5-2.5g (heart, brain health)</li>
+                        <li><strong>Vitamin D:</strong> 526 IU (bone health, immunity)</li>
+                        <li><strong>Vitamin B12:</strong> 3.2μg (nerve function, energy)</li>
+                        <li><strong>Selenium:</strong> 41μg (antioxidant, thyroid)</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4>Health Effects</h4>
+                    <ul>
+                        <li>Reduces cardiovascular disease risk by 30%</li>
+                        <li>Improves cognitive function and memory</li>
+                        <li>Anti-inflammatory properties</li>
+                        <li>Supports healthy pregnancy/fetal development</li>
+                        <li>May reduce depression symptoms</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preparation Methods -->
+        <div class="collapsible critical open">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span><span class="badge culinary">CULINARY</span> Cooking Methods & Techniques</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="comparison-grid">
+                    <div class="comparison-item">
+                        <h4>🔥 Grilling</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> Medium-high (400-450°F)</li>
+                            <li><strong>Time:</strong> 4-6 min per side</li>
+                            <li><strong>Best For:</strong> Skin-on fillets, steaks</li>
+                            <li><strong>Tip:</strong> Oil grates, start skin-side down</li>
+                            <li><strong>Result:</strong> Smoky char, crispy skin</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>🍳 Pan-Searing</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> Medium-high heat</li>
+                            <li><strong>Time:</strong> 3-4 min per side</li>
+                            <li><strong>Best For:</strong> Quick weeknight dinner</li>
+                            <li><strong>Tip:</strong> Pat dry, season, use butter/oil</li>
+                            <li><strong>Result:</strong> Golden crust, moist interior</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>🌡️ Oven-Baking</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> 375-425°F (190-220°C)</li>
+                            <li><strong>Time:</strong> 12-15 minutes</li>
+                            <li><strong>Best For:</strong> Even cooking, large portions</li>
+                            <li><strong>Tip:</strong> Line with parchment, add lemon</li>
+                            <li><strong>Result:</strong> Consistent, hands-off</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>💨 Smoking</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> 180-225°F (cold/hot smoke)</li>
+                            <li><strong>Time:</strong> 1-3 hours</li>
+                            <li><strong>Best For:</strong> Flavor infusion, preservation</li>
+                            <li><strong>Tip:</strong> Use alder, hickory, or applewood</li>
+                            <li><strong>Result:</strong> Rich smoky flavor, tender</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>🍣 Raw (Sashimi/Sushi)</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> Chilled (below 40°F/4°C)</li>
+                            <li><strong>Time:</strong> Immediate consumption</li>
+                            <li><strong>Best For:</strong> Premium sushi-grade salmon</li>
+                            <li><strong>Tip:</strong> Must be frozen first (-4°F, 7 days)</li>
+                            <li><strong>Result:</strong> Buttery, clean ocean taste</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>🫕 Poaching</h4>
+                        <ul>
+                            <li><strong>Temp:</strong> 160-180°F gentle simmer</li>
+                            <li><strong>Time:</strong> 10-12 minutes</li>
+                            <li><strong>Best For:</strong> Delicate texture, low-fat</li>
+                            <li><strong>Tip:</strong> Use wine, herbs, aromatics</li>
+                            <li><strong>Result:</strong> Ultra-moist, silky texture</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Doneness Guide -->
+        <div class="collapsible important open">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Doneness Levels & Visual Cues</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Doneness</th>
+                            <th>Internal Temp</th>
+                            <th>Appearance</th>
+                            <th>Texture</th>
+                            <th>Best Use</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Rare</strong></td>
+                            <td>110°F (43°C)</td>
+                            <td>Translucent center, cool</td>
+                            <td>Very soft, buttery</td>
+                            <td>Sushi-grade only</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Medium-Rare</strong></td>
+                            <td>120°F (49°C)</td>
+                            <td>Slightly translucent, pink</td>
+                            <td>Tender, moist</td>
+                            <td>High-quality fresh salmon</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Medium</strong></td>
+                            <td>130°F (54°C)</td>
+                            <td>Opaque, light pink</td>
+                            <td>Flaky but moist</td>
+                            <td>Most common preference</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Medium-Well</strong></td>
+                            <td>140°F (60°C)</td>
+                            <td>Fully opaque, pale pink</td>
+                            <td>Firm, dry-ish</td>
+                            <td>Cautious eaters</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Well-Done</strong></td>
+                            <td>145°F+ (63°C)</td>
+                            <td>White/pale, no pink</td>
+                            <td>Dry, chalky</td>
+                            <td>FDA recommendation (safety)</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <strong>Chef's Recommendation:</strong> Medium (130°F) strikes the perfect balance—moist, flaky, safe for most quality salmon. The FDA recommends 145°F for food safety, but many chefs prefer 125-130°F for optimal texture.
+                </div>
+            </div>
+        </div>
+
+        <!-- Food Safety -->
+        <div class="collapsible critical open">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span><span class="badge safety">SAFETY</span> Food Safety & Handling</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Critical Safety Rules</h3>
+                <div class="danger-box">
+                    <strong>⚠️ NEVER eat raw salmon unless it's been:</strong>
+                    <ul>
+                        <li>Labeled "sushi-grade" or "sashimi-grade"</li>
+                        <li>Frozen at -4°F (-20°C) for 7 days OR -31°F (-35°C) for 15 hours (kills parasites)</li>
+                        <li>Purchased from reputable fishmonger/restaurant</li>
+                    </ul>
+                </div>
+
+                <div class="two-column-layout">
+                    <div>
+                        <h4>Storage Guidelines</h4>
+                        <ul>
+                            <li><strong>Fresh/Raw:</strong> 1-2 days in coldest part of fridge (32-34°F)</li>
+                            <li><strong>Cooked:</strong> 3-4 days in airtight container</li>
+                            <li><strong>Frozen:</strong> 2-3 months at 0°F (-18°C)</li>
+                            <li><strong>Thawing:</strong> In fridge overnight, never room temp</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Contamination Prevention</h4>
+                        <ul>
+                            <li>Wash hands before/after handling</li>
+                            <li>Use separate cutting boards for fish</li>
+                            <li>Don't cross-contaminate with other foods</li>
+                            <li>Clean surfaces with hot soapy water</li>
+                            <li>Cook within 2 hours of reaching room temp</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h4>Signs of Spoilage (DO NOT EAT)</h4>
+                <div class="warning-box">
+                    <ul>
+                        <li>🚫 Strong, pungent fishy odor (should smell ocean-fresh)</li>
+                        <li>🚫 Slimy or sticky texture on surface</li>
+                        <li>🚫 Dull, cloudy eyes (if whole fish)</li>
+                        <li>🚫 Flesh doesn't spring back when pressed</li>
+                        <li>🚫 Discoloration: gray, brown, or greenish tint</li>
+                        <li>🚫 Past expiration date</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sourcing & Sustainability -->
+        <div class="collapsible important">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Sourcing, Types & Sustainability</span>
+            </div>
+            <div class="collapsible-content">
+                <h3>Salmon Species Comparison</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Species</th>
+                            <th>Flavor</th>
+                            <th>Fat Content</th>
+                            <th>Best Use</th>
+                            <th>Sustainability</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>King (Chinook)</strong></td>
+                            <td>Rich, buttery</td>
+                            <td>Highest (15-20%)</td>
+                            <td>Grilling, sashimi</td>
+                            <td>⚠️ Moderate</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sockeye (Red)</strong></td>
+                            <td>Bold, robust</td>
+                            <td>High (10-15%)</td>
+                            <td>Grilling, baking</td>
+                            <td>✅ Good (Alaskan)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Coho (Silver)</strong></td>
+                            <td>Mild, delicate</td>
+                            <td>Medium (7-10%)</td>
+                            <td>Versatile cooking</td>
+                            <td>✅ Good</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Atlantic (Farmed)</strong></td>
+                            <td>Mild, fatty</td>
+                            <td>High (12-16%)</td>
+                            <td>Most common retail</td>
+                            <td>⚠️ Varies by farm</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Pink</strong></td>
+                            <td>Light, mild</td>
+                            <td>Low (3-5%)</td>
+                            <td>Canned salmon</td>
+                            <td>✅ Abundant</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Wild vs. Farmed Salmon</h3>
+                <div class="two-column-layout">
+                    <div class="comparison-item">
+                        <h4>🌊 Wild-Caught</h4>
+                        <ul>
+                            <li><strong>Pros:</strong> Leaner, firmer texture, natural diet, higher Omega-3 per calorie, often more sustainable</li>
+                            <li><strong>Cons:</strong> More expensive, seasonal availability, potential mercury exposure (low but present)</li>
+                            <li><strong>Best Choice:</strong> Alaskan wild salmon (strictly managed)</li>
+                            <li><strong>Labels:</strong> Look for MSC (Marine Stewardship Council) certification</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-item">
+                        <h4>🏭 Farmed</h4>
+                        <ul>
+                            <li><strong>Pros:</strong> Year-round availability, lower cost, fattier/milder taste</li>
+                            <li><strong>Cons:</strong> Higher contaminants (PCBs), antibiotics, environmental concerns, fed grain/fish meal</li>
+                            <li><strong>Best Choice:</strong> Norwegian or Faroese farmed (better standards)</li>
+                            <li><strong>Labels:</strong> ASC (Aquaculture Stewardship Council) or organic certifications</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="info-box">
+                    <strong>Sustainability Tip:</strong> Prioritize Alaskan wild-caught (sockeye, coho) or responsibly farmed Atlantic salmon with ASC/BAP certification. Avoid endangered species like certain King salmon populations.
+                </div>
+            </div>
+        </div>
+
+        <!-- Pairing & Serving -->
+        <div class="collapsible secondary">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Flavor Pairings & Serving Suggestions</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="two-column-layout">
+                    <div>
+                        <h4>Classic Flavor Combinations</h4>
+                        <ul>
+                            <li><strong>Citrus:</strong> Lemon, lime, orange (acidity cuts fat)</li>
+                            <li><strong>Herbs:</strong> Dill, parsley, tarragon, chives</li>
+                            <li><strong>Aromatics:</strong> Garlic, ginger, shallots</li>
+                            <li><strong>Sauces:</strong> Teriyaki, soy-ginger, honey-mustard, béarnaise</li>
+                            <li><strong>Spices:</strong> Black pepper, paprika, cumin, coriander</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4>Wine & Beverage Pairings</h4>
+                        <ul>
+                            <li><strong>White:</strong> Chardonnay, Pinot Grigio, Sauvignon Blanc</li>
+                            <li><strong>Red:</strong> Light Pinot Noir (with richer preparations)</li>
+                            <li><strong>Beer:</strong> IPAs, wheat beers, lagers</li>
+                            <li><strong>Sake:</strong> Junmai or Ginjo (with sushi/sashimi)</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h4>Side Dish Recommendations</h4>
+                <ul>
+                    <li><strong>Vegetables:</strong> Roasted asparagus, Brussels sprouts, green beans, spinach</li>
+                    <li><strong>Starches:</strong> Wild rice, quinoa, roasted potatoes, couscous</li>
+                    <li><strong>Salads:</strong> Arugula with lemon vinaigrette, cucumber-dill salad</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Dining Etiquette -->
+        <div class="collapsible secondary">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Dining Etiquette & Practical Tips</span>
+            </div>
+            <div class="collapsible-content">
+                <h4>How to Eat Salmon Properly</h4>
+                <ul>
+                    <li><strong>Deboning:</strong> Run fork along spine/ribs to detect pin bones, remove with tweezers or fingers</li>
+                    <li><strong>Skin:</strong> Crispy skin is edible and delicious; peel off if soft/rubbery</li>
+                    <li><strong>Temperature:</strong> Let rest 3-5 minutes after cooking for even heat distribution</li>
+                    <li><strong>Portion Size:</strong> 4-6 oz (113-170g) per serving is standard</li>
+                    <li><strong>Utensils:</strong> Use fork and knife; break into flakes along natural grain</li>
+                </ul>
+
+                <h4>Restaurant Ordering Tips</h4>
+                <ul>
+                    <li>Ask for preparation method and species (wild vs. farmed)</li>
+                    <li>Request doneness preference (medium is usually best)</li>
+                    <li>Inquire about sustainable sourcing if not labeled</li>
+                    <li>At sushi restaurants, order "sake" (salmon) nigiri or sashimi</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Common Mistakes -->
+        <div class="collapsible secondary">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Common Mistakes to Avoid</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="danger-box">
+                    <h4>🚫 Don't Make These Errors</h4>
+                    <ul>
+                        <li><strong>Overcooking:</strong> Salmon dries out quickly above 145°F—use thermometer</li>
+                        <li><strong>Not patting dry:</strong> Moisture prevents browning and crisping</li>
+                        <li><strong>Cooking cold:</strong> Let come to room temp for 15-20 min before cooking</li>
+                        <li><strong>No seasoning:</strong> Salt enhances natural flavor—season generously</li>
+                        <li><strong>Flipping too much:</strong> Let develop crust before turning (one flip only)</li>
+                        <li><strong>Buying pre-cut portions:</strong> Whole sides are fresher, cut your own</li>
+                        <li><strong>Ignoring smell test:</strong> Fresh salmon should NOT smell "fishy"</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Reference -->
+        <div class="collapsible secondary">
+            <div class="collapsible-header">
+                <span><span class="arrow">▶</span> Quick Reference Cheat Sheet</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="info-box">
+                    <h4>⚡ 30-Second Summary</h4>
+                    <ol>
+                        <li><strong>Buy fresh:</strong> Ocean smell, firm flesh, clear eyes</li>
+                        <li><strong>Store properly:</strong> 1-2 days raw, 3-4 cooked in fridge</li>
+                        <li><strong>Cook to 130°F:</strong> Medium doneness for best texture</li>
+                        <li><strong>Season generously:</strong> Salt, pepper, lemon, herbs</li>
+                        <li><strong>Don't overcook:</strong> Flaky and moist, not dry</li>
+                        <li><strong>Choose sustainable:</strong> Alaskan wild or certified farmed</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Theme Toggle
+        const themeToggle = document.getElementById('theme-toggle');
+        const htmlElement = document.documentElement;
+
+        // Check for saved theme preference or default to light
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        htmlElement.setAttribute('data-theme', currentTheme);
+        themeToggle.textContent = currentTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = htmlElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            htmlElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+        });
+
+        // Collapsible Functionality
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const collapsible = header.parentElement;
+                collapsible.classList.toggle('open');
+            });
+        });
+    </script>
+</body>
+</html>

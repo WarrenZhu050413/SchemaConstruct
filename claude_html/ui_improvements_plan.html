@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NabokovsWeb UI Improvements Plan</title>
+<style>
+:root {
+    --chinese-red: #8B0000;
+    --chinese-gold: #FFD700;
+    --jade-green: #00A86B;
+    --ink-black: #2B2B2B;
+    --paper-beige: #F5F5DC;
+    --light-cream: #FAFAF0;
+    --level-1: #000;
+    --level-2: #333;
+    --level-3: #666;
+    --level-4: #999;
+}
+body {
+    background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+    color: var(--ink-black);
+    margin: 0;
+    padding: 0;
+    width: 100vw;
+    max-width: 100%;
+    line-height: 1.2;
+    font-size: 14px;
+    font-family: "Helvetica Neue", Arial, sans-serif;
+}
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+.container {
+    width: 100%;
+    padding: 8px;
+}
+header {
+    padding: 4px 0 6px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    margin-bottom: 4px;
+}
+h1 {
+    font-size: 24px;
+    font-weight: 900;
+    margin: 4px 0;
+    padding: 6px 4px;
+    background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.4px;
+}
+h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 6px 0 4px 0;
+    color: var(--chinese-red);
+}
+h3 {
+    font-size: 14px;
+    font-weight: 700;
+    margin: 4px 0 2px 0;
+    color: var(--level-2);
+}
+p {
+    margin: 2px 0;
+    color: var(--level-2);
+}
+ul {
+    list-style: none;
+}
+.dense-list li {
+    position: relative;
+    padding-left: 12px;
+    margin: 2px 0;
+    color: var(--level-2);
+}
+.dense-list li::before {
+    content: "▸";
+    position: absolute;
+    left: 0;
+    color: var(--chinese-red);
+    font-size: 10px;
+    top: 2px;
+}
+.two-column-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 6px;
+    align-items: start;
+}
+.collapsible {
+    border: 1px solid rgba(139, 0, 0, 0.35);
+    background: rgba(250, 250, 240, 0.9);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+.collapsible.full-width {
+    grid-column: 1 / -1;
+}
+.collapsible-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    font-weight: 600;
+    color: var(--level-1);
+    cursor: pointer;
+    background: rgba(139, 0, 0, 0.08);
+}
+.collapsible-header:hover {
+    background: rgba(139, 0, 0, 0.15);
+}
+.collapsible .arrow {
+    transition: transform 0.25s ease;
+}
+.collapsible.open .arrow {
+    transform: rotate(90deg);
+}
+.collapsible-content {
+    display: none;
+    padding: 6px 8px;
+}
+.collapsible.open .collapsible-content {
+    display: block;
+}
+article {
+    margin-bottom: 6px;
+}
+.section-meta {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: var(--level-3);
+}
+.tag {
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    text-transform: uppercase;
+}
+.tag.critical {
+    background: rgba(139, 0, 0, 0.18);
+    color: var(--chinese-red);
+}
+.tag.important {
+    background: rgba(255, 215, 0, 0.2);
+    color: var(--chinese-red);
+}
+.tag.normal {
+    background: rgba(0, 168, 107, 0.2);
+    color: var(--jade-green);
+}
+.status {
+    font-weight: 600;
+    color: var(--level-2);
+}
+.status .pill {
+    background: rgba(255, 215, 0, 0.25);
+    border-radius: 6px;
+    padding: 1px 4px;
+}
+.important-always-visible {
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    background: rgba(255, 255, 255, 0.7);
+    padding: 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+.controls {
+    text-align: right;
+    margin: 4px 0;
+}
+button {
+    background: var(--ink-black);
+    color: #fff;
+    border: none;
+    padding: 4px 8px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+button:hover {
+    background: var(--chinese-red);
+}
+.lede {
+    color: var(--level-2);
+    font-size: 13px;
+    margin-top: 2px;
+}
+.kv {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--level-3);
+    margin: 2px 0;
+}
+code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 0 2px;
+    border-radius: 2px;
+    font-size: 12px;
+}
+pre {
+    margin: 4px 0;
+    font-size: 12px;
+    white-space: pre-wrap;
+    background: rgba(255, 255, 255, 0.5);
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+pre.mermaid {
+    background: transparent;
+    border: none;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 4px 0;
+    font-size: 12px;
+}
+th, td {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 3px 2px;
+    text-align: left;
+}
+.note {
+    font-size: 11px;
+    color: var(--level-3);
+    margin-top: 4px;
+}
+.highlight {
+    color: var(--chinese-red);
+    font-weight: 700;
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'forest' });</script>
+</head>
+<body>
+<div class="container">
+<header>
+    <h1>NabokovsWeb UI Improvements Plan</h1>
+    <p class="lede">Prioritized roadmap to ship the October 2025 chat UX polish while minimizing regression risk and aligning with existing message queue architecture.</p>
+</header>
+<main>
+    <div class="important-always-visible">
+        <h2>🎯 Critical Priorities</h2>
+        <div class="two-column-layout">
+            <ul class="dense-list">
+                <li><strong>Primary Goal:</strong> Deliver ten interaction and rendering improvements without destabilizing queued chat processing.</li>
+                <li><strong>Success Metric:</strong> Chat latency unchanged; zero UX regressions across collapse/expand, highlighting, and drop zones.</li>
+                <li><strong>Owner:</strong> Fucheng Warren Zhu (<span class="highlight">Warren</span>).</li>
+            </ul>
+            <ul class="dense-list">
+                <li><strong>Dependencies:</strong> Existing message queue events, inline chat drag handlers, persistence layer storing red indicator.</li>
+                <li><strong>Testing Focus:</strong> Playwright coverage on collapsed chat states, keyboard context injection, and delta rendering.</li>
+                <li><strong>Target Window:</strong> October 9–16, 2025 (align with sprint S2025-10B).</li>
+            </ul>
+        </div>
+    </div>
+    <section>
+        <div class="controls">
+            <button id="expand-all">Expand All</button>
+            <button id="collapse-all">Collapse All</button>
+        </div>
+        <h2>⚡ Implementation Sequence</h2>
+        <div class="two-column-layout">
+            <div>
+                <table>
+                    <tr><th>Phase</th><th>Focus</th><th>Dates</th></tr>
+                    <tr><td>Phase 1</td><td>Message flow & indicators</td><td>Oct 9–11</td></tr>
+                    <tr><td>Phase 2</td><td>Collapse UX & unread signals</td><td>Oct 11–13</td></tr>
+                    <tr><td>Phase 3</td><td>Context shortcuts & drop zone</td><td>Oct 13–14</td></tr>
+                    <tr><td>Phase 4</td><td>Rendering + QA & docs</td><td>Oct 15–16</td></tr>
+                </table>
+                <p class="note">Keep nightly builds green; run visual regression captures after each phase.</p>
+            </div>
+            <div>
+                <pre class="mermaid">timeline
+    title Execution Timeline (Oct 9–16, 2025)
+    section Phase 1: Baseline Interaction
+        Auto-scroll toggle & send button behavior : 2025-10-09 : 2025-10-10
+        Processing indicators & completion state : 2025-10-09 : 2025-10-11
+    section Phase 2: Collapse UX & Alerts
+        Collapse button redesign & unread signals : 2025-10-11 : 2025-10-13
+        Drag persistence & reactive mini-chat : 2025-10-11 : 2025-10-13
+    section Phase 3: Context & Rendering
+        Highlight-to-context shortcut & dropzone refactor : 2025-10-13 : 2025-10-14
+        Delta formatting fixes : 2025-10-13 : 2025-10-14
+    section Phase 4: QA & Docs
+        End-to-end validation & doc updates : 2025-10-15 : 2025-10-16
+</pre>
+            </div>
+        </div>
+    </section>
+    <div class="two-column-layout">
+        <div class="collapsible" data-collapsible="open">
+            <div class="collapsible-header">
+                <span>📍 Message Flow & Feedback</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="section-meta"><span class="tag critical">Phase 1</span><span class="status">Owner: Warren</span></div>
+                <article>
+                    <h3>Stop Forced Auto-Scroll + Prevent Completion Jump</h3>
+                    <ul class="dense-list">
+                        <li>Audit chat viewport controller to locate auto-scroll trigger (likely in `useEffect` watching message array); guard scroll with "user at bottom" flag.</li>
+                        <li>Persist `isUserAnchoredBottom` in state; update when user manually scrolls or clicks “Jump to latest”.</li>
+                        <li>Ensure completion events do not re-anchor; add analytics event for manual re-scroll.</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Processing & Completion Indicators</h3>
+                    <ul class="dense-list">
+                        <li>Expose queue status via existing message queue (e.g., `processingMessageId`, `pendingCount`).</li>
+                        <li>Display inline spinner or pulse badge on active message; swap to “Done” checkmark once completion event observed.</li>
+                        <li>For collapsed mode, reflect status on mini-chat (link with unread indicator logic in Phase 2).</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Send Button Availability</h3>
+                    <ul class="dense-list">
+                        <li>Remove disabled state while queue is non-empty; instead, append outgoing message to queue immediately.</li>
+                        <li>Guard against double-submit by relying on queue dedupe (confirm backend tolerates duplicates).</li>
+                        <li>Update Playwright tests to confirm `button[aria-disabled="false"]` during processing.</li>
+                    </ul>
+                </article>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Collapse & Mini Chat Behavior</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="section-meta"><span class="tag important">Phase 2</span><span class="status">Owner: Warren</span></div>
+                <article>
+                    <h3>Compact Collapse Button + Info</h3>
+                    <ul class="dense-list">
+                        <li>Redesign trigger to 24px icon with label chip showing active thread title or last sender.</li>
+                        <li>Ensure accessible name preserved; update tooltip content.</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Drag Persistence</h3>
+                    <ul class="dense-list">
+                        <li>Review drag handlers; remove post-drag expand call; persist collapsed state via prop.</li>
+                        <li>Add regression test: drag mini-chat, release, confirm `isCollapsed` remains true.</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Reactive Mini-Chat & Unread Signaling</h3>
+                    <ul class="dense-list">
+                        <li>Create responsive layout variants (hover enlarge, status pulse when processing/intake complete).</li>
+                        <li>Replace red dot with dynamic badges (e.g., `• 2` unread or spinner) fed by message metadata.</li>
+                        <li>When collapsed, maintain unread count until user expands and viewport reaches bottom.</li>
+                    </ul>
+                </article>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Context & Input Enhancements</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="section-meta"><span class="tag important">Phase 3</span><span class="status">Owner: Warren</span></div>
+                <article>
+                    <h3>Highlight-to-Context Shortcut</h3>
+                    <ul class="dense-list">
+                        <li>Add selection listener on chat transcript; capture highlighted ranges with stable IDs.</li>
+                        <li>Implement keyboard shortcut (⌘+Enter by default) that pushes selected text into context composer.</li>
+                        <li>Provide confirmation toast and audit logging for context additions.</li>
+                    </ul>
+                </article>
+                <article>
+                    <h3>Scoped Drop Zone</h3>
+                    <ul class="dense-list">
+                        <li>Restrict drag-over overlay to input container; adjust `onDragOver` boundaries.</li>
+                        <li>Update CSS to limit highlight area; ensure screen readers still announce drop target.</li>
+                        <li>Regression test: drop image outside input → no overlay.</li>
+                    </ul>
+                </article>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Rendering Quality (Delta Parsing)</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="section-meta"><span class="tag normal">Phase 3</span><span class="status">Owner: Warren</span></div>
+                <article>
+                    <h3>Delta Formatting Fix</h3>
+                    <ul class="dense-list">
+                        <li>Inspect markdown/render pipeline that joins delta segments; ensure newline tokens preserved.</li>
+                        <li>Update renderer to inject `\n\n` on block boundaries and respect leading pipes.</li>
+                        <li>Add unit tests covering provided example; confirm **Tabs Permission** renders on separate line.</li>
+                    </ul>
+                </article>
+            </div>
+        </div>
+        <div class="collapsible" data-collapsible="closed">
+            <div class="collapsible-header">
+                <span>📍 Persistence Investigation (Former Red Dot)</span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="section-meta"><span class="tag normal">Phase 2</span><span class="status">Owner: Warren</span></div>
+                <article>
+                    <h3>Discovery Work</h3>
+                    <ul class="dense-list">
+                        <li>Trace storage usage (likely `localStorage` or synced extension storage) for red indicator state.</li>
+                        <li>Document persistence mechanism and replace with new unread badge semantics.</li>
+                        <li>Plan migration script to clear obsolete key while preserving user state integrity.</li>
+                    </ul>
+                    <p class="note">Outcome should clarify how indicator survives reloads and ensure migration avoids flash of removed dot.</p>
+                </article>
+            </div>
+        </div>
+    </div>
+    <div class="collapsible full-width" data-collapsible="closed">
+        <div class="collapsible-header">
+            <span>📍 QA, Instrumentation, and Documentation</span>
+            <span class="arrow">▶</span>
+        </div>
+        <div class="collapsible-content">
+            <div class="section-meta"><span class="tag important">Phase 4</span><span class="status">Owner: Warren</span></div>
+            <article>
+                <h3>Testing Checklist</h3>
+                <ul class="dense-list">
+                    <li>Update Playwright specs for collapsed chat drag, unread badge, send button enabled state, and highlight shortcut.</li>
+                    <li>Record new visual snapshots for expanded, collapsed, and processing states.</li>
+                    <li>Manual exploratory on Chrome + Firefox, light/dark themes, window resize.</li>
+                </ul>
+            </article>
+            <article>
+                <h3>Observability & Rollout</h3>
+                <ul class="dense-list">
+                    <li>Add analytics for mini-chat interactions, highlight-to-context usage, and drop uploads.</li>
+                    <li>Feature flag chat auto-scroll change for staged rollout; monitor error logs for drag handler updates.</li>
+                    <li>Document UX updates in release notes; record loom for support team.</li>
+                </ul>
+            </article>
+        </div>
+    </div>
+</main>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-collapsible]').forEach(function(section) {
+        const isOpen = section.getAttribute('data-collapsible') === 'open';
+        section.classList.add('collapsible');
+        if (isOpen) section.classList.add('open');
+    });
+    document.querySelectorAll('.collapsible-header').forEach(function(header) {
+        header.addEventListener('click', function() {
+            const collapsible = this.closest('.collapsible');
+            collapsible.classList.toggle('open');
+        });
+    });
+    const expandAllBtn = document.getElementById('expand-all');
+    const collapseAllBtn = document.getElementById('collapse-all');
+    if (expandAllBtn) {
+        expandAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.add('open');
+            });
+        });
+    }
+    if (collapseAllBtn) {
+        collapseAllBtn.addEventListener('click', function() {
+            document.querySelectorAll('.collapsible').forEach(function(c) {
+                c.classList.remove('open');
+            });
+        });
+    }
+});
+</script>
+</body>
+</html>

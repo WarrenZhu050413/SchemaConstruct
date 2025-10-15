@@ -11,9 +11,7 @@
     "tabs",
     "sidePanel"
   ],
-  "host_permissions": [
-    "<all_urls>"
-  ],
+  "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background/index.ts",
     "type": "module"
@@ -34,22 +32,22 @@
   "commands": {
     "activate-selector": {
       "suggested_key": {
-        "default": "Ctrl+Shift+E",
-        "mac": "Ctrl+Shift+E"
+        "default": "Ctrl+Shift+C",
+        "mac": "Ctrl+Shift+C"
       },
       "description": "Activate element selector (Canvas mode)"
     },
     "activate-selector-stash": {
       "suggested_key": {
-        "default": "Alt+Shift+E",
-        "mac": "Command+Shift+E"
+        "default": "Alt+Shift+K",
+        "mac": "Command+Shift+K"
       },
       "description": "Activate element selector (Stash mode)"
     },
     "toggle-inline-chat": {
       "suggested_key": {
-        "default": "Ctrl+Shift+C",
-        "mac": "Ctrl+Shift+C"
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
       },
       "description": "Toggle inline chat with page"
     }

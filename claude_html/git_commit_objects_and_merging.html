@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Git Commit Objects & Merging Explained</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        /* Light mode colors (default) */
+        :root {
+            --chinese-red: #8B0000;
+            --chinese-gold: #FFD700;
+            --jade-green: #00A86B;
+            --ink-black: #2B2B2B;
+            --paper-beige: #F5F5DC;
+            --light-cream: #FAFAF0;
+            --level-1: #000;
+            --level-2: #333;
+            --level-3: #666;
+            --level-4: #999;
+        }
+
+        [data-theme="dark"] {
+            --chinese-red: #DC143C;
+            --chinese-gold: #FFD700;
+            --jade-green: #10B981;
+            --ink-black: #E5E5DC;
+            --paper-beige: #1A1A1A;
+            --light-cream: #252525;
+            --level-1: #F5F5DC;
+            --level-2: #D4C4B0;
+            --level-3: #A89F91;
+            --level-4: #6B6B6B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--paper-beige) 0%, var(--light-cream) 100%);
+            color: var(--ink-black);
+            margin: 0;
+            padding: 12px;
+            width: 100vw;
+            max-width: 100%;
+            line-height: 1.3;
+            font-size: 14px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 900;
+            margin: 8px 0 12px 0;
+            padding: 8px;
+            background: linear-gradient(135deg, var(--chinese-red), #CD5C5C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 16px 0 8px 0;
+            padding: 6px;
+            border-left: 4px solid var(--chinese-red);
+            background: rgba(139, 0, 0, 0.03);
+            color: var(--level-1);
+        }
+
+        h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 12px 0 6px 0;
+            color: var(--level-2);
+            border-bottom: 2px solid var(--chinese-gold);
+            padding-bottom: 4px;
+        }
+
+        h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin: 8px 0 4px 0;
+            color: var(--level-2);
+        }
+
+        #theme-toggle {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 10000;
+            background: var(--chinese-gold);
+            color: var(--ink-black);
+            border: 2px solid var(--chinese-red);
+            padding: 6px 14px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #theme-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .important-box {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 215, 0, 0.05));
+            border: 3px solid var(--chinese-gold);
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+
+        .critical-box {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(139, 0, 0, 0.02));
+            border: 3px solid var(--chinese-red);
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+
+        .code-block {
+            background: var(--ink-black);
+            color: var(--jade-green);
+            padding: 8px;
+            margin: 6px 0;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            border-left: 4px solid var(--chinese-gold);
+        }
+
+        .file-box {
+            background: white;
+            border: 2px solid var(--jade-green);
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 4px;
+            font-family: 'Monaco', monospace;
+            font-size: 13px;
+        }
+
+        .file-header {
+            background: var(--jade-green);
+            color: white;
+            padding: 4px 8px;
+            margin: -10px -10px 8px -10px;
+            font-weight: 700;
+            border-radius: 2px 2px 0 0;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 12px 0;
+        }
+
+        .diagram-container {
+            background: white;
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 4px;
+            border: 2px solid var(--chinese-gold);
+        }
+
+        code {
+            background: rgba(139, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', monospace;
+            font-size: 12px;
+            color: var(--chinese-red);
+        }
+
+        ul, ol {
+            margin: 8px 0 8px 24px;
+            line-height: 1.6;
+        }
+
+        li {
+            margin: 4px 0;
+        }
+
+        strong {
+            color: var(--chinese-red);
+            font-weight: 700;
+        }
+
+        .collapsible {
+            margin: 8px 0;
+        }
+
+        .collapsible-header {
+            cursor: pointer;
+            padding: 8px 12px;
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.05), rgba(255, 215, 0, 0.02));
+            border-left: 3px solid var(--chinese-gold);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            user-select: none;
+            transition: all 0.2s ease;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, rgba(139, 0, 0, 0.1), rgba(255, 215, 0, 0.05));
+        }
+
+        .collapsible-header .arrow {
+            transition: transform 0.3s ease;
+            color: var(--chinese-red);
+            font-size: 14px;
+            font-weight: 900;
+        }
+
+        .collapsible.open .arrow {
+            transform: rotate(90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            padding: 0;
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 10000px;
+            padding: 12px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            background: white;
+        }
+
+        th {
+            background: var(--chinese-red);
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-weight: 700;
+        }
+
+        td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+
+        tr:nth-child(even) {
+            background: rgba(139, 0, 0, 0.02);
+        }
+
+        [data-theme="dark"] .diagram-container,
+        [data-theme="dark"] .file-box,
+        [data-theme="dark"] table {
+            background: var(--light-cream);
+        }
+
+        [data-theme="dark"] code {
+            background: rgba(220, 20, 60, 0.2);
+            color: var(--chinese-gold);
+        }
+    </style>
+</head>
+<body>
+    <button id="theme-toggle">🌓 Toggle Dark Mode</button>
+
+    <div class="container">
+        <h1>Git Commit Objects & Merging Internals</h1>
+
+        <div class="critical-box">
+            <h3>🔑 Key Concept: Every Commit Points to a Tree</h3>
+            <p><strong>Commits don't store files—they store pointers!</strong> Each commit object contains:</p>
+            <ul>
+                <li><strong>tree</strong>: Hash of the root directory snapshot</li>
+                <li><strong>parent(s)</strong>: Hash(es) of previous commit(s)</li>
+                <li><strong>author/committer</strong>: Who made the commit</li>
+                <li><strong>message</strong>: The commit description</li>
+            </ul>
+        </div>
+
+        <h2>Part 1: Commit Object Structure</h2>
+
+        <div class="important-box">
+            <h4>Let's examine your actual commit:</h4>
+            <div class="code-block">
+$ git cat-file -p b8f106a85a636826fb7ecb8236767ebed0c1af9d
+
+tree a1cc6ef38c16a0902496d0843eac7c901faafa44
+parent 7bd843849fba0eba593472f61164d5c7cac21d62
+author Fucheng Warren Zhu &lt;wzhu@college.harvard.edu&gt; 1760039561 -0400
+committer Fucheng Warren Zhu &lt;wzhu@college.harvard.edu&gt; 1760039561 -0400
+
+docs: reorder feature flow to save, browse, and chat with
+            </div>
+        </div>
+
+        <div class="two-column">
+            <div>
+                <h4>Commit Object Contents</h4>
+                <table>
+                    <tr>
+                        <th>Field</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td><strong>tree</strong></td>
+                        <td><code>a1cc6ef3...</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>parent</strong></td>
+                        <td><code>7bd84384...</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>author</strong></td>
+                        <td>Fucheng Warren Zhu</td>
+                    </tr>
+                    <tr>
+                        <td><strong>timestamp</strong></td>
+                        <td>1760039561</td>
+                    </tr>
+                    <tr>
+                        <td><strong>message</strong></td>
+                        <td>docs: reorder feature...</td>
+                    </tr>
+                </table>
+            </div>
+            <div>
+                <h4>What Each Field Means</h4>
+                <ul>
+                    <li><strong>tree</strong>: Points to root directory snapshot</li>
+                    <li><strong>parent</strong>: Previous commit in history</li>
+                    <li><strong>author</strong>: Who wrote the code</li>
+                    <li><strong>timestamp</strong>: When it was created</li>
+                    <li><strong>message</strong>: Description of changes</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>Complete Object Graph</h3>
+        <div class="diagram-container">
+            <div class="mermaid">
+graph TB
+    subgraph "Commit Object"
+        C[b8f106a8...<br/>COMMIT]
+    end
+
+    subgraph "Tree Object (Root Directory)"
+        T[a1cc6ef3...<br/>TREE<br/>Root /]
+    end
+
+    subgraph "Subdirectory Trees"
+        T1[TREE<br/>src/]
+        T2[TREE<br/>docs/]
+        T3[TREE<br/>tests/]
+    end
+
+    subgraph "File Blobs"
+        B1[BLOB<br/>README.md]
+        B2[BLOB<br/>package.json]
+        B3[BLOB<br/>Canvas.tsx]
+        B4[BLOB<br/>index.tsx]
+        B5[BLOB<br/>setup.md]
+    end
+
+    subgraph "Parent Commit"
+        P[7bd84384...<br/>PARENT COMMIT]
+    end
+
+    C -->|tree| T
+    C -->|parent| P
+    T -->|blob| B1
+    T -->|blob| B2
+    T -->|tree| T1
+    T -->|tree| T2
+    T -->|tree| T3
+    T1 -->|blob| B3
+    T1 -->|blob| B4
+    T2 -->|blob| B5
+
+    style C fill:#8B0000,color:#fff,stroke:#FFD700,stroke-width:4px
+    style T fill:#00A86B,color:#fff,stroke:#FFD700,stroke-width:3px
+    style T1 fill:#00A86B,color:#fff
+    style T2 fill:#00A86B,color:#fff
+    style T3 fill:#00A86B,color:#fff
+    style B1 fill:#4169E1,color:#fff
+    style B2 fill:#4169E1,color:#fff
+    style B3 fill:#4169E1,color:#fff
+    style B4 fill:#4169E1,color:#fff
+    style B5 fill:#4169E1,color:#fff
+    style P fill:#999,color:#fff
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header">
+                <span><strong>🔍 How to Explore Tree Objects</strong></span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="code-block">
+# View the tree object
+$ git cat-file -p a1cc6ef38c16a0902496d0843eac7c901faafa44
+
+100644 blob 3c1e43...  .gitignore
+100644 blob 8f2a91...  README.md
+100644 blob c4d833...  package.json
+040000 tree d5e621...  src
+040000 tree a2b944...  docs
+040000 tree 7c8f12...  tests
+
+# View a subdirectory tree
+$ git cat-file -p d5e621...  # src/ directory
+
+040000 tree 1a2b3c...  canvas
+040000 tree 4d5e6f...  components
+100644 blob 7g8h9i...  index.tsx
+
+# View a blob (file contents)
+$ git cat-file -p 7g8h9i...  # index.tsx file
+
+import React from 'react';
+// ... actual file contents
+                </div>
+            </div>
+        </div>
+
+        <h2>Part 2: How Merging Works</h2>
+
+        <div class="important-box">
+            <h3>Merge Commits Have TWO Parents</h3>
+            <p>A normal commit has <strong>one parent</strong>. A merge commit has <strong>two (or more) parents</strong>—one from each branch being merged.</p>
+        </div>
+
+        <h3>Scenario: Merging feature-branch into main</h3>
+
+        <div class="diagram-container">
+            <div class="mermaid">
+gitGraph
+    commit id: "A: Initial"
+    commit id: "B: Setup"
+    branch feature-branch
+    commit id: "D: Add feature"
+    commit id: "E: Fix bug"
+    checkout main
+    commit id: "C: Update docs"
+    commit id: "F: Refactor"
+    merge feature-branch id: "M: Merge feature"
+    commit id: "G: Continue work"
+            </div>
+        </div>
+
+        <h3>Commit Graph with Hashes</h3>
+        <div class="diagram-container">
+            <div class="mermaid">
+graph LR
+    A[A: abc123<br/>Initial] --> B[B: def456<br/>Setup]
+    B --> C[C: ghi789<br/>Update docs]
+    B --> D[D: jkl012<br/>Add feature]
+    C --> M[M: xyz999<br/>MERGE COMMIT]
+    D --> E[E: mno345<br/>Fix bug]
+    E --> M
+    C --> F[F: pqr678<br/>Refactor]
+    F --> M
+    M --> G[G: stu901<br/>Continue]
+
+    style A fill:#999,color:#fff
+    style B fill:#999,color:#fff
+    style C fill:#4169E1,color:#fff
+    style D fill:#00A86B,color:#fff
+    style E fill:#00A86B,color:#fff
+    style F fill:#4169E1,color:#fff
+    style M fill:#8B0000,color:#fff,stroke:#FFD700,stroke-width:4px
+    style G fill:#999,color:#fff
+            </div>
+        </div>
+
+        <h3>Merge Commit Object Structure</h3>
+
+        <div class="file-box">
+            <div class="file-header">Git Object: xyz999 (MERGE COMMIT)</div>
+tree abc123def456...            ← Snapshot AFTER merge
+parent pqr678...                ← Parent 1: Last commit on main (F)
+parent mno345...                ← Parent 2: Last commit on feature-branch (E)
+author Fucheng Warren Zhu &lt;wzhu@college.harvard.edu&gt; 1760100000 -0400
+committer Fucheng Warren Zhu &lt;wzhu@college.harvard.edu&gt; 1760100000 -0400
+
+Merge feature-branch into main
+        </div>
+
+        <div class="critical-box">
+            <h4>🔑 Key Insight: The Merge Commit</h4>
+            <ul>
+                <li><strong>TWO parents</strong>: Points to BOTH branch tips</li>
+                <li><strong>ONE tree</strong>: The merged result (combined state)</li>
+                <li>Git uses the two parents to <strong>reconstruct the merge history</strong></li>
+                <li>The tree shows <strong>what the files look like after merging</strong></li>
+            </ul>
+        </div>
+
+        <h3>Step-by-Step: What Git Does During Merge</h3>
+
+        <div class="two-column">
+            <div>
+                <h4>Step 1: Find Common Ancestor</h4>
+                <div class="code-block">
+$ git merge-base main feature-branch
+def456  ← Commit B
+                </div>
+                <p>Git traces both branches back to find where they diverged.</p>
+            </div>
+            <div>
+                <h4>Step 2: Three-Way Merge</h4>
+                <ul>
+                    <li><strong>Base</strong>: Common ancestor (B)</li>
+                    <li><strong>Ours</strong>: Current branch tip (F)</li>
+                    <li><strong>Theirs</strong>: Other branch tip (E)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="diagram-container">
+            <h4>Three-Way Merge Process</h4>
+            <div class="mermaid">
+graph TB
+    subgraph "Common Ancestor (BASE)"
+        BASE[Commit B<br/>def456<br/>---<br/>file.txt: 'Hello']
+    end
+
+    subgraph "Main Branch (OURS)"
+        OURS[Commit F<br/>pqr678<br/>---<br/>file.txt: 'Hello World'<br/>new-file.txt: 'New']
+    end
+
+    subgraph "Feature Branch (THEIRS)"
+        THEIRS[Commit E<br/>mno345<br/>---<br/>file.txt: 'Hello Everyone'<br/>feature.txt: 'Feature']
+    end
+
+    subgraph "Merged Result"
+        MERGE[Commit M<br/>xyz999<br/>---<br/>file.txt: CONFLICT!<br/>new-file.txt: 'New'<br/>feature.txt: 'Feature']
+    end
+
+    BASE --> MERGE
+    OURS --> MERGE
+    THEIRS --> MERGE
+
+    style BASE fill:#999,color:#fff
+    style OURS fill:#4169E1,color:#fff
+    style THEIRS fill:#00A86B,color:#fff
+    style MERGE fill:#8B0000,color:#fff,stroke:#FFD700,stroke-width:4px
+            </div>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header">
+                <span><strong>📋 Step 3: Git's Merge Decision Logic</strong></span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <table>
+                    <tr>
+                        <th>File State</th>
+                        <th>Base</th>
+                        <th>Ours (main)</th>
+                        <th>Theirs (feature)</th>
+                        <th>Result</th>
+                    </tr>
+                    <tr>
+                        <td>Only main changed</td>
+                        <td>A</td>
+                        <td>B</td>
+                        <td>A</td>
+                        <td>✅ Use B (main's version)</td>
+                    </tr>
+                    <tr>
+                        <td>Only feature changed</td>
+                        <td>A</td>
+                        <td>A</td>
+                        <td>C</td>
+                        <td>✅ Use C (feature's version)</td>
+                    </tr>
+                    <tr>
+                        <td>Both changed same way</td>
+                        <td>A</td>
+                        <td>B</td>
+                        <td>B</td>
+                        <td>✅ Use B (identical)</td>
+                    </tr>
+                    <tr>
+                        <td>Both changed differently</td>
+                        <td>A</td>
+                        <td>B</td>
+                        <td>C</td>
+                        <td>⚠️ CONFLICT - manual resolution</td>
+                    </tr>
+                    <tr>
+                        <td>File added on main</td>
+                        <td>-</td>
+                        <td>new</td>
+                        <td>-</td>
+                        <td>✅ Add file from main</td>
+                    </tr>
+                    <tr>
+                        <td>File added on feature</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>new</td>
+                        <td>✅ Add file from feature</td>
+                    </tr>
+                    <tr>
+                        <td>Same file added both places</td>
+                        <td>-</td>
+                        <td>ver1</td>
+                        <td>ver2</td>
+                        <td>⚠️ CONFLICT if content differs</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <h3>Step 4: Create Merge Commit</h3>
+
+        <div class="code-block">
+# Git creates a new tree with merged contents
+$ git write-tree
+abc123def456...  ← New tree hash (merged state)
+
+# Git creates merge commit with TWO parents
+$ git commit-tree abc123def456... -p pqr678... -p mno345... -m "Merge feature-branch into main"
+xyz999...  ← New merge commit hash
+
+# Git updates main branch to point to merge commit
+$ echo "xyz999..." > .git/refs/heads/main
+        </div>
+
+        <h3>Fast-Forward Merge (No Merge Commit)</h3>
+
+        <div class="diagram-container">
+            <div class="mermaid">
+gitGraph
+    commit id: "A"
+    commit id: "B"
+    branch feature
+    commit id: "C"
+    commit id: "D"
+    checkout main
+    merge feature id: "Fast-forward to D"
+            </div>
+        </div>
+
+        <div class="important-box">
+            <h4>Fast-Forward: When main hasn't moved</h4>
+            <p>If main hasn't changed since feature branched off, Git can simply move main's pointer forward. <strong>No merge commit needed!</strong></p>
+            <div class="code-block">
+# Before merge
+main → B
+feature → D (which has parent → C → B)
+
+# After fast-forward merge
+main → D (just moved the pointer!)
+            </div>
+        </div>
+
+        <h3>Merge Commit vs Regular Commit</h3>
+
+        <div class="two-column">
+            <div class="file-box">
+                <div class="file-header">Regular Commit</div>
+tree a1cc6ef3...
+parent 7bd84384...         ← ONE parent
+author Warren
+committer Warren
+
+Normal commit message
+            </div>
+
+            <div class="file-box">
+                <div class="file-header">Merge Commit</div>
+tree abc123de...
+parent pqr678...           ← TWO parents!
+parent mno345...           ← (or more for octopus merge)
+author Warren
+committer Warren
+
+Merge feature-branch into main
+            </div>
+        </div>
+
+        <h2>Part 3: Visual Summary</h2>
+
+        <div class="diagram-container">
+            <h3>Complete Git Object Relationships</h3>
+            <div class="mermaid">
+graph TB
+    subgraph "Merge Commit M"
+        M[COMMIT M<br/>xyz999<br/>---<br/>Merge commit]
+    end
+
+    subgraph "Parent Commits"
+        F[COMMIT F<br/>pqr678<br/>---<br/>main branch]
+        E[COMMIT E<br/>mno345<br/>---<br/>feature branch]
+    end
+
+    subgraph "Trees (Directories)"
+        TM[TREE<br/>Merged snapshot]
+        TF[TREE<br/>Main snapshot]
+        TE[TREE<br/>Feature snapshot]
+    end
+
+    subgraph "Blobs (Files)"
+        BM1[BLOB<br/>file.txt merged]
+        BM2[BLOB<br/>new-file.txt]
+        BM3[BLOB<br/>feature.txt]
+    end
+
+    M -->|parent 1| F
+    M -->|parent 2| E
+    M -->|tree| TM
+    F -->|tree| TF
+    E -->|tree| TE
+
+    TM -->|blob| BM1
+    TM -->|blob| BM2
+    TM -->|blob| BM3
+
+    style M fill:#8B0000,color:#fff,stroke:#FFD700,stroke-width:4px
+    style F fill:#4169E1,color:#fff
+    style E fill:#00A86B,color:#fff
+    style TM fill:#00A86B,color:#fff,stroke:#FFD700,stroke-width:3px
+    style TF fill:#00A86B,color:#fff
+    style TE fill:#00A86B,color:#fff
+    style BM1 fill:#4169E1,color:#fff
+    style BM2 fill:#4169E1,color:#fff
+    style BM3 fill:#4169E1,color:#fff
+            </div>
+        </div>
+
+        <div class="critical-box">
+            <h3>🎯 Final Takeaways</h3>
+            <ol>
+                <li><strong>Commits store metadata</strong>: They don't store files directly, just pointers to trees</li>
+                <li><strong>Trees are directories</strong>: They list blobs (files) and other trees (subdirectories)</li>
+                <li><strong>Blobs are files</strong>: Actual file contents, stored once and reused via hashing</li>
+                <li><strong>Merge commits have multiple parents</strong>: This is how Git tracks branch history</li>
+                <li><strong>The tree in a merge commit</strong>: Shows the final state after resolving conflicts</li>
+                <li><strong>Git uses parent pointers</strong>: To traverse history, find common ancestors, and perform merges</li>
+            </ol>
+        </div>
+
+        <div class="collapsible">
+            <div class="collapsible-header">
+                <span><strong>🧪 Experiment: Create a Merge Manually</strong></span>
+                <span class="arrow">▶</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="code-block">
+# Create two branches
+git checkout -b branch-a
+echo "Change from A" >> file.txt
+git commit -am "Change A"
+COMMIT_A=$(git rev-parse HEAD)
+
+git checkout main
+git checkout -b branch-b
+echo "Change from B" >> file.txt
+git commit -am "Change B"
+COMMIT_B=$(git rev-parse HEAD)
+
+# Merge B into A
+git checkout branch-a
+git merge branch-b
+
+# Examine the merge commit
+git log -1 --pretty=raw
+# You'll see TWO parent lines!
+
+git cat-file -p HEAD
+# Shows:
+# tree ...
+# parent $COMMIT_A
+# parent $COMMIT_B
+# author ...
+# committer ...
+#
+# Merge branch 'branch-b' into branch-a
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#8B0000',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#FFD700',
+                lineColor: '#FFD700',
+                secondaryColor: '#00A86B',
+                tertiaryColor: '#F5F5DC',
+                gitBranchLabel0: '#ffffff',
+                gitBranchLabel1: '#ffffff',
+                gitBranchLabel2: '#ffffff',
+                gitBranchLabel3: '#ffffff',
+                gitBranchLabel4: '#ffffff',
+                commitLabelColor: '#ffffff',
+                commitLabelBackground: '#8B0000'
+            }
+        });
+
+        // Collapsible functionality
+        document.querySelectorAll('.collapsible-header').forEach(header => {
+            header.addEventListener('click', () => {
+                const collapsible = header.parentElement;
+                collapsible.classList.toggle('open');
+            });
+        });
+
+        // Dark mode toggle
+        const toggle = document.getElementById('theme-toggle');
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        toggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    </script>
+</body>
+</html>
