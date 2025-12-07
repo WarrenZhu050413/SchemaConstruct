@@ -1,7 +1,7 @@
 {
-  "name": "nabokov-web-clipper",
+  "name": "schemaconstruct",
   "version": "0.1.0",
-  "description": "A Chrome extension for clipping web content and organizing it in a visual canvas",
+  "description": "A Chrome extension for clipping web content and organizing it in a visual canvas (CS2790R, Harvard)",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Nabokov Web Clipper",
+  "name": "SchemaConstruct",
   "version": "0.1.0",
-  "description": "Clip web content and organize it in a visual canvas",
+  "description": "Clip web content and organize it in a visual canvas (CS2790R, Harvard)",
   "permissions": [
     "activeTab",
     "storage",
@@ -24,7 +24,7 @@
     }
   ],
   "action": {
-    "default_title": "Open Nabokov Canvas"
+    "default_title": "Open SchemaConstruct Canvas"
   },
   "side_panel": {
     "default_path": "src/sidepanel/index.html"

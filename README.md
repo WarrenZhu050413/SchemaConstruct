@@ -1,6 +1,8 @@
-# Nabokov's Web
+# SchemaConstruct
 
 A Chrome extension that lets you save, browse, and chat with any HTML element on the web. Transform any webpage into an interactive workspace where you can clip elements to a visual canvas, organize your research, and have AI conversations about specific content.
+
+**Developed as part of CS2790R: Research Topics in Human-Computer Interaction at Harvard University.**
 
 ## Features
 
@@ -56,10 +58,10 @@ See `CLAUDE.md` for detailed architecture documentation.
 
 | Using on Normal Website | AI-Generated HTML Explainer | Side Panel Integration |
 |:---:|:---:|:---:|
-| ![Nabokov's Web extension highlighting and interacting with elements on a standard webpage](static/nabokovsweb-demo1-using-it-on-a-normal-website.png) | ![Extension working on an AI-generated HTML explainer page showing advanced interactions](static/nabokovsweb-demo2-using-it-on-an-AI-generated-HTML-explainer.png) | ![Chrome side panel showing saved elements and chat history](static/nabokovsweb-demo3-integration-with-the-sidepanel.png) |
-| *Nabokov's Web on a normal website: Chat with any HTML element by right-clicking and selecting "Chat with Element"* | *Working on AI-generated content: The extension seamlessly integrates with AI-generated HTML pages, enabling recursive AI interactions* | *Side panel integration: Access all your saved conversations and clipped elements in Chrome's side panel for easy reference* |
+| ![SchemaConstruct extension highlighting and interacting with elements on a standard webpage](static/schemaconstruct-demo1-using-it-on-a-normal-website.png) | ![Extension working on an AI-generated HTML explainer page showing advanced interactions](static/nabokovsweb-demo2-using-it-on-an-AI-generated-HTML-explainer.png) | ![Chrome side panel showing saved elements and chat history](static/schemaconstruct-demo3-integration-with-the-sidepanel.png) |
+| *SchemaConstruct on a normal website: Chat with any HTML element by right-clicking and selecting "Chat with Element"* | *Working on AI-generated content: The extension seamlessly integrates with AI-generated HTML pages, enabling recursive AI interactions* | *Side panel integration: Access all your saved conversations and clipped elements in Chrome's side panel for easy reference* |
 
 | Clipping Elements to Canvas | Canvas View |
 |:---:|:---:|
-| ![Demonstration of clipping webpage elements and adding them to the canvas](static/nabokovsweb-demo4-clipping-elements-to-canvas.png) | ![Canvas interface showing all saved elements arranged in a visual workspace](static/nabokovsweb-demo5-canvas.png) |
+| ![Demonstration of clipping webpage elements and adding them to the canvas](static/nabokovsweb-demo4-clipping-elements-to-canvas.png) | ![Canvas interface showing all saved elements arranged in a visual workspace](static/schemaconstruct-demo5-canvas.png) |
 | *Clipping to canvas: Select and save any webpage element to your personal canvas for later reference and organization* | *Canvas workspace: A visual workspace where all your clipped elements are organized, allowing drag-and-drop arrangement and spatial organization of ideas* |

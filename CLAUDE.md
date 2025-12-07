@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Nabokov Web Clipper** is a Chrome extension for clipping web content and organizing it in a visual canvas. It provides two main features:
+**SchemaConstruct** is a Chrome extension for clipping web content and organizing it in a visual canvas, developed as part of CS2790R: Research Topics in Human-Computer Interaction at Harvard University. It provides two main features:
 1. **Generative Hypertext**: Inline AI-generated hyperlinks and chat tooltips for selected text
 2. **Element Clipping**: Save webpage elements to a canvas workspace with AI chat capabilities
 
